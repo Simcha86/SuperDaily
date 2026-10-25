@@ -1,4 +1,4 @@
-const CACHE = 'superdaily-v1';
+const CACHE = 'superdaily-v2';
 const SHELL = ['./', 'index.html', 'app.js', 'app.css', 'nocturne.css', 'firebase-config.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {

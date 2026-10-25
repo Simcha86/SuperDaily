@@ -214,6 +214,13 @@ function rangeControls(m, scope) {
   }
   return h;
 }
+function hero(st, off) {
+  const h = new Date().getHours(), name = esc(data.names[ui.person]);
+  const hi = off !== 0 ? fmtLong(off) : h < 11 ? `Guten Morgen, ${name}` : h < 18 ? `Hallo, ${name}` : `Guten Abend, ${name}`;
+  const left = st.t - st.n;
+  const msg = !st.t ? 'Heute ist nichts geplant.' : !left ? 'Alles erledigt. Stark!' : st.n === 0 ? `${left} ${left === 1 ? 'Routine wartet' : 'Routinen warten'} auf dich.` : `Noch ${left}, du bist auf einem guten Weg.`;
+  return `<div class="sd-hero ${st.t && !left ? 'full' : ''}"><div class="sd-hring" style="--p:${st.pct}"><div><b>${st.pct}<small>%</small></b></div></div><div class="sd-htxt"><span class="sd-hhi">${hi}</span><b>${st.n} von ${st.t} erledigt</b><span>${msg}</span></div></div>`;
+}
 const empty = (txt, btn) => `<div class="sd-empty"><span>${txt}</span>${btn ? `<button class="sd-btn" data-a="newRoutine">${icon('plus')}Routine anlegen</button>` : ''}</div>`;
 
 function listView(p, off) {
@@ -233,7 +240,7 @@ function listView(p, off) {
 function tilesView(p, off) {
   const rings = ['a', 'b'].map(q => {
     const s = dayStats(q, off), deg = Math.round(s.pct * 3.6), on = q === p;
-    return `<button class="sd-ringcard ${on ? 'on' : ''}" data-a="person" data-p="${q}"><div class="sd-ring" style="background:conic-gradient(${on ? 'var(--color-accent)' : 'var(--color-neutral-600)'} ${deg}deg, var(--color-neutral-900) 0)"><div><b>${s.pct}%</b><small>${s.n} von ${s.t}</small></div></div><span>${esc(data.names[q])}</span></button>`;
+    return `<button class="sd-ringcard ${on ? 'on' : ''}" data-a="person" data-p="${q}"><div class="sd-ring" style="background:conic-gradient(${on ? `var(--color-accent-400), var(--sd-pink) ${deg}deg` : `var(--color-neutral-600) ${deg}deg`}, var(--color-neutral-900) 0)"><div><b>${s.pct}%</b><small>${s.n} von ${s.t}</small></div></div><span>${esc(data.names[q])}</span></button>`;
   }).join('');
   const st = dayStats(p, off);
   let tiles = '';
@@ -288,7 +295,7 @@ function tabHeute() {
   const end = off < -6 ? off + 3 : 0; const days = [];
   for (let o = end - 6; o <= end; o++) days.push(o);
   const strip = `<div class="sd-strip">${days.map(o => `<button class="${o === off ? 'on' : ''}" data-a="day" data-o="${o}"><small>${WD[dateAt(o).getDay()]}</small><b>${dateAt(o).getDate()}</b><i class="bar"><i style="width:${dayStats(p, o).pct}%"></i></i></button>`).join('')}</div>`;
-  const body = ui.heuteView === 'liste' ? `${prog(`${st.n} von ${st.t} erledigt`, st.pct)}${listView(p, off)}` : tilesView(p, off);
+  const body = ui.heuteView === 'liste' ? `${hero(st, off)}${listView(p, off)}` : tilesView(p, off);
   return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div>${personDots()}</div>
   ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
   ${strip}${body}`;
@@ -335,7 +342,8 @@ function sheetHtml() {
   if (x.type === 'monthly') extra = stepper('day', x.day, 1, 31, '. Tag im Monat');
   if (x.type === 'perweek') extra = stepper('n', x.n, 1, 6, 'mal pro Woche, Tage frei wählbar');
   const valid = d.title.trim() && (x.type !== 'weekdays' || (x.days || []).length);
-  return `<div class="sd-back" data-a="closeSheet"><div class="sd-sheet" data-a="noop">
+  const enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
+  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet" data-a="noop">
   <div class="grip"></div><h3>${d.id ? 'Routine bearbeiten' : 'Neue Routine'}</h3>
   <input class="sd-input" value="${esc(d.title)}" placeholder="z. B. Zahnseide" data-in="dTitle" maxlength="80">
   <div class="sd-field">Tageszeit<div class="sd-g3">${SLOTS.map(s => opt(d.slot === s, 'dSlot', s, s)).join('')}</div></div>
@@ -394,7 +402,15 @@ const A = {
   person: d => { ui.person = d.p; render(); },
   heuteView: d => { ui.heuteView = d.v; render(); },
   day: d => { ui.dayOff = +d.o; render(); },
-  toggle: d => { const r = data.routines[d.r]; if (r) store.toggle(dk(+d.o), keyFor(r, ui.person)).catch(fail); },
+  toggle: d => {
+    const r = data.routines[d.r]; if (!r) return;
+    const p = ui.person, off = +d.o, was = dayStats(p, off).pct;
+    store.toggle(dk(off), keyFor(r, p)).catch(fail);
+    if (!isDone(r, p, off)) return;
+    $app.querySelector(`[data-a="toggle"][data-r="${r.id}"][data-o="${off}"]`)?.classList.add('pop');
+    navigator.vibrate?.(12);
+    if (was < 100 && dayStats(p, off).pct === 100) celebrate();
+  },
   calMode: d => { ui.cal.mode = d.v; render(); },
   gridMode: d => { ui.grid.mode = d.v; render(); },
   calStep: d => { stepRange(ui.cal, +d.v); render(); },
@@ -402,8 +418,8 @@ const A = {
   calPreset: d => { Object.assign(ui.cal, { from: -(+d.v - 1), to: 0 }); render(); },
   gridPreset: d => { Object.assign(ui.grid, { from: -(+d.v - 1), to: 0 }); render(); },
   calDay: d => { Object.assign(ui.cal, { mode: 'tag', anchor: +d.o }); render(); },
-  newRoutine: () => { ui.sheet = newDraft(); render(); },
-  edit: d => { ui.sheet = newDraft(data.routines[d.r]); render(); },
+  newRoutine: () => { ui.sheet = newDraft(); ui.sheetFresh = true; render(); },
+  edit: d => { ui.sheet = newDraft(data.routines[d.r]); ui.sheetFresh = true; render(); },
   closeSheet: () => { ui.sheet = null; render(); },
   noop: () => {},
   dSlot: d => { ui.sheet.slot = d.v; render(); },
@@ -456,6 +472,18 @@ const A = {
   },
   logout: () => fb && fb.A.signOut(fb.auth)
 };
+// Konfetti, wenn ein Tag komplett abgehakt ist. Liegt außerhalb von #app, damit render() es nicht entfernt.
+function celebrate() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const box = document.createElement('div'); box.className = 'sd-confetti';
+  const colors = ['#b5abfc', '#968ae0', '#e79ad6', '#8fd3e8', '#f3d27a'];
+  for (let i = 0; i < 44; i++) {
+    const c = document.createElement('i');
+    c.style.cssText = `left:${50 + (Math.random() - .5) * 30}%;background:${colors[i % colors.length]};--x:${(Math.random() - .5) * 420}px;--y:${-180 - Math.random() * 320}px;--r:${Math.random() * 720 - 360}deg;animation-delay:${Math.random() * 120}ms`;
+    box.appendChild(c);
+  }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 1900);
+}
 function fail(e) { console.error(e); alert('Speichern fehlgeschlagen: ' + (e.message || e)); }
 
 document.addEventListener('click', e => {
