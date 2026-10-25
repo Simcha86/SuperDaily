@@ -126,3 +126,11 @@ body{font-feature-settings:"ss01"}
 .sd-rtab .v.b i{background:color-mix(in srgb,var(--sd-b) 50%,transparent)}
 .sd-rtab .v b{position:relative;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
 .sd-rtab .v.na{color:var(--color-neutral-600);font-size:13px}
+
+/* Nur ansehen: Routinen der anderen Person */
+.sd-ro{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-radius:14px;font-size:13px;line-height:1.45;background:color-mix(in srgb,var(--sd-b) 14%,var(--color-surface));border:1px solid color-mix(in srgb,var(--sd-b) 35%,transparent);color:var(--color-text)}
+.sd-ro i{font-size:18px;color:var(--sd-b);flex:none;margin-top:1px}
+.sd-item.ro,.sd-tile.ro,.sd-row.ro{cursor:default}
+.sd-item.ro:active,.sd-tile.ro:active,.sd-row.ro:active{transform:none}
+.sd-item.ro:not(.done) .sd-check,.sd-tile.ro:not(.done) .sd-check{border-style:dashed}
+.sd-row.ro>i{color:var(--color-neutral-600)}

@@ -87,9 +87,10 @@ Steht in `firebase-config.js` eine `measurementId` (nur vorhanden, wenn Analytic
 ## Datenmodell (Firestore)
 
 ```
-users/{uid}                 { hh: "K7Q2XM", person: "a" | "b" }
-households/{code}           { members: [uid, uid], names: {a, b}, routines: { id: Routine } }
-households/{code}/days/{YYYY-MM-DD}   { "a|<routineId>": true, "b|<routineId>": true, "s|<routineId>": true }
+users/{uid}                              { hh: "K7Q2XM", person: "a" | "b" }
+households/{code}                        { members: [uid, uid], roles: { uid: "a" | "b" }, names: { a, b } }
+households/{code}/routines/{routineId}   Routine
+households/{code}/days/{p}_{YYYY-MM-DD}  { routineId: true, ... }   p = "a" | "b" | "s"
 
 Routine { id, title, slot: "Morgen"|"Tagsüber"|"Abend", who: "a"|"b"|"ab"|"s",
           rep: { type: "daily" } | { type: "weekdays", days: [0..6] } | { type: "every", n }
@@ -98,3 +99,15 @@ Routine { id, title, slot: "Morgen"|"Tagsüber"|"Abend", who: "a"|"b"|"ab"|"s",
 ```
 
 `who`: `ab` = beide einzeln (jede Person hakt selbst ab), `s` = gemeinsam (ein Haken zählt für beide).
+
+## Rechte
+
+Jedes Konto gehört fest zu einer Person (`roles`, beim Anlegen bzw. Beitreten vergeben, danach nicht änderbar).
+
+| Routine für | Sehen | Anlegen, ändern, löschen | Abhaken |
+| --- | --- | --- | --- |
+| eine Person | beide | nur diese Person | nur diese Person |
+| beide einzeln (`ab`) | beide | beide | jede Person ihren eigenen Haken |
+| gemeinsam (`s`) | beide | beide | beide (ein gemeinsamer Haken) |
+
+Durchgesetzt wird das in `firestore.rules`; die App blendet die Bedienelemente passend aus. Im lokalen Modus ohne Firebase gibt es keine Einschränkungen.
