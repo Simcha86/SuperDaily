@@ -191,14 +191,14 @@ body{background:radial-gradient(120% 60% at 50% -10%,#24224a 0%,var(--color-bg) 
 .sd-strip button:active{transform:scale(.94)}
 .sd-strip button.on{background:linear-gradient(160deg,var(--color-accent-800),var(--color-accent-900));box-shadow:0 6px 18px color-mix(in srgb,var(--color-accent) 25%,transparent)}
 .sd-seg button.on{background:linear-gradient(160deg,var(--color-neutral-800),color-mix(in srgb,var(--color-accent-800) 60%,var(--color-neutral-800)))}
-.sd-dot.on{background:var(--sd-grad);border-color:transparent;color:#1a1730;font-weight:600;box-shadow:0 0 16px color-mix(in srgb,var(--color-accent) 45%,transparent)}
+.sd-dot.on{background:var(--sd-grad);border-color:transparent;color:var(--sd-on, #1a1730);font-weight:600;box-shadow:0 0 16px color-mix(in srgb,var(--color-accent) 45%,transparent)}
 
 /* Abhak-Liste */
 .sd-item,.sd-row{background:color-mix(in srgb,var(--color-surface) 82%,transparent);border-color:color-mix(in srgb,var(--color-text) 5%,transparent);border-radius:14px;transition:transform .2s var(--sd-ease),background .25s,border-color .25s}
 .sd-item:active,.sd-tile:active,.sd-row:active{transform:scale(.97)}
 .sd-item.done{background:color-mix(in srgb,var(--color-accent-900) 70%,transparent)}
-.done .sd-check{background:var(--sd-grad);border-color:transparent;color:#1a1730;box-shadow:0 0 12px color-mix(in srgb,var(--color-accent) 50%,transparent)}
-.sd-cell.done{background:var(--sd-grad);border-color:transparent;color:#1a1730}
+.done .sd-check{background:var(--sd-grad);border-color:transparent;color:var(--sd-on, #1a1730);box-shadow:0 0 12px color-mix(in srgb,var(--color-accent) 50%,transparent)}
+.sd-cell.done{background:var(--sd-grad);border-color:transparent;color:var(--sd-on, #1a1730)}
 .sd-streak{padding:3px 8px;border-radius:10px;background:color-mix(in srgb,#f3a35b 16%,transparent);color:#f6bf86}
 .sd-tile{border-color:color-mix(in srgb,var(--color-text) 5%,transparent)}
 .sd-tile.done{background:linear-gradient(150deg,var(--color-accent-800),var(--color-accent-900));border-color:color-mix(in srgb,var(--sd-pink) 35%,transparent)}
@@ -210,14 +210,14 @@ body{background:radial-gradient(120% 60% at 50% -10%,#24224a 0%,var(--color-bg) 
 .sd-cell.pop{animation:sd-pop .4s var(--sd-ease)}
 
 /* FAB, Tabs, Buttons */
-.sd-fab{background:var(--sd-grad);border:0;color:#1a1730;font-size:26px;box-shadow:0 8px 26px color-mix(in srgb,var(--color-accent) 50%,transparent);transition:transform .2s var(--sd-ease)}
+.sd-fab{background:var(--sd-grad);border:0;color:var(--sd-on, #1a1730);font-size:26px;box-shadow:0 8px 26px color-mix(in srgb,var(--color-accent) 50%,transparent);transition:transform .2s var(--sd-ease)}
 .sd-fab:hover{background:var(--sd-grad);transform:translateY(-2px)}
-.sd-fab:active{color:#1a1730;transform:scale(.92)}
+.sd-fab:active{color:var(--sd-on, #1a1730);transform:scale(.92)}
 .sd-tabs{background:color-mix(in srgb,var(--color-bg) 72%,transparent);border-top-color:color-mix(in srgb,var(--color-text) 7%,transparent)}
 .sd-tab{position:relative;transition:color .2s}
 .sd-tab.on::before{content:"";position:absolute;top:1px;width:34px;height:30px;border-radius:15px;background:color-mix(in srgb,var(--color-accent) 22%,transparent);z-index:-1;animation:sd-pill .3s var(--sd-ease)}
 @keyframes sd-pill{from{transform:scaleX(.4);opacity:0}}
-.sd-btn:not(.ghost):not(.danger){background:var(--sd-grad);border-color:transparent;color:#1a1730;font-weight:600}
+.sd-btn:not(.ghost):not(.danger){background:var(--sd-grad);border-color:transparent;color:var(--sd-on, #1a1730);font-weight:600}
 .sd-btn:not(.ghost):not(.danger):hover{filter:brightness(1.08)}
 .sd-card{background:color-mix(in srgb,var(--color-surface) 82%,transparent);border:1px solid color-mix(in srgb,var(--color-text) 5%,transparent)}
 
@@ -237,4 +237,4 @@ body{background:radial-gradient(120% 60% at 50% -10%,#24224a 0%,var(--color-bg) 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 .sd-scroll>*{flex-shrink:0}
 .sd-tile .top .sd-check{color:var(--color-neutral-500)}
-.sd-tile.done .top .sd-check{color:#1a1730}
+.sd-tile.done .top .sd-check{color:var(--sd-on, #1a1730)}
