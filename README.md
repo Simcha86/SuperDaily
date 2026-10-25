@@ -6,6 +6,7 @@ Tägliche Routinen für zwei Personen, als Web-App (PWA) fürs Handy. Design: Mi
 - **Kalender**: Tag, Woche, Monat oder freier Zeitraum mit Tagesquote und Quote je Routine
 - **Raster**: Routinen × Tage für den gewählten Zeitraum, jedes Kästchen abhakbar
 - **Routinen**: anlegen, bearbeiten, löschen. Wiederholung täglich, an Wochentagen, alle X Tage, monatlich oder X-mal pro Woche. Für eine Person, für beide einzeln oder gemeinsam (ein Haken für beide)
+- **Statistik**: Simon und Irina im Vergleich (7, 30 oder 90 Tage): Quote, perfekte Tage und Serien, Verlauf je Woche, Wochentage, schwächste Routinen
 - **Mehr**: Namen, Darstellung (automatisch, hell, dunkel), „Ich bin“, Haushalts-Code, Export/Import als JSON
 - **Start**: Vorlagen wie „Glas Wasser nach dem Aufstehen“ legen mit einem Tippen die erste Routine an
 
@@ -59,6 +60,10 @@ Der Firebase-`apiKey` ist kein Geheimnis und darf im öffentlichen Repo stehen; 
 
 Ältere Stände findest du unter **Commits** im Repo. Dort kannst du jede Datei vergleichen oder wiederherstellen.
 
+## Google Analytics (optional)
+
+Steht in `firebase-config.js` eine `measurementId` (nur vorhanden, wenn Analytics im Firebase-Projekt aktiv ist), sendet die App Nutzungsereignisse an Google Analytics: geöffnete Bildschirme (`screen_view`), Abhaken (`routine_check`/`routine_uncheck` mit Tageszeit und wie viele Tage zurück), Anlegen, Bearbeiten und Löschen von Routinen. Personen erscheinen dort als `person_1` (Person 1) und `person_2` (Person 2), Namen und Routine-Titel werden nicht gesendet. Zu sehen unter Firebase → Analytics bzw. analytics.google.com, meist mit einigen Stunden Verzögerung. Ohne `measurementId` lädt die App kein Analytics.
+
 ## Wenn etwas nicht geht
 
 - **„auth/unauthorized-domain“** beim Login: Schritt 2.3, Domain `<dein-github-name>.github.io` fehlt.
@@ -82,9 +87,10 @@ Der Firebase-`apiKey` ist kein Geheimnis und darf im öffentlichen Repo stehen; 
 ## Datenmodell (Firestore)
 
 ```
-users/{uid}                 { hh: "K7Q2XM", person: "a" | "b" }
-households/{code}           { members: [uid, uid], names: {a, b}, routines: { id: Routine } }
-households/{code}/days/{YYYY-MM-DD}   { "a|<routineId>": true, "b|<routineId>": true, "s|<routineId>": true }
+users/{uid}                              { hh: "K7Q2XM", person: "a" | "b" }
+households/{code}                        { members: [uid, uid], roles: { uid: "a" | "b" }, names: { a, b } }
+households/{code}/routines/{routineId}   Routine
+households/{code}/days/{p}_{YYYY-MM-DD}  { routineId: true, ... }   p = "a" | "b" | "s"
 
 Routine { id, title, slot: "Morgen"|"Tagsüber"|"Abend", who: "a"|"b"|"ab"|"s",
           rep: { type: "daily" } | { type: "weekdays", days: [0..6] } | { type: "every", n }
@@ -93,3 +99,15 @@ Routine { id, title, slot: "Morgen"|"Tagsüber"|"Abend", who: "a"|"b"|"ab"|"s",
 ```
 
 `who`: `ab` = beide einzeln (jede Person hakt selbst ab), `s` = gemeinsam (ein Haken zählt für beide).
+
+## Rechte
+
+Jedes Konto gehört fest zu einer Person (`roles`, beim Anlegen bzw. Beitreten vergeben, danach nicht änderbar).
+
+| Routine für | Sehen | Anlegen, ändern, löschen | Abhaken |
+| --- | --- | --- | --- |
+| eine Person | beide | nur diese Person | nur diese Person |
+| beide einzeln (`ab`) | beide | beide | jede Person ihren eigenen Haken |
+| gemeinsam (`s`) | beide | beide | beide (ein gemeinsamer Haken) |
+
+Durchgesetzt wird das in `firestore.rules`; die App blendet die Bedienelemente passend aus. Im lokalen Modus ohne Firebase gibt es keine Einschränkungen.

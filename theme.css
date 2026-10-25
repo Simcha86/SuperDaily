@@ -85,3 +85,52 @@ body{font-feature-settings:"ss01"}
 /* Raster bis 7 Tage: passt in die Breite, Namen werden gekürzt statt die Tage hinauszuschieben */
 .sd-grid.fit{width:100%}
 .sd-grid.fit .sd-sticky{background:transparent}
+
+/* Statistik: Simon = Minze, Irina = Bernstein */
+:root{--sd-a:#14b8a6;--sd-b:#f59e0b}
+[data-sd="dark"]{--sd-a:#2dd4bf;--sd-b:#fbbf24}
+.sd-tabs{grid-template-columns:repeat(6,1fr);padding-inline:2px}
+.sd-tab{font-size:10.5px;min-width:0}
+.sd-tab span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.sd-duel{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sd-duelp{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0 14px;border-radius:var(--radius-lg);background:var(--color-surface);border:1px solid var(--color-neutral-800);box-shadow:var(--shadow-sm)}
+.sd-duelp .sd-ring{width:104px;height:104px}
+.sd-duelp .sd-ring>div{background:var(--color-surface)}
+.sd-duelp>span{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600}
+.sd-duelp em{display:inline-flex;align-items:center;gap:3px;font-style:normal;font-size:11px;font-weight:600;padding:2px 7px;border-radius:9px;background:color-mix(in srgb,var(--sd-b) 18%,transparent);color:var(--color-text)}
+.sd-duelp em i{color:var(--sd-b)}
+.sd-card h2 .ph-flame{color:#f97316}
+.sd-stgrid{display:grid;grid-template-columns:minmax(0,1.2fr) repeat(3,minmax(0,1fr));gap:8px 6px;align-items:center;font-variant-numeric:tabular-nums}
+.sd-stgrid b{font-size:11px;font-weight:500;color:var(--color-neutral-500);text-align:center;line-height:1.25}
+.sd-stgrid span{text-align:center;font-size:20px;font-weight:700}
+.sd-stgrid .nm{text-align:left;font-size:14px;font-weight:600;display:flex;align-items:center;gap:7px;min-width:0}
+.sd-stgrid .nm::before{content:"";width:9px;height:9px;border-radius:50%;flex:none;background:var(--sd-a)}
+.sd-stgrid .nm.b::before{background:var(--sd-b)}
+.sd-bars{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;height:150px;align-items:end}
+.sd-bars.wd{grid-template-columns:repeat(7,minmax(0,1fr))}
+.sd-bars .col{height:100%;display:flex;flex-direction:column;gap:6px;min-width:0}
+.sd-bars .pair{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:3px;border-bottom:1px solid var(--color-neutral-800)}
+.sd-bars .pair i{width:min(12px,40%);border-radius:4px 4px 0 0;background:var(--sd-a);transition:height .3s}
+.sd-bars .pair i.b{background:var(--sd-b)}
+.sd-bars small{font-size:10px;color:var(--color-neutral-500);text-align:center;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sd-leg{display:flex;gap:16px;font-size:12px;color:var(--color-neutral-400)}
+.sd-leg span{display:inline-flex;align-items:center;gap:6px}
+.sd-leg i{width:10px;height:10px;border-radius:3px;background:var(--sd-a)}
+.sd-leg i.b{background:var(--sd-b)}
+.sd-rtab{display:flex;flex-direction:column}
+.sd-rtab .row{display:grid;grid-template-columns:minmax(0,1fr) 74px 74px;gap:8px;align-items:center;padding:9px 0;border-top:1px solid var(--color-neutral-900)}
+.sd-rtab .row:first-child{border-top:0}
+.sd-rtab .t{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sd-rtab .v{position:relative;height:24px;border-radius:7px;background:var(--color-neutral-900);overflow:hidden;display:grid;place-items:center}
+.sd-rtab .v i{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--sd-a) 45%,transparent)}
+.sd-rtab .v.b i{background:color-mix(in srgb,var(--sd-b) 50%,transparent)}
+.sd-rtab .v b{position:relative;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.sd-rtab .v.na{color:var(--color-neutral-600);font-size:13px}
+
+/* Nur ansehen: Routinen der anderen Person */
+.sd-ro{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-radius:14px;font-size:13px;line-height:1.45;background:color-mix(in srgb,var(--sd-b) 14%,var(--color-surface));border:1px solid color-mix(in srgb,var(--sd-b) 35%,transparent);color:var(--color-text)}
+.sd-ro i{font-size:18px;color:var(--sd-b);flex:none;margin-top:1px}
+.sd-item.ro,.sd-tile.ro,.sd-row.ro{cursor:default}
+.sd-item.ro:active,.sd-tile.ro:active,.sd-row.ro:active{transform:none}
+.sd-item.ro:not(.done) .sd-check,.sd-tile.ro:not(.done) .sd-check{border-style:dashed}
+.sd-row.ro>i{color:var(--color-neutral-600)}
