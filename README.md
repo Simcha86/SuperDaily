@@ -5,7 +5,9 @@ Tägliche Routinen für zwei Personen, als Web-App (PWA) fürs Handy. Design: Mi
 - **Heute**: Abhakliste nach Tageszeit oder Kacheln mit Fortschrittsringen für beide
 - **Kalender**: Tag, Woche, Monat oder freier Zeitraum mit Tagesquote und Quote je Routine
 - **Raster**: Routinen × Tage für den gewählten Zeitraum, jedes Kästchen abhakbar
-- **Routinen**: anlegen, bearbeiten, löschen. Wiederholung täglich, an Wochentagen, alle X Tage, monatlich oder X-mal pro Woche. Für eine Person, für beide einzeln oder gemeinsam (ein Haken für beide)
+- **Routinen**: anlegen, bearbeiten, archivieren, nach Bereichen geordnet. Wiederholung täglich, an Wochentagen, alle X Tage, monatlich oder X-mal pro Woche. Für eine Person, für beide einzeln oder gemeinsam (ein Haken für beide)
+- **Bereiche**: eigene Lebensbereiche (z. B. Sport, Gesundheit, Familie) unter Routinen → Bereiche anlegen, umbenennen, mit Symbol versehen oder entfernen; gilt für beide
+- **Verlauf bleibt richtig**: Änderungen an Wiederholung oder Person gelten ab heute, vergangene Tage bleiben so gewertet, wie sie geplant waren. Archivierte Routinen verschwinden ab heute, zählen aber in Kalender und Statistik weiter und lassen sich wiederherstellen
 - **Statistik**: Simon und Irina im Vergleich (7, 30 oder 90 Tage): Quote, perfekte Tage und Serien, Verlauf je Woche, Wochentage, schwächste Routinen
 - **Mehr**: Namen, Darstellung (automatisch, hell, dunkel), „Ich bin“, Haushalts-Code, Export/Import als JSON
 - **Start**: Vorlagen wie „Glas Wasser nach dem Aufstehen“ legen mit einem Tippen die erste Routine an
@@ -88,14 +90,16 @@ Steht in `firebase-config.js` eine `measurementId` (nur vorhanden, wenn Analytic
 
 ```
 users/{uid}                              { hh: "K7Q2XM", person: "a" | "b" }
-households/{code}                        { members: [uid, uid], roles: { uid: "a" | "b" }, names: { a, b } }
+households/{code}                        { members: [uid, uid], roles: { uid: "a" | "b" }, names: { a, b }, cats: [Bereich] }
 households/{code}/routines/{routineId}   Routine
 households/{code}/days/{p}_{YYYY-MM-DD}  { routineId: true, ... }   p = "a" | "b" | "s"
 
-Routine { id, title, slot: "Morgen"|"Tagsüber"|"Abend", who: "a"|"b"|"ab"|"s",
-          rep: { type: "daily" } | { type: "weekdays", days: [0..6] } | { type: "every", n }
-             | { type: "monthly", day } | { type: "perweek", n },
+Routine { id, title, slot: "Morgen"|"Tagsüber"|"Abend", who: "a"|"b"|"ab"|"s", cat: Bereich-id,
+          rep: { type: "daily" } | { type: "weekdays", days: [0..6] } | { type: "every", n, from }
+             | { type: "monthly", day } | { type: "perweek", n } | { type: "off" } (archiviert),
+          hist: [{ until: "YYYY-MM-DD", rep, who }],   // frühere Einstellungen, gültig bis einschließlich until
           created: "YYYY-MM-DD", createdAt }
+Bereich { id, name, icon }   // ohne gespeicherte Liste gelten die sechs Standardbereiche
 ```
 
 `who`: `ab` = beide einzeln (jede Person hakt selbst ab), `s` = gemeinsam (ein Haken zählt für beide).
