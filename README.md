@@ -6,6 +6,7 @@ Tägliche Routinen für zwei Personen, als Web-App (PWA) fürs Handy. Design: Mi
 - **Kalender**: Tag, Woche, Monat oder freier Zeitraum mit Tagesquote und Quote je Routine
 - **Raster**: Routinen × Tage für den gewählten Zeitraum, jedes Kästchen abhakbar
 - **Routinen**: anlegen, bearbeiten, löschen. Wiederholung täglich, an Wochentagen, alle X Tage, monatlich oder X-mal pro Woche. Für eine Person, für beide einzeln oder gemeinsam (ein Haken für beide)
+- **Statistik**: Simon und Irina im Vergleich (7, 30 oder 90 Tage): Quote, perfekte Tage und Serien, Verlauf je Woche, Wochentage, schwächste Routinen
 - **Mehr**: Namen, Darstellung (automatisch, hell, dunkel), „Ich bin“, Haushalts-Code, Export/Import als JSON
 - **Start**: Vorlagen wie „Glas Wasser nach dem Aufstehen“ legen mit einem Tippen die erste Routine an
 
@@ -58,6 +59,10 @@ Der Firebase-`apiKey` ist kein Geheimnis und darf im öffentlichen Repo stehen; 
 3. Nach ca. 1 Minute ist die neue Version live. Auf dem Handy die App einmal schließen und neu öffnen. Wenn noch die alte Version kommt, ein zweites Mal (der Service Worker lädt im Hintergrund nach).
 
 Ältere Stände findest du unter **Commits** im Repo. Dort kannst du jede Datei vergleichen oder wiederherstellen.
+
+## Google Analytics (optional)
+
+Steht in `firebase-config.js` eine `measurementId` (nur vorhanden, wenn Analytics im Firebase-Projekt aktiv ist), sendet die App Nutzungsereignisse an Google Analytics: geöffnete Bildschirme (`screen_view`), Abhaken (`routine_check`/`routine_uncheck` mit Tageszeit und wie viele Tage zurück), Anlegen, Bearbeiten und Löschen von Routinen. Personen erscheinen dort als `person_1` (Person 1) und `person_2` (Person 2), Namen und Routine-Titel werden nicht gesendet. Zu sehen unter Firebase → Analytics bzw. analytics.google.com, meist mit einigen Stunden Verzögerung. Ohne `measurementId` lädt die App kein Analytics.
 
 ## Wenn etwas nicht geht
 

@@ -23,7 +23,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 const data = { names: { a: 'Simon', b: 'Irina' }, routines: {}, done: {} };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
-  heuteView: 'liste', dayOff: 0,
+  heuteView: 'liste', dayOff: 0, stat: 30,
   cal: { mode: 'monat', anchor: 0, from: -29, to: 0 },
   grid: { mode: 'woche', anchor: 0, from: -29, to: 0 },
   sheet: null, authMode: 'login', authErr: '', setupErr: '', busy: false,
@@ -145,6 +145,7 @@ async function initFirebase() {
     let db;
     try { db = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) }); } catch { db = F.getFirestore(app); }
     fb = { A, F, auth, db };
+    initAnalytics(base, app);
     A.onAuthStateChanged(auth, async user => {
       unsubs.forEach(u => u()); unsubs = [];
       if (!user) { ui.screen = 'login'; return render(); }
@@ -157,8 +158,25 @@ async function initFirebase() {
     console.error(e); ui.screen = 'error'; ui.authErr = 'Firebase konnte nicht geladen werden. Prüfe die Internetverbindung und firebase-config.js.'; render();
   }
 }
+// Google Analytics nur, wenn firebase-config.js eine measurementId enthält. Gesendet werden
+// Bildschirme und Aktionen mit „person_1“/„person_2“, keine Namen und keine Routine-Titel.
+let an = null;
+async function initAnalytics(base, app) {
+  if (!firebaseConfig.measurementId) return;
+  try {
+    const G = await import(base + 'firebase-analytics.js');
+    if (!(await G.isSupported())) return;
+    an = { G, a: G.getAnalytics(app) };
+    track('screen_view', { firebase_screen: ui.tab });
+  } catch (e) { console.warn('Analytics nicht verfügbar', e); }
+}
+function track(name, params = {}) {
+  if (!an) return;
+  try { an.G.logEvent(an.a, name, { ...params, person: ui.me === 'b' ? 'person_2' : 'person_1' }); } catch {}
+}
 function attach(u) {
   const { F, db } = fb; hhId = u.hh; ui.me = ui.person = u.person || 'a';
+  if (an) an.G.setUserProperties(an.a, { person: ui.me === 'b' ? 'person_2' : 'person_1' });
   unsubs.push(F.onSnapshot(F.doc(db, 'households', hhId), s => {
     const d = s.data() || {}; data.names = d.names || data.names; data.routines = d.routines || {}; ui.screen = 'app'; render();
   }, err => { console.error(err); ui.screen = 'setup'; ui.setupErr = 'Kein Zugriff auf den Haushalt. Code prüfen oder neu beitreten.'; render(); }));
@@ -330,10 +348,47 @@ function tabMehr() {
   <div class="sd-card"><h2>Namen</h2><div class="sd-g2"><label class="sd-field">Person 1<input class="sd-input" value="${esc(data.names.a)}" data-ch="nameA"></label><label class="sd-field">Person 2<input class="sd-input" value="${esc(data.names.b)}" data-ch="nameB"></label></div></div>
   <div class="sd-card"><h2>Darstellung</h2><p>Automatisch folgt der Einstellung deines Handys.</p>${seg([['auto', 'Automatisch'], ['light', 'Hell'], ['dark', 'Dunkel']], modePref(), 'mode')}</div>
   <div class="sd-card"><h2>Ich bin</h2><p>Mit dieser Person startet die App auf diesem ${fbMode ? 'Konto' : 'Gerät'}.</p>${seg([['a', esc(data.names.a)], ['b', esc(data.names.b)]], ui.me, 'me')}</div>
-  ${fbMode ? `<div class="sd-card"><h2>Haushalt</h2><p>Mit diesem Code tritt die zweite Person nach der Registrierung bei.</p><span class="sd-code">${esc(hhId)}</span><p>Angemeldet als ${esc(fb.auth.currentUser?.email)}</p><button class="sd-btn ghost" data-a="logout">${icon('sign-out')}Abmelden</button></div>`
+  ${fbMode ? `<div class="sd-card"><h2>Haushalt</h2><p>Mit diesem Code tritt die zweite Person nach der Registrierung bei.</p><span class="sd-code">${esc(hhId)}</span><p>Angemeldet als ${esc(fb.auth.currentUser?.email)}</p><p>Nutzungsstatistik (Google Analytics): ${an ? 'aktiv' : 'aus'}</p><button class="sd-btn ghost" data-a="logout">${icon('sign-out')}Abmelden</button></div>`
       : `<div class="sd-card"><h2>Synchronisierung</h2><p>Die Daten liegen nur auf diesem Gerät. Für den Abgleich zwischen zwei Handys trägst du die Firebase-Konfiguration in firebase-config.js ein (siehe README).</p></div>`}
   <div class="sd-card"><h2>Daten</h2><p>Sicherung als JSON-Datei. Ein Import ersetzt alle Routinen und Erledigungen.</p><div class="sd-g2"><button class="sd-btn ghost" data-a="export">${icon('download-simple')}Export</button><label class="sd-btn ghost">${icon('upload-simple')}Import<input type="file" accept="application/json,.json" data-ch="import" hidden></label></div></div>`;
 }
+
+function tabStatistik() {
+  const days = ui.stat, s = -(days - 1), e = 0, P = ['a', 'b'], nm = p => esc(data.names[p]);
+  const head = `<div class="sd-hdr"><div><div class="sd-sub">${fmtS(s)} – ${fmtS(e)}</div><h1>Statistik</h1></div></div>${seg([[7, '7 Tage'], [30, '30 Tage'], [90, '90 Tage']], days, 'stat')}`;
+  if (!R().length) return head + empty('', true);
+  const tot = Object.fromEntries(P.map(p => [p, totals(p, s, e)]));
+  const lead = tot.a.pct === tot.b.pct ? null : tot.a.pct > tot.b.pct ? 'a' : 'b';
+  const duel = `<div class="sd-duel">${P.map(p => `<div class="sd-duelp ${p}"><div class="sd-ring" style="background:conic-gradient(var(--sd-${p}) ${tot[p].pct * 3.6}deg, var(--color-neutral-900) 0)"><div><b>${tot[p].pct}%</b><small>${tot[p].a} von ${tot[p].b}</small></div></div><span>${nm(p)}${lead === p ? ` <em>${icon('crown-simple', 'ph-fill')}vorne</em>` : ''}</span></div>`).join('')}</div>`;
+  // Perfekte Tage: alles Geplante erledigt. Laufende Serie zählt heute erst, wenn heute schon perfekt ist.
+  const perfect = p => {
+    let cur = 0, best = 0, run = 0, count = 0, curDone = false;
+    for (let o = 0; o >= MIN; o--) {
+      const st = dayStats(p, o); if (!st.t) continue;
+      const ok = st.pct === 100;
+      if (o >= s && ok) count++;
+      if (!curDone) { if (ok) cur++; else if (o < 0) curDone = true; }
+      run = ok ? run + 1 : 0; best = Math.max(best, run);
+    }
+    return { cur, best, count };
+  };
+  const pf = Object.fromEntries(P.map(p => [p, perfect(p)]));
+  const streaks = `<div class="sd-card"><h2>${icon('flame', 'ph-fill')} Perfekte Tage</h2><p>Tage, an denen alles Geplante erledigt war.</p><div class="sd-stgrid"><span></span><b>Im Zeitraum</b><b>Serie jetzt</b><b>Beste Serie</b>${P.map(p => `<span class="nm ${p}">${nm(p)}</span><span>${pf[p].count}</span><span>${pf[p].cur}</span><span>${pf[p].best}</span>`).join('')}</div></div>`;
+  // Wochenverlauf: letzte 8 Wochen, laufende Woche bis heute
+  const weeks = []; for (let w = 7; w >= 0; w--) { const m = mondayOf(0) - 7 * w; weeks.push({ m, v: P.map(p => { const t = totals(p, m, m + 6); return t.b ? t.pct : null; }) }); }
+  const trend = `<div class="sd-card"><h2>Verlauf je Woche</h2><div class="sd-bars">${weeks.map(w => `<div class="col"><div class="pair">${w.v.map((v, i) => v === null ? '' : `<i class="${P[i]}" style="height:${Math.max(3, v)}%" title="${nm(P[i])}: ${v} %"></i>`).join('')}</div><small>KW ${isoWeek(dateAt(w.m))}</small></div>`).join('')}</div>${legend()}</div>`;
+  // Wochentage im Zeitraum
+  const wd = P.map(() => WD_ORDER.map(() => ({ n: 0, t: 0 })));
+  for (let o = s; o <= e; o++) { const k = WD_ORDER.indexOf(dateAt(o).getDay()); P.forEach((p, i) => { const st = dayStats(p, o); wd[i][k].n += st.n; wd[i][k].t += st.t; }); }
+  const pc = x => x.t ? Math.round(x.n / x.t * 100) : 0;
+  const weekday = `<div class="sd-card"><h2>Nach Wochentag</h2><div class="sd-bars wd">${WD_ORDER.map((d, k) => `<div class="col"><div class="pair">${P.map((p, i) => wd[i][k].t ? `<i class="${p}" style="height:${Math.max(3, pc(wd[i][k]))}%" title="${nm(p)}: ${pc(wd[i][k])} %"></i>` : '').join('')}</div><small>${WD[d]}</small></div>`).join('')}</div>${legend()}</div>`;
+  // Je Routine, schwächste zuerst
+  const rows = R().map(r => ({ r, x: P.map(p => visible(r, p) ? rate(r, p, s, e) : null) }))
+    .sort((u, v) => Math.min(...u.x.filter(Boolean).map(q => q.pct)) - Math.min(...v.x.filter(Boolean).map(q => q.pct)));
+  const per = `<div class="sd-card"><h2>Je Routine</h2><p>Oben stehen die Routinen, die am häufigsten liegen bleiben.</p><div class="sd-rtab">${rows.map(({ r, x }) => `<div class="row"><span class="t">${esc(r.title)}</span>${x.map((q, i) => q ? `<span class="v ${P[i]}"><i style="width:${q.pct}%"></i><b>${q.pct}%</b></span>` : '<span class="v na">–</span>').join('')}</div>`).join('')}</div>${legend()}</div>`;
+  return head + duel + streaks + trend + weekday + per;
+}
+const legend = () => `<div class="sd-leg">${['a', 'b'].map(p => `<span><i class="${p}"></i>${esc(data.names[p])}</span>`).join('')}</div>`;
 
 // ---------- Routine-Formular ----------
 function newDraft(r) {
@@ -397,7 +452,7 @@ darkMQ.addEventListener?.('change', applyMode);
 
 // ---------- Render ----------
 const $app = document.getElementById('app');
-const TABS = [['heute', 'sun', 'Heute'], ['kalender', 'calendar-blank', 'Kalender'], ['raster', 'grid-four', 'Raster'], ['routinen', 'list-checks', 'Routinen'], ['mehr', 'gear-six', 'Mehr']];
+const TABS = [['heute', 'sun', 'Heute'], ['kalender', 'calendar-blank', 'Kalender'], ['raster', 'grid-four', 'Raster'], ['statistik', 'chart-bar', 'Statistik'], ['routinen', 'list-checks', 'Routinen'], ['mehr', 'gear-six', 'Mehr']];
 const scrollMem = {}; let gridMem = { key: null, left: 0 };
 function render() {
   const sc = $app.querySelector('.sd-scroll'); if (sc) scrollMem[sc.dataset.tab] = sc.scrollTop;
@@ -407,7 +462,7 @@ function render() {
   if (ui.screen === 'error') { $app.innerHTML = `<div class="sd-auth"><div class="sd-err">${esc(ui.authErr)}</div></div>`; return; }
   if (ui.screen === 'login') { $app.innerHTML = loginHtml(); return; }
   if (ui.screen === 'setup') { $app.innerHTML = setupHtml(); return; }
-  const tab = { heute: tabHeute, kalender: tabKalender, raster: tabRaster, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
+  const tab = { heute: tabHeute, kalender: tabKalender, raster: tabRaster, statistik: tabStatistik, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
   const fab = ['heute', 'routinen', 'kalender'].includes(ui.tab) ? `<button class="sd-fab" data-a="newRoutine" aria-label="Routine hinzufügen">${icon('plus')}</button>` : '';
   $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${tab}</main>${fab}<nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${ui.tab === k ? 'on' : ''}" data-a="tab" data-v="${k}">${icon(i, ui.tab === k ? 'ph-fill' : 'ph')}<span>${l}</span></button>`).join('')}</nav>${ui.sheet ? sheetHtml() : ''}`;
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
@@ -417,14 +472,16 @@ function render() {
 
 // ---------- Aktionen ----------
 const A = {
-  tab: d => { ui.tab = d.v; render(); },
+  tab: d => { ui.tab = d.v; render(); track('screen_view', { firebase_screen: d.v }); },
   person: d => { ui.person = d.p; render(); },
-  heuteView: d => { ui.heuteView = d.v; render(); },
+  stat: d => { ui.stat = +d.v; render(); track('stats_range', { days: +d.v }); },
+  heuteView: d => { ui.heuteView = d.v; render(); track('view_change', { view: d.v }); },
   day: d => { ui.dayOff = +d.o; render(); },
   toggle: d => {
     const r = data.routines[d.r]; if (!r) return;
     const p = ui.person, off = +d.o, was = dayStats(p, off).pct;
     store.toggle(dk(off), keyFor(r, p)).catch(fail);
+    track(isDone(r, p, off) ? 'routine_check' : 'routine_uncheck', { slot: r.slot, for_person: p === 'b' ? 'person_2' : 'person_1', days_ago: -off, shared: r.who === 's' });
     if (!isDone(r, p, off)) return;
     $app.querySelector(`[data-a="toggle"][data-r="${r.id}"][data-o="${off}"]`)?.classList.add('pop');
     navigator.vibrate?.(12);
@@ -441,7 +498,7 @@ const A = {
   edit: d => { ui.sheet = newDraft(data.routines[d.r]); ui.sheetFresh = true; render(); },
   closeSheet: () => { ui.sheet = null; render(); },
   noop: () => {},
-  addTpl: d => { const [, title, slot] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.person, rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); },
+  addTpl: d => { const [, title, slot] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.person, rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); track('routine_create', { slot, repeat: 'daily', who: ui.person, template: true }); },
   dTpl: d => { const [, title, slot] = TPL[+d.v]; Object.assign(ui.sheet, { title, slot }); render(); },
   mode: d => { try { localStorage.setItem(MODE_KEY, d.v); } catch {} applyMode(); render(); },
   dSlot: d => { ui.sheet.slot = d.v; render(); },
@@ -459,8 +516,9 @@ const A = {
     const r = { id: d.id || rid(), title: d.title.trim(), slot: d.slot, who: d.who, rep: d.rep, created: old?.created || dk(0), createdAt: old?.createdAt || Date.now() };
     if (old && rep(old).type !== 'every' && r.rep.type === 'every') r.created = dk(0);
     ui.sheet = null; store.saveRoutine(r).catch(fail);
+    track(old ? 'routine_edit' : 'routine_create', { slot: r.slot, repeat: r.rep.type, who: r.who });
   },
-  dDelete: () => { const d = ui.sheet; if (!confirm(`„${d.title}“ löschen? Die bisherigen Haken bleiben in der Sicherung, werden aber nicht mehr angezeigt.`)) return; ui.sheet = null; store.deleteRoutine(d.id).catch(fail); },
+  dDelete: () => { const d = ui.sheet; if (!confirm(`„${d.title}“ löschen? Die bisherigen Haken bleiben in der Sicherung, werden aber nicht mehr angezeigt.`)) return; ui.sheet = null; store.deleteRoutine(d.id).catch(fail); track('routine_delete'); },
   me: d => store.setMe(d.v).catch(fail),
   export: () => {
     const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, routines: data.routines, done: data.done }, null, 2)], { type: 'application/json' });

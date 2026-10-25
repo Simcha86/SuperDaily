@@ -9,6 +9,7 @@ export const firebaseConfig = {
   projectId: "superdaily-xxxx",
   storageBucket: "superdaily-xxxx.appspot.com",
   messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abc123"
+  appId: "1:1234567890:web:abc123",
+  measurementId: "G-XXXXXXXXXX"   // nur wenn Google Analytics im Projekt aktiv ist; ohne diese Zeile bleibt Analytics aus
 };
 */
