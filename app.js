@@ -19,6 +19,22 @@ const clamp = o => Math.max(MIN, Math.min(0, o));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const rid = () => Math.random().toString(36).slice(2, 10);
 
+// ---------- Version ----------
+// Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
+const CHANGES = [
+  { v: 5, date: '2026-10-25', items: ['Versionsnummer und „Neu in dieser Version“ unter Mehr', 'Einmaliger Hinweis nach einem Update'] },
+  { v: 4, date: '2026-10-25', items: ['Bereiche selbst anlegen, umbenennen, mit Symbol versehen oder entfernen (Routinen → Bereiche)', 'Statistik „Nach Bereich“', 'Änderungen an Routinen gelten ab heute, vergangene Tage behalten ihre Wertung', 'Archivieren statt Löschen, mit Wiederherstellen'] },
+  { v: 3, date: '2026-10-25', items: ['Tab „Statistik“: Simon und Irina im Vergleich', 'Anmeldung und Sync zwischen beiden Handys', 'Jede Person hakt nur eigene und gemeinsame Routinen ab, sieht aber alles', 'Google Analytics'] },
+  { v: 2, date: '2026-10-25', items: ['Design „Minze“, hell und dunkel', 'Neue Schrift und neues App-Icon', 'Vorlagen für den schnellen Start'] },
+  { v: 1, date: '2026-10-25', items: ['Fortschrittskarte, Farbverläufe und Animationen', 'Konfetti bei 100 %', 'App-Icon repariert'] }];
+const APP_VERSION = CHANGES[0].v;
+const fmtDate = k => new Date(k + 'T12:00').toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+// Gesehene Version merken: nach einem Update einmalig „Neu“ zeigen, bei Erstinstallation nicht.
+const SEEN = 'superdaily-seen-version';
+let seenVersion = APP_VERSION;
+try { const v = +localStorage.getItem(SEEN); seenVersion = v || APP_VERSION; if (!v) localStorage.setItem(SEEN, APP_VERSION); } catch {}
+const markSeen = () => { seenVersion = APP_VERSION; try { localStorage.setItem(SEEN, APP_VERSION); } catch {} };
+
 // ---------- Daten ----------
 const data = { names: { a: 'Simon', b: 'Irina' }, routines: {}, done: {}, cats: null };
 const ui = {
@@ -385,7 +401,7 @@ function tabHeute() {
   const body = ui.heuteView === 'liste' ? `${R().length ? hero(st, off) : ''}${listView(p, off)}` : tilesView(p, off);
   return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div>${personDots()}</div>
   ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
-  ${strip}${roNote()}${body}`;
+  ${strip}${newNote()}${roNote()}${body}`;
 }
 function tabKalender() {
   const m = ui.cal, p = ui.person, { s, e, title, sub } = rangeOf(m), tot = totals(p, s, e);
@@ -421,6 +437,11 @@ function catSheetHtml() {
   <button class="sd-btn ghost block" data-a="${ui.sheet ? 'closeCats' : 'closeSheet'}">${ui.sheet ? 'Zurück zur Routine' : 'Fertig'}</button>
   </div></div>`;
 }
+const newNote = () => seenVersion < APP_VERSION ? `<div class="sd-hint sd-new">${icon('sparkle', 'ph-fill')}<span><b>Neu in Version ${APP_VERSION}:</b> ${CHANGES.filter(c => c.v > seenVersion).flatMap(c => c.items).slice(0, 3).map(esc).join(' · ')}</span><span class="sd-newact"><button class="sd-mini" data-a="whatsNew">Mehr</button><button class="sd-circ" data-a="seen" aria-label="Hinweis schließen">${icon('x')}</button></span></div>` : '';
+const aboutCard = () => {
+  const [cur, ...old] = CHANGES, list = items => `<ul class="sd-changes">${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`;
+  return `<div class="sd-card" id="about"><h2>Über SuperDaily</h2><div class="sd-version"><b>Version ${cur.v}</b><span>${fmtDate(cur.date)}</span></div><p>Neu in dieser Version:</p>${list(cur.items)}<details class="sd-arch"><summary>${icon('clock-counter-clockwise')}Frühere Versionen</summary>${old.map(c => `<div class="sd-oldv"><b>Version ${c.v}</b> <span>${fmtDate(c.date)}</span>${list(c.items)}</div>`).join('')}</details></div>`;
+};
 function tabMehr() {
   const fbMode = store.mode === 'firebase';
   return `<div class="sd-hdr"><div><div class="sd-sub">${fbMode ? 'Synchronisiert' : 'Lokaler Modus'}</div><h1>Einstellungen</h1></div></div>
@@ -430,7 +451,8 @@ function tabMehr() {
       : `<div class="sd-card"><h2>Ich bin</h2><p>Mit dieser Person startet die App auf diesem Gerät.</p>${seg([['a', esc(data.names.a)], ['b', esc(data.names.b)]], ui.me, 'me')}</div>`}
   ${fbMode ? `<div class="sd-card"><h2>Haushalt</h2><p>Mit diesem Code tritt die zweite Person nach der Registrierung bei.</p><span class="sd-code">${esc(hhId)}</span><p>Angemeldet als ${esc(fb.auth.currentUser?.email)}</p><p>Nutzungsstatistik (Google Analytics): ${an ? 'aktiv' : 'aus'}</p><button class="sd-btn ghost" data-a="logout">${icon('sign-out')}Abmelden</button></div>`
       : `<div class="sd-card"><h2>Synchronisierung</h2><p>Die Daten liegen nur auf diesem Gerät. Für den Abgleich zwischen zwei Handys trägst du die Firebase-Konfiguration in firebase-config.js ein (siehe README).</p></div>`}
-  <div class="sd-card"><h2>Daten</h2><p>Sicherung als JSON-Datei. Ein Import ersetzt alle Routinen und Erledigungen.</p><div class="sd-g2"><button class="sd-btn ghost" data-a="export">${icon('download-simple')}Export</button><label class="sd-btn ghost">${icon('upload-simple')}Import<input type="file" accept="application/json,.json" data-ch="import" hidden></label></div></div>`;
+  <div class="sd-card"><h2>Daten</h2><p>Sicherung als JSON-Datei. Ein Import ersetzt alle Routinen und Erledigungen.</p><div class="sd-g2"><button class="sd-btn ghost" data-a="export">${icon('download-simple')}Export</button><label class="sd-btn ghost">${icon('upload-simple')}Import<input type="file" accept="application/json,.json" data-ch="import" hidden></label></div></div>
+  ${aboutCard()}`;
 }
 
 function tabStatistik() {
@@ -675,6 +697,8 @@ const A = {
       ui.busy = false; attach({ hh: code, person: s.me });
     } catch (e) { console.error(e); ui.busy = false; ui.setupErr = 'Beitreten fehlgeschlagen. Stimmt der Code, und ist die gewählte Person noch frei? Die Person, die den Haushalt angelegt hat, ist schon vergeben.'; render(); }
   },
+  seen: () => { markSeen(); render(); },
+  whatsNew: () => { markSeen(); ui.tab = 'mehr'; render(); requestAnimationFrame(() => $app.querySelector('#about')?.scrollIntoView({ block: 'start' })); },
   logout: () => fb && fb.A.signOut(fb.auth)
 };
 // Konfetti, wenn ein Tag komplett abgehakt ist. Liegt außerhalb von #app, damit render() es nicht entfernt.

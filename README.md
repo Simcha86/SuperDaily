@@ -80,6 +80,7 @@ Steht in `firebase-config.js` eine `measurementId` (nur vorhanden, wenn Analytic
 | `index.html` | Einstieg, lädt Schrift, Icons, Styles und App |
 | `app.js` | Gesamte App-Logik und Oberfläche |
 | `app.css` | App-Styles auf Basis der Nocturne-Tokens |
+| `CHANGELOG.md` | Änderungen je Version; die App zeigt sie unter Mehr → Über SuperDaily |
 | `theme.css` | Design „Minze“: helle und dunkle Farben, Schrift, Feinschliff |
 | `nocturne.css` | Nocturne-Designsystem (Farben, Schrift, Abstände) |
 | `firebase-config.js` | Deine Firebase-Konfiguration |
