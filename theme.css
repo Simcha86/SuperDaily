@@ -162,3 +162,16 @@ body{font-feature-settings:"ss01"}
 .sd-caticon{width:42px;height:42px;border-radius:12px;border:1px solid var(--color-accent-700);background:var(--color-accent-900);color:var(--color-accent-300);font-size:20px;display:grid;place-items:center;cursor:pointer}
 .sd-catn{font-size:12px;color:var(--color-neutral-500);text-align:center;font-variant-numeric:tabular-nums}
 .sd-catadd{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+
+/* Version und „Neu“-Hinweis */
+.sd-new{align-items:center;flex-wrap:wrap}
+.sd-new>span:nth-child(2){flex:1;min-width:0}
+.sd-newact{display:flex;gap:6px;align-items:center;margin-left:auto}
+.sd-newact .sd-circ{width:34px;height:34px}
+.sd-version{display:flex;align-items:baseline;gap:10px}
+.sd-version b{font-size:22px;font-weight:700;letter-spacing:-.02em;color:var(--color-accent-300)}
+.sd-version span,.sd-oldv span{font-size:12.5px;color:var(--color-neutral-500)}
+.sd-changes{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:13.5px;line-height:1.45}
+.sd-changes li::marker{color:var(--color-accent-400)}
+.sd-oldv{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid var(--color-neutral-900)}
+.sd-oldv b{font-size:14px;font-weight:600}
