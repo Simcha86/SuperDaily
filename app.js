@@ -20,65 +20,86 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const rid = () => Math.random().toString(36).slice(2, 10);
 
 // ---------- Daten ----------
-const data = { names: { a: 'Simon', b: 'Irina' }, routines: {}, done: {} };
+const data = { names: { a: 'Simon', b: 'Irina' }, routines: {}, done: {}, cats: null };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
   heuteView: 'liste', dayOff: 0, stat: 30,
   cal: { mode: 'monat', anchor: 0, from: -29, to: 0 },
   grid: { mode: 'woche', anchor: 0, from: -29, to: 0 },
-  sheet: null, authMode: 'login', authErr: '', setupErr: '', busy: false,
+  sheet: null, catSheet: false, authMode: 'login', authErr: '', setupErr: '', busy: false,
   setup: { me: 'a', a: 'Simon', b: 'Irina', code: '' }
 };
 
 const R = () => Object.values(data.routines).sort((x, y) => SLOTS.indexOf(x.slot) - SLOTS.indexOf(y.slot) || (x.createdAt || 0) - (y.createdAt || 0));
-const visible = (r, p) => r.who === 's' || r.who === 'ab' || r.who === p;
-const keyFor = (r, p) => (r.who === 's' ? 's' : p) + '|' + r.id;
+// Versionen: r.hist = [{ until: 'JJJJ-MM-TT', rep, who }, …] aufsteigend, jeweils gültig bis einschließlich `until`.
+// Danach gelten r.rep und r.who. So bleiben vergangene Tage nach Änderungen so gewertet, wie sie geplant waren.
+// Archiviert heißt: aktuelle Wiederholung { type: 'off' }, die Vergangenheit zählt weiter.
+function verAt(r, off) { const k = dk(off); for (const h of r.hist || []) if (k <= h.until) return h; return r; }
+const repAt = (r, off) => verAt(r, off).rep || { type: 'daily' };
+const whoAt = (r, off) => verAt(r, off).who;
+const rep = r => r.rep || { type: 'daily' };
+const archived = r => rep(r).type === 'off';
+const active = () => R().filter(r => !archived(r));
+const forWho = (who, p) => who === 's' || who === 'ab' || who === p;
+const visible = (r, p) => forWho(r.who, p);
+const everVisible = (r, p) => visible(r, p) || (r.hist || []).some(h => forWho(h.who, p));
+const keyFor = (r, p, off = 0) => (whoAt(r, off) === 's' ? 's' : p) + '|' + r.id;
 // Mit Firebase gehört jedes Konto fest zu einer Person (ui.me). Alle sehen alles,
 // abhaken und bearbeiten nur die eigenen sowie gemeinsame Routinen. Lokal ist alles erlaubt.
 const syncMode = () => firebaseConfig ? 'firebase' : 'local';
-const canCheck = (r, p) => syncMode() === 'local' || r.who === 's' || p === ui.me;
+const canCheck = (r, p, off = 0) => syncMode() === 'local' || whoAt(r, off) === 's' || p === ui.me;
 const canEdit = r => syncMode() === 'local' || ['ab', 's', ui.me].includes(r.who);
-const togAttr = (r, p, off) => canCheck(r, p) ? `data-a="toggle" data-r="${r.id}" data-o="${off}"` : 'aria-disabled="true"';
+const togAttr = (r, p, off) => canCheck(r, p, off) ? `data-a="toggle" data-r="${r.id}" data-o="${off}"` : 'aria-disabled="true"';
 const viewOnly = () => syncMode() === 'firebase' && ui.person !== ui.me;
-const isDone = (r, p, off) => !!(data.done[dk(off)] || {})[keyFor(r, p)];
+const isDone = (r, p, off) => !!(data.done[dk(off)] || {})[keyFor(r, p, off)];
 const startOff = r => offOfKey(r.created || dk(0));
-const rep = r => r.rep || { type: 'daily' };
 function weekDone(r, p, off, exclude) { const m = mondayOf(off); let n = 0; for (let o = m; o < m + 7; o++) { if (o !== exclude && isDone(r, p, o)) n++; } return n; }
 function isDue(r, p, off) {
-  if (off < startOff(r)) return false;
-  const d = dateAt(off), x = rep(r);
+  if (off < startOff(r) || !forWho(whoAt(r, off), p)) return false;
+  const d = dateAt(off), x = repAt(r, off);
   switch (x.type) {
+    case 'off': return false;
     case 'weekdays': return (x.days || []).includes(d.getDay());
-    case 'every': return (off - startOff(r)) % Math.max(1, x.n || 1) === 0;
+    case 'every': { const a = x.from ? offOfKey(x.from) : startOff(r); return off >= a && (off - a) % Math.max(1, x.n || 1) === 0; }
     case 'monthly': { const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); return d.getDate() === Math.min(x.day || 1, last); }
     case 'perweek': return weekDone(r, p, off, off) < (x.n || 1);
     default: return true;
   }
 }
-const shows = (r, p, off) => visible(r, p) && (isDue(r, p, off) || isDone(r, p, off));
+const shows = (r, p, off) => forWho(whoAt(r, off), p) && (isDue(r, p, off) || isDone(r, p, off));
 function dayStats(p, off) { const list = R().filter(r => shows(r, p, off)); const n = list.filter(r => isDone(r, p, off)).length; return { list, n, t: list.length, pct: list.length ? Math.round(n / list.length * 100) : 0 }; }
+// „X-mal pro Woche“ zählt je Woche höchstens X Termine (bzw. so viele Tage, wie die Woche im Zeitraum hat).
 function rate(r, p, s, e) {
-  const last = Math.min(e, 0), st = startOff(r); let a = 0, b = 0;
-  if (rep(r).type === 'perweek') {
-    for (let m = mondayOf(s); m <= last; m += 7) {
-      let days = 0, dn = 0;
-      for (let o = Math.max(m, s, st); o <= Math.min(m + 6, last); o++) { days++; if (isDone(r, p, o)) dn++; }
-      if (!days) continue; const need = Math.min(rep(r).n || 1, days); b += need; a += Math.min(dn, need);
-    }
-  } else {
-    for (let o = Math.max(s, st, MIN); o <= last; o++) if (isDue(r, p, o)) { b++; if (isDone(r, p, o)) a++; }
+  const last = Math.min(e, 0), weeks = {}; let a = 0, b = 0;
+  for (let o = Math.max(s, startOff(r), MIN); o <= last; o++) {
+    const x = repAt(r, o);
+    if (x.type === 'perweek') {
+      if (!forWho(whoAt(r, o), p)) continue;
+      const w = weeks[mondayOf(o)] ||= { days: 0, dn: 0, n: x.n || 1 }; w.days++; if (isDone(r, p, o)) w.dn++;
+    } else if (isDue(r, p, o)) { b++; if (isDone(r, p, o)) a++; }
   }
+  for (const w of Object.values(weeks)) { const need = Math.min(w.n, w.days); b += need; a += Math.min(w.dn, need); }
   return { a, b, pct: b ? Math.round(a / b * 100) : 0 };
 }
 function streak(r, p, off) {
-  if (rep(r).type === 'perweek') return 0;
+  if (repAt(r, off).type === 'perweek') return 0;
   let n = 0, o = isDone(r, p, off) ? off : off - 1;
   for (let i = 0; i < 400 && o >= startOff(r); o--, i++) { if (!isDue(r, p, o)) continue; if (isDone(r, p, o)) n++; else break; }
   return n;
 }
+// Neue Version anlegen, wenn sich Wiederholung oder Person ändert. Die alte Einstellung gilt bis gestern;
+// mehrere Änderungen am selben Tag ergeben nur eine Version.
+function addVersion(r, old) {
+  const same = JSON.stringify(rep(old)) === JSON.stringify(rep(r)) && old.who === r.who;
+  const hist = [...(old.hist || [])];
+  if (!same && startOff(old) < 0 && hist[hist.length - 1]?.until !== dk(-1)) hist.push({ until: dk(-1), rep: rep(old), who: old.who });
+  r.hist = hist;
+  return r;
+}
 function repLabel(r) {
   const x = rep(r);
   switch (x.type) {
+    case 'off': return 'Archiviert';
     case 'weekdays': return WD_ORDER.filter(d => (x.days || []).includes(d)).map(d => WD[d]).join(', ') || 'Keine Tage';
     case 'every': return x.n === 1 ? 'Täglich' : `Alle ${x.n} Tage`;
     case 'monthly': return `Monatlich am ${x.day}.`;
@@ -86,6 +107,22 @@ function repLabel(r) {
     default: return 'Täglich';
   }
 }
+// ---------- Bereiche ----------
+const DEFAULT_CATS = [
+  { id: 'gesundheit', name: 'Gesundheit', icon: 'heartbeat' }, { id: 'sport', name: 'Sport', icon: 'barbell' },
+  { id: 'familie', name: 'Familie', icon: 'house-line' }, { id: 'freunde', name: 'Freunde', icon: 'users-three' },
+  { id: 'haushalt', name: 'Haushalt', icon: 'broom' }, { id: 'sonstiges', name: 'Sonstiges', icon: 'dots-three-circle' }];
+const cats = () => data.cats || DEFAULT_CATS;
+// Routinen ohne gespeicherten Bereich bekommen einen Vorschlag anhand des Titels, bis sie bearbeitet werden.
+const guessCat = t => /sport|lauf|jogg|training|yoga|dehn|spazier|fahrrad|schwimm|gym|kraft/i.test(t) ? 'sport'
+  : /wasser|vitamin|zahn|obst|gemüse|schlaf|medit|tablette|gesund|trink/i.test(t) ? 'gesundheit'
+  : /putz|wäsch|aufräum|gieß|küche|müll|einkauf|staub|spül/i.test(t) ? 'haushalt'
+  : /kind|tochter|sohn|familie|eltern|mama|papa|oma|opa/i.test(t) ? 'familie'
+  : /freund/i.test(t) ? 'freunde' : 'sonstiges';
+const catOf = r => r.cat || guessCat(r.title || '');
+const catById = id => cats().find(c => c.id === id);
+const catName = r => catById(catOf(r))?.name || 'Ohne Bereich';
+const catIcon = id => catById(id)?.icon || 'tag';
 const whoLabel = r => r.who === 's' ? 'Gemeinsam' : r.who === 'ab' ? 'Beide' : data.names[r.who];
 
 // ---------- Speicher ----------
@@ -119,10 +156,15 @@ const store = {
     if (this.mode === 'local') return this.saveLocal();
     const { F, db } = fb; await F.updateDoc(F.doc(db, 'households', hhId), { names });
   },
+  async setCats(list) {
+    data.cats = list; render();
+    if (this.mode === 'local') return this.saveLocal();
+    const { F, db } = fb; await F.updateDoc(F.doc(db, 'households', hhId), { cats: list });
+  },
   setMe(p) { ui.me = p; ui.person = p; render(); this.saveLocal(); },
   async importAll(obj) {
     if (!obj || typeof obj !== 'object' || !obj.routines) throw new Error('Ungültige Datei');
-    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {} }); this.saveLocal(); return render(); }
+    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats }); this.saveLocal(); return render(); }
     // Mit Firebase nur übernehmen, was dieses Konto schreiben darf; der Rest bleibt für die andere Person.
     const { F, db } = fb, own = [ui.me, 's'];
     const routines = Object.values(obj.routines).filter(canEdit), skipped = Object.keys(obj.routines).length - routines.length;
@@ -133,7 +175,7 @@ const store = {
       (days[`${p}_${d}`] ||= {})[rid] = true;
     }
     Object.entries(days).forEach(([id, v]) => writes.push([F.doc(db, 'households', hhId, 'days', id), v, true]));
-    if (obj.names) await F.updateDoc(F.doc(db, 'households', hhId), { names: obj.names });
+    if (obj.names || obj.cats) await F.updateDoc(F.doc(db, 'households', hhId), { ...(obj.names && { names: obj.names }), ...(obj.cats && { cats: obj.cats }) });
     for (let i = 0; i < writes.length; i += 400) {
       const batch = F.writeBatch(db);
       writes.slice(i, i + 400).forEach(([ref, v, merge]) => batch.set(ref, v, { merge }));
@@ -144,7 +186,7 @@ const store = {
 };
 
 function initLocal() {
-  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; ui.me = ui.person = s.me || 'a'; } } catch {}
+  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; ui.me = ui.person = s.me || 'a'; } } catch {}
   ui.screen = 'app'; render();
 }
 
@@ -192,7 +234,7 @@ function attach(u) {
   unsubs.push(F.onSnapshot(F.doc(db, 'households', hhId), s => {
     const d = s.data() || {}, role = d.roles?.[fb.auth.currentUser.uid];
     if (role && role !== ui.me) ui.me = ui.person = role;
-    data.names = d.names || data.names; ui.screen = 'app'; render();
+    data.names = d.names || data.names; data.cats = d.cats || null; ui.screen = 'app'; render();
   }, err => { console.error(err); ui.screen = 'setup'; ui.setupErr = 'Kein Zugriff auf den Haushalt. Code prüfen oder neu beitreten.'; render(); }));
   unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'routines'), qs => {
     const r = {}; qs.forEach(d => { r[d.id] = d.data(); }); data.routines = r; render();
@@ -230,7 +272,7 @@ function stepRange(m, k) {
   else if (m.mode === 'woche') m.anchor = clamp(m.anchor + 7 * k);
   else m.anchor = clamp(offOf(new Date(ad.getFullYear(), ad.getMonth() + k, 1)));
 }
-function totals(p, s, e) { let a = 0, b = 0; R().filter(r => visible(r, p)).forEach(r => { const x = rate(r, p, s, e); a += x.a; b += x.b; }); return { a, b, pct: b ? Math.round(a / b * 100) : 0 }; }
+function totals(p, s, e) { let a = 0, b = 0; R().filter(r => everVisible(r, p)).forEach(r => { const x = rate(r, p, s, e); a += x.a; b += x.b; }); return { a, b, pct: b ? Math.round(a / b * 100) : 0 }; }
 
 // ---------- Bausteine ----------
 const icon = (n, cls = 'ph') => `<i class="${cls} ph-${n}"></i>`;
@@ -260,8 +302,9 @@ function hero(st, off) {
   return `<div class="sd-hero ${st.t && !left ? 'full' : ''}"><div class="sd-hring" style="--p:${st.pct}"><div><b>${st.pct}<small>%</small></b></div></div><div class="sd-htxt"><span class="sd-hhi">${hi}</span><b>${st.n} von ${st.t} erledigt</b><span>${msg}</span></div></div>`;
 }
 // Vorlagen für den schnellen Start: [Icon, Titel, Tageszeit]
-const TPL = [['drop', 'Glas Wasser nach dem Aufstehen', 'Morgen'], ['pill', 'Vitamine nehmen', 'Morgen'], ['person-simple-tai-chi', '5 Minuten dehnen', 'Morgen'], ['sneaker-move', '10 Minuten spazieren', 'Tagsüber'], ['book-open', '20 Seiten lesen', 'Abend'], ['tooth', 'Zahnseide', 'Abend']];
-const tplChips = action => TPL.map(([i, t], k) => Object.values(data.routines).some(r => r.title === t) ? '' : `<button class="sd-tpl" data-a="${action}" data-v="${k}">${icon(i)}${t}</button>`).join('');
+const TPL = [['drop', 'Glas Wasser nach dem Aufstehen', 'Morgen', 'gesundheit'], ['pill', 'Vitamine nehmen', 'Morgen', 'gesundheit'], ['person-simple-tai-chi', '5 Minuten dehnen', 'Morgen', 'sport'], ['sneaker-move', '10 Minuten spazieren', 'Tagsüber', 'sport'], ['book-open', '20 Seiten lesen', 'Abend', 'sonstiges'], ['tooth', 'Zahnseide', 'Abend', 'gesundheit']];
+const tplCat = id => catById(id) ? id : null;
+const tplChips = action => TPL.map(([i, t], k) => active().some(r => r.title === t) ? '' : `<button class="sd-tpl" data-a="${action}" data-v="${k}">${icon(i)}${t}</button>`).join('');
 const empty = (txt, btn) => btn
   ? `<div class="sd-welcome"><span class="ico">${icon('plant', 'ph-fill')}</span><h2>Willkommen bei SuperDaily</h2><p>Tippe eine Vorlage an, um direkt loszulegen, oder lege eine eigene Routine an.</p><div class="sd-tpls">${tplChips('addTpl')}</div><button class="sd-btn block" data-a="newRoutine">${icon('plus')}Eigene Routine anlegen</button></div>`
   : `<div class="sd-empty"><span>${txt}</span></div>`;
@@ -269,13 +312,13 @@ const empty = (txt, btn) => btn
 const roNote = () => viewOnly() ? `<div class="sd-ro">${icon('eye')}<span>Du siehst ${esc(data.names[ui.person])}s Routinen. Abhaken kann ${esc(data.names[ui.person])} selbst, gemeinsame Routinen könnt ihr beide.</span></div>` : '';
 function listView(p, off) {
   const st = dayStats(p, off);
-  if (!R().length) return empty('Noch keine Routinen. Leg die erste an, zum Beispiel „Glas Wasser nach dem Aufstehen“.', true);
+  if (!active().length) return empty('Noch keine Routinen. Leg die erste an, zum Beispiel „Glas Wasser nach dem Aufstehen“.', true);
   if (!st.t) return empty('An diesem Tag ist nichts geplant.');
   return SLOTS.map(slot => {
     const items = st.list.filter(r => r.slot === slot); if (!items.length) return '';
     return `<div class="sd-group"><span class="sd-label">${slot}</span>${items.map(r => {
       const dn = isDone(r, p, off), sk = streak(r, p, off), x = rep(r);
-      let meta = repLabel(r) + (r.who === 's' ? ' · gemeinsam' : '');
+      let meta = `${esc(catName(r))} · ${repLabel(r)}` + (r.who === 's' ? ' · gemeinsam' : '');
       if (x.type === 'perweek') meta += ` · ${weekDone(r, p, off, null)}/${x.n} diese Woche`;
       return `<button class="sd-item ${dn ? 'done' : ''} ${canCheck(r, p) ? '' : 'ro'}" ${togAttr(r, p, off)}><span class="sd-check">${icon('check', 'ph-bold')}</span><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></span>${sk > 1 ? `<span class="sd-streak">${icon('flame')}${sk}</span>` : ''}</button>`;
     }).join('')}</div>`;
@@ -288,7 +331,7 @@ function tilesView(p, off) {
   }).join('');
   const st = dayStats(p, off);
   let tiles = '';
-  if (!R().length) tiles = empty('Noch keine Routinen.', true);
+  if (!active().length) tiles = empty('Noch keine Routinen.', true);
   else if (!st.t) tiles = empty('An diesem Tag ist nichts geplant.');
   else tiles = `<div class="sd-tiles">${st.list.map(r => {
     const dn = isDone(r, p, off), sk = streak(r, p, off);
@@ -298,7 +341,7 @@ function tilesView(p, off) {
   return `<div class="sd-rings">${rings}</div><div class="sd-hdr" style="align-items:baseline"><span style="font-size:15px;font-weight:500">${off === 0 ? 'Heute dran' : 'An diesem Tag'}</span><span class="sd-muted">${st.t - st.n ? (st.t - st.n) + ' offen' : st.t ? 'Alles erledigt' : ''}</span></div>${tiles}`;
 }
 function matrixView(p, s, e, withRate) {
-  const vis = R().filter(r => visible(r, p));
+  const vis = R().filter(r => everVisible(r, p) && (!archived(r) || rate(r, p, s, e).b));
   if (!vis.length) return empty('Noch keine Routinen.', true);
   const cols = []; for (let o = s; o <= e; o++) cols.push(o);
   const n = cols.length, size = n === 1 ? 44 : n <= 7 ? 30 : 26;
@@ -327,7 +370,7 @@ function calendarView(p, s, e, longRange) {
     const label = d.getDate() === 1 && longRange ? d.toLocaleDateString('de-DE', { month: 'short' }) : d.getDate();
     cells += `<button class="${ok ? 'ok' : inR ? 'in' : ''} ${o === 0 ? 'today' : ''}" ${ok ? `data-a="calDay" data-o="${o}" style="background:color-mix(in srgb, var(--color-accent) ${Math.round(8 + pct * .62)}%, var(--color-surface))"` : 'tabindex="-1"'} aria-label="${dk(o)}${ok ? ' ' + pct + ' %' : ''}">${label}</button>`;
   }
-  const rates = R().filter(r => visible(r, p)).map(r => ({ r, x: rate(r, p, s, e) })).sort((a, b) => b.x.pct - a.x.pct)
+  const rates = R().filter(r => everVisible(r, p)).map(r => ({ r, x: rate(r, p, s, e) })).filter(({ x }) => x.b).sort((a, b) => b.x.pct - a.x.pct)
     .map(({ r, x }) => `<div class="sd-rate"><div class="row"><span>${esc(r.title)}</span><span>${x.a} / ${x.b} · ${x.pct} %</span></div><div class="sd-track"><div style="width:${x.pct}%"></div></div></div>`).join('');
   return `<div style="display:flex;flex-direction:column;gap:6px"><div class="sd-cal">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(w => `<span>${w}</span>`).join('')}</div><div class="sd-cal">${cells}</div><div class="sd-legend" style="padding-top:4px"><span>0 %</span><i></i><span>100 %</span></div></div>${rates ? `<div class="sd-group" style="gap:12px"><span class="sd-label">Je Routine</span>${rates}</div>` : ''}`;
 }
@@ -356,12 +399,27 @@ function tabRaster() {
   return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>${title}</h1></div><div class="sd-big"><b>${tot.pct}%</b><span>${tot.a} von ${tot.b} erfüllt</span></div></div>${rangeControls(m, 'grid')}${personSeg()}${roNote()}${matrixView(p, s, e, true)}`;
 }
 function tabRoutinen() {
-  const all = R();
-  const body = !all.length ? empty('Noch keine Routinen.', true) : SLOTS.map(slot => {
-    const items = all.filter(r => r.slot === slot); if (!items.length) return '';
-    return `<div class="sd-group"><span class="sd-label">${slot}</span>${items.map(r => `<button class="sd-row ${canEdit(r) ? '' : 'ro'}" ${canEdit(r) ? `data-a="edit" data-r="${r.id}"` : `aria-disabled="true" title="Nur ${esc(data.names[r.who])} kann diese Routine bearbeiten"`}><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${repLabel(r)}</span></span><span class="sd-who ${r.who === 's' ? 's' : ''}">${esc(whoLabel(r))}</span>${icon(canEdit(r) ? 'caret-right' : 'lock-simple')}</button>`).join('')}</div>`;
+  const all = active(), arch = R().filter(archived);
+  const row = r => `<button class="sd-row ${canEdit(r) ? '' : 'ro'}" ${canEdit(r) ? `data-a="edit" data-r="${r.id}"` : `aria-disabled="true" title="Nur ${esc(data.names[r.who])} kann diese Routine bearbeiten"`}><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${r.slot} · ${repLabel(r)}</span></span><span class="sd-who ${r.who === 's' ? 's' : ''}">${esc(whoLabel(r))}</span>${icon(canEdit(r) ? 'caret-right' : 'lock-simple')}</button>`;
+  const groups = [...cats().map(c => [c.id, c.name, c.icon]), [null, 'Ohne Bereich', 'tag']].map(([id, name, ic]) => {
+    const items = all.filter(r => id ? catOf(r) === id : !catById(catOf(r))); if (!items.length) return '';
+    return `<div class="sd-group"><span class="sd-label sd-catlabel">${icon(ic)}${esc(name)}<em>${items.length}</em></span>${items.map(row).join('')}</div>`;
   }).join('');
-  return `<div class="sd-hdr"><div><div class="sd-sub">${all.length} ${all.length === 1 ? 'Routine' : 'Routinen'}</div><h1>Routinen</h1></div></div>${body}`;
+  const archived_ = arch.length ? `<details class="sd-arch"><summary>${icon('archive')}Archiviert<em>${arch.length}</em></summary><p>Archivierte Routinen erscheinen nicht mehr, ihre vergangenen Tage zählen aber weiter in Kalender und Statistik.</p>${arch.map(r => `<div class="sd-row ro"><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${esc(catName(r))} · ${esc(whoLabel(r))}</span></span>${canEdit(r) ? `<button class="sd-mini" data-a="restore" data-r="${r.id}">${icon('arrow-counter-clockwise')}Wiederherstellen</button><button class="sd-mini danger" data-a="purge" data-r="${r.id}" aria-label="Endgültig löschen">${icon('trash')}</button>` : icon('lock-simple')}</div>`).join('')}</details>` : '';
+  const body = !all.length && !arch.length ? empty('Noch keine Routinen.', true) : (all.length ? groups : empty('Alle Routinen sind archiviert.', true)) + archived_;
+  return `<div class="sd-hdr"><div><div class="sd-sub">${all.length} ${all.length === 1 ? 'Routine' : 'Routinen'}</div><h1>Routinen</h1></div><button class="sd-btn ghost sm" data-a="openCats">${icon('folders')}Bereiche</button></div>${body}`;
+}
+const CAT_ICONS = ['heartbeat', 'barbell', 'house-line', 'users-three', 'broom', 'dots-three-circle', 'tag', 'briefcase', 'book-open', 'leaf', 'moon', 'sun', 'heart', 'brain', 'paint-brush', 'music-notes', 'baby', 'dog', 'currency-eur', 'fork-knife', 'drop', 'graduation-cap'];
+function catSheetHtml() {
+  const enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
+  const count = id => active().filter(r => catOf(r) === id).length;
+  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet" data-a="noop">
+  <div class="grip"></div><h3>Bereiche</h3>
+  <p class="sd-sheetp">Ordne Routinen nach Lebensbereichen. Symbol antippen zum Wechseln, Namen direkt ändern. Gilt für euch beide.</p>
+  <div class="sd-catlist">${cats().map(c => `<div class="sd-catrow"><button class="sd-caticon" data-a="catIcon" data-id="${c.id}" aria-label="Symbol wechseln">${icon(c.icon)}</button><input class="sd-input" value="${esc(c.name)}" maxlength="40" data-ch="catName" data-id="${c.id}" aria-label="Name des Bereichs"><span class="sd-catn">${count(c.id)}</span><button class="sd-circ" data-a="catDel" data-id="${c.id}" aria-label="Bereich ${esc(c.name)} entfernen">${icon('trash')}</button></div>`).join('')}</div>
+  <div class="sd-catadd"><input class="sd-input" placeholder="Neuer Bereich, z. B. Beruf" maxlength="40" data-in="catNew" value="${esc(ui.catDraft || '')}"><button class="sd-btn" data-a="catAdd">${icon('plus')}Anlegen</button></div>
+  <button class="sd-btn ghost block" data-a="${ui.sheet ? 'closeCats' : 'closeSheet'}">${ui.sheet ? 'Zurück zur Routine' : 'Fertig'}</button>
+  </div></div>`;
 }
 function tabMehr() {
   const fbMode = store.mode === 'firebase';
@@ -378,7 +436,7 @@ function tabMehr() {
 function tabStatistik() {
   const days = ui.stat, s = -(days - 1), e = 0, P = ['a', 'b'], nm = p => esc(data.names[p]);
   const head = `<div class="sd-hdr"><div><div class="sd-sub">${fmtS(s)} – ${fmtS(e)}</div><h1>Statistik</h1></div></div>${seg([[7, '7 Tage'], [30, '30 Tage'], [90, '90 Tage']], days, 'stat')}`;
-  if (!R().length) return head + empty('', true);
+  if (!active().length) return head + empty('', true);
   const tot = Object.fromEntries(P.map(p => [p, totals(p, s, e)]));
   const lead = tot.a.pct === tot.b.pct ? null : tot.a.pct > tot.b.pct ? 'a' : 'b';
   const duel = `<div class="sd-duel">${P.map(p => `<div class="sd-duelp ${p}"><div class="sd-ring" style="background:conic-gradient(var(--sd-${p}) ${tot[p].pct * 3.6}deg, var(--color-neutral-900) 0)"><div><b>${tot[p].pct}%</b><small>${tot[p].a} von ${tot[p].b}</small></div></div><span>${nm(p)}${lead === p ? ` <em>${icon('crown-simple', 'ph-fill')}vorne</em>` : ''}</span></div>`).join('')}</div>`;
@@ -405,16 +463,22 @@ function tabStatistik() {
   const pc = x => x.t ? Math.round(x.n / x.t * 100) : 0;
   const weekday = `<div class="sd-card"><h2>Nach Wochentag</h2><div class="sd-bars wd">${WD_ORDER.map((d, k) => `<div class="col"><div class="pair">${P.map((p, i) => wd[i][k].t ? `<i class="${p}" style="height:${Math.max(3, pc(wd[i][k]))}%" title="${nm(p)}: ${pc(wd[i][k])} %"></i>` : '').join('')}</div><small>${WD[d]}</small></div>`).join('')}</div>${legend()}</div>`;
   // Je Routine, schwächste zuerst
-  const rows = R().map(r => ({ r, x: P.map(p => visible(r, p) ? rate(r, p, s, e) : null) }))
+  const rows = R().map(r => ({ r, x: P.map(p => { const q = everVisible(r, p) ? rate(r, p, s, e) : null; return q && q.b ? q : null; }) })).filter(({ x }) => x.some(Boolean))
     .sort((u, v) => Math.min(...u.x.filter(Boolean).map(q => q.pct)) - Math.min(...v.x.filter(Boolean).map(q => q.pct)));
   const per = `<div class="sd-card"><h2>Je Routine</h2><p>Oben stehen die Routinen, die am häufigsten liegen bleiben.</p><div class="sd-rtab">${rows.map(({ r, x }) => `<div class="row"><span class="t">${esc(r.title)}</span>${x.map((q, i) => q ? `<span class="v ${P[i]}"><i style="width:${q.pct}%"></i><b>${q.pct}%</b></span>` : '<span class="v na">–</span>').join('')}</div>`).join('')}</div>${legend()}</div>`;
-  return head + duel + streaks + trend + weekday + per;
+  const byCat = cats().map(c => {
+    const rs = R().filter(r => catOf(r) === c.id);
+    const x = P.map(p => { let a = 0, b = 0; rs.filter(r => everVisible(r, p)).forEach(r => { const q = rate(r, p, s, e); a += q.a; b += q.b; }); return b ? { a, b, pct: Math.round(a / b * 100) } : null; });
+    return { c, x };
+  }).filter(({ x }) => x.some(Boolean));
+  const area = byCat.length ? `<div class="sd-card"><h2>Nach Bereich</h2><div class="sd-rtab">${byCat.map(({ c, x }) => `<div class="row"><span class="t sd-catt">${icon(c.icon)}${esc(c.name)}</span>${x.map((q, i) => q ? `<span class="v ${P[i]}"><i style="width:${q.pct}%"></i><b>${q.pct}%</b></span>` : '<span class="v na">–</span>').join('')}</div>`).join('')}</div>${legend()}</div>` : '';
+  return head + duel + streaks + trend + weekday + area + per;
 }
 const legend = () => `<div class="sd-leg">${['a', 'b'].map(p => `<span><i class="${p}"></i>${esc(data.names[p])}</span>`).join('')}</div>`;
 
 // ---------- Routine-Formular ----------
 function newDraft(r) {
-  return r ? JSON.parse(JSON.stringify(r)) : { id: null, title: '', slot: 'Morgen', who: syncMode() === 'firebase' ? ui.me : ui.person, rep: { type: 'daily' } };
+  return r ? { ...JSON.parse(JSON.stringify(r)), cat: catById(catOf(r)) ? catOf(r) : null } : { id: null, title: '', slot: 'Morgen', who: syncMode() === 'firebase' ? ui.me : ui.person, cat: null, rep: { type: 'daily' } };
 }
 function sheetHtml() {
   const d = ui.sheet, x = d.rep, opt = (on, a, v, l) => `<button class="sd-opt ${on ? 'on' : ''}" data-a="${a}" data-v="${v}">${l}</button>`;
@@ -425,16 +489,19 @@ function sheetHtml() {
   if (x.type === 'monthly') extra = stepper('day', x.day, 1, 31, '. Tag im Monat');
   if (x.type === 'perweek') extra = stepper('n', x.n, 1, 6, 'mal pro Woche, Tage frei wählbar');
   const valid = d.title.trim() && (x.type !== 'weekdays' || (x.days || []).length);
+  const changed = d.id && data.routines[d.id] && startOff(data.routines[d.id]) < 0 && (JSON.stringify(rep(data.routines[d.id])) !== JSON.stringify(x) || data.routines[d.id].who !== d.who);
   const enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
   return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet" data-a="noop">
   <div class="grip"></div><h3>${d.id ? 'Routine bearbeiten' : 'Neue Routine'}</h3>
   <input class="sd-input" value="${esc(d.title)}" placeholder="z. B. Zahnseide" data-in="dTitle" maxlength="80">
   ${!d.id && !d.title && tplChips('dTpl') ? `<div class="sd-field">Vorschläge<div class="sd-tpls">${tplChips('dTpl')}</div></div>` : ''}
   <div class="sd-field">Tageszeit<div class="sd-g3">${SLOTS.map(s => opt(d.slot === s, 'dSlot', s, s)).join('')}</div></div>
+  <div class="sd-field">Bereich<div class="sd-chips">${cats().map(c => `<button class="sd-chip ${d.cat === c.id ? 'on' : ''}" data-a="dCat" data-v="${c.id}">${icon(c.icon)}${esc(c.name)}</button>`).join('')}<button class="sd-chip add" data-a="openCats">${icon('pencil-simple')}Bereiche</button></div></div>
   <div class="sd-field">Für wen<div class="sd-g2">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ['ab', 'Beide einzeln'], ['s', 'Gemeinsam']].filter(([k]) => canEdit({ who: k })).map(([k, l]) => opt(d.who === k, 'dWho', k, l)).join('')}</div></div>
   <div class="sd-field">Wiederholung<div class="sd-chips">${[['daily', 'Täglich'], ['weekdays', 'Wochentage'], ['every', 'Alle X Tage'], ['monthly', 'Monatlich'], ['perweek', 'X-mal pro Woche']].map(([k, l]) => `<button class="sd-chip ${x.type === k ? 'on' : ''}" data-a="dRep" data-v="${k}">${l}</button>`).join('')}</div>${extra}</div>
+  ${changed ? `<div class="sd-hint">${icon('clock-counter-clockwise')}<span>Die Änderung gilt ab heute. Vergangene Tage bleiben so gewertet, wie sie geplant waren.</span></div>` : ''}
   <button class="sd-btn block" data-a="dSave" ${valid ? '' : 'disabled'}>${d.id ? 'Speichern' : 'Hinzufügen'}</button>
-  ${d.id ? `<button class="sd-btn danger block" data-a="dDelete">${icon('trash')}Routine löschen</button>` : ''}
+  ${d.id ? `<button class="sd-btn danger block" data-a="dArchive">${icon('archive')}Routine archivieren</button>` : ''}
   </div></div>`;
 }
 
@@ -486,7 +553,7 @@ function render() {
   if (ui.screen === 'setup') { $app.innerHTML = setupHtml(); return; }
   const tab = { heute: tabHeute, kalender: tabKalender, raster: tabRaster, statistik: tabStatistik, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
   const fab = ['heute', 'routinen', 'kalender'].includes(ui.tab) ? `<button class="sd-fab" data-a="newRoutine" aria-label="Routine hinzufügen">${icon('plus')}</button>` : '';
-  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${tab}</main>${fab}<nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${ui.tab === k ? 'on' : ''}" data-a="tab" data-v="${k}">${icon(i, ui.tab === k ? 'ph-fill' : 'ph')}<span>${l}</span></button>`).join('')}</nav>${ui.sheet ? sheetHtml() : ''}`;
+  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${tab}</main>${fab}<nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${ui.tab === k ? 'on' : ''}" data-a="tab" data-v="${k}">${icon(i, ui.tab === k ? 'ph-fill' : 'ph')}<span>${l}</span></button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}`;
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
   const ngs = $app.querySelector('.sd-gridscroll'); if (ngs) ngs.scrollLeft = ngs.dataset.key === gridMem.key ? gridMem.left : ngs.scrollWidth;
   if (focusCh) { const el = $app.querySelector(`[data-in="${focusCh}"]`); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } }
@@ -518,10 +585,10 @@ const A = {
   calDay: d => { Object.assign(ui.cal, { mode: 'tag', anchor: +d.o }); render(); },
   newRoutine: () => { ui.sheet = newDraft(); ui.sheetFresh = true; render(); },
   edit: d => { if (!canEdit(data.routines[d.r])) return; ui.sheet = newDraft(data.routines[d.r]); ui.sheetFresh = true; render(); },
-  closeSheet: () => { ui.sheet = null; render(); },
+  closeSheet: () => { if (ui.catSheet && ui.sheet) { ui.catSheet = false; return render(); } ui.sheet = null; ui.catSheet = false; render(); },
   noop: () => {},
-  addTpl: d => { const [, title, slot] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.me, rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); track('routine_create', { slot, repeat: 'daily', who: ui.me, template: true }); },
-  dTpl: d => { const [, title, slot] = TPL[+d.v]; Object.assign(ui.sheet, { title, slot }); render(); },
+  addTpl: d => { const [, title, slot, cat] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.me, cat: tplCat(cat) || guessCat(title), rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); track('routine_create', { slot, repeat: 'daily', who: ui.me, template: true }); },
+  dTpl: d => { const [, title, slot, cat] = TPL[+d.v]; Object.assign(ui.sheet, { title, slot, cat: tplCat(cat) || ui.sheet.cat }); render(); },
   mode: d => { try { localStorage.setItem(MODE_KEY, d.v); } catch {} applyMode(); render(); },
   dSlot: d => { ui.sheet.slot = d.v; render(); },
   dWho: d => { ui.sheet.who = d.v; render(); },
@@ -535,15 +602,51 @@ const A = {
   dSave: () => {
     const d = ui.sheet; if (!d.title.trim()) return;
     const old = d.id && data.routines[d.id];
-    const r = { id: d.id || rid(), title: d.title.trim(), slot: d.slot, who: d.who, rep: d.rep, created: old?.created || dk(0), createdAt: old?.createdAt || Date.now() };
-    if (old && rep(old).type !== 'every' && r.rep.type === 'every') r.created = dk(0);
+    const r = { id: d.id || rid(), title: d.title.trim(), slot: d.slot, who: d.who, cat: d.cat || guessCat(d.title), rep: d.rep, created: old?.created || dk(0), createdAt: old?.createdAt || Date.now() };
+    // „Alle X Tage“ zählt ab dem Tag, an dem es eingestellt wurde
+    if (r.rep.type === 'every' && (!old || rep(old).type !== 'every' || rep(old).n !== r.rep.n)) r.rep = { ...r.rep, from: dk(0) };
+    if (old) addVersion(r, old);
     ui.sheet = null; store.saveRoutine(r).catch(fail);
     track(old ? 'routine_edit' : 'routine_create', { slot: r.slot, repeat: r.rep.type, who: r.who });
   },
-  dDelete: () => { const d = ui.sheet; if (!confirm(`„${d.title}“ löschen? Die bisherigen Haken bleiben in der Sicherung, werden aber nicht mehr angezeigt.`)) return; ui.sheet = null; store.deleteRoutine(d.id).catch(fail); track('routine_delete'); },
+  dArchive: () => {
+    const old = data.routines[ui.sheet.id]; if (!old) return;
+    if (!confirm(`„${old.title}“ archivieren? Ab heute erscheint die Routine nicht mehr. Vergangene Tage bleiben in Kalender und Statistik erhalten; unter „Routinen → Archiviert“ kannst du sie wiederherstellen.`)) return;
+    ui.sheet = null; store.saveRoutine(addVersion({ ...old, rep: { type: 'off' } }, old)).catch(fail); track('routine_archive');
+  },
+  restore: d => {
+    const old = data.routines[d.r]; if (!old || !canEdit(old)) return;
+    const prev = [...(old.hist || [])].reverse().find(h => h.rep?.type !== 'off')?.rep || { type: 'daily' };
+    store.saveRoutine(addVersion({ ...old, rep: prev.type === 'every' ? { ...prev, from: dk(0) } : prev }, old)).catch(fail); track('routine_restore');
+  },
+  purge: d => {
+    const r = data.routines[d.r]; if (!r || !canEdit(r)) return;
+    if (!confirm(`„${r.title}“ endgültig löschen? Die Routine verschwindet auch aus Kalender und Statistik. Das lässt sich nicht rückgängig machen.`)) return;
+    store.deleteRoutine(r.id).catch(fail); track('routine_delete');
+  },
+  dCat: d => { ui.sheet.cat = d.v; render(); },
+  openCats: () => { ui.catSheet = true; ui.sheetFresh = !ui.sheet; render(); },
+  closeCats: () => { ui.catSheet = false; render(); },
+  catIcon: d => { const list = cats().map(c => c.id === d.id ? { ...c, icon: CAT_ICONS[(CAT_ICONS.indexOf(c.icon) + 1) % CAT_ICONS.length] } : c); store.setCats(list).catch(fail); },
+  catAdd: () => {
+    const el = $app.querySelector('[data-in="catNew"]'), name = (el?.value || '').trim().slice(0, 40); if (!name) return;
+    if (cats().some(c => c.name.toLowerCase() === name.toLowerCase())) return alert(`Den Bereich „${name}“ gibt es schon.`);
+    ui.catDraft = ''; store.setCats([...cats(), { id: rid(), name, icon: 'tag' }]).catch(fail); track('category_create');
+  },
+  catDel: d => {
+    const list = cats(), c = list.find(x => x.id === d.id); if (!c) return;
+    if (list.length <= 1) return alert('Mindestens ein Bereich muss bleiben.');
+    const rest = list.filter(x => x.id !== c.id), target = rest.find(x => x.id === 'sonstiges') || rest[0];
+    const used = R().filter(r => catOf(r) === c.id), mine = used.filter(canEdit), others = used.length - mine.length;
+    if (!confirm(`Bereich „${c.name}“ entfernen?` + (mine.length ? ` ${mine.length} Routine(n) wechseln zu „${target.name}“.` : '') + (others ? ` ${others} Routine(n) der anderen Person stehen danach unter „Ohne Bereich“, bis sie sie neu zuordnet.` : ''))) return;
+    if (ui.sheet?.cat === c.id) ui.sheet.cat = target.id;
+    store.setCats(rest).catch(fail);
+    mine.forEach(r => store.saveRoutine({ ...r, cat: target.id }).catch(fail));
+    track('category_delete');
+  },
   me: d => store.setMe(d.v),
   export: () => {
-    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, routines: data.routines, done: data.done }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), routines: data.routines, done: data.done }, null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `superdaily-${dk(0)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
   authMode: d => { ui.authMode = d.v; ui.authErr = ''; render(); },
@@ -596,6 +699,7 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   const k = e.target.dataset?.in; if (!k) return; const v = e.target.value;
   if (k === 'dTitle') { ui.sheet.title = v; const b = $app.querySelector('[data-a="dSave"]'); if (b) b.disabled = !(v.trim() && (ui.sheet.rep.type !== 'weekdays' || ui.sheet.rep.days.length)); }
+  if (k === 'catNew') ui.catDraft = v;
   if (k === 'setupA') ui.setup.a = v;
   if (k === 'setupB') ui.setup.b = v;
   if (k === 'setupCode') ui.setup.code = v;
@@ -607,6 +711,11 @@ document.addEventListener('change', async e => {
   if (k === 'calTo' && v) { ui.cal.to = toOff(v); render(); }
   if (k === 'gridFrom' && v) { ui.grid.from = toOff(v); render(); }
   if (k === 'gridTo' && v) { ui.grid.to = toOff(v); render(); }
+  if (k === 'catName') {
+    const name = v.trim().slice(0, 40), id = e.target.dataset.id;
+    if (!name || cats().some(c => c.id !== id && c.name.toLowerCase() === name.toLowerCase())) return render();
+    store.setCats(cats().map(c => c.id === id ? { ...c, name } : c)).catch(fail);
+  }
   if (k === 'nameA' || k === 'nameB') { const n = { ...data.names, [k === 'nameA' ? 'a' : 'b']: v.trim() || (k === 'nameA' ? 'Person 1' : 'Person 2') }; store.setNames(n).catch(fail); }
   if (k === 'import') {
     const f = e.target.files[0]; if (!f) return;
