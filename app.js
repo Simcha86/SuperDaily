@@ -221,7 +221,12 @@ function hero(st, off) {
   const msg = !st.t ? 'Heute ist nichts geplant.' : !left ? 'Alles erledigt. Stark!' : st.n === 0 ? `${left} ${left === 1 ? 'Routine wartet' : 'Routinen warten'} auf dich.` : `Noch ${left}, du bist auf einem guten Weg.`;
   return `<div class="sd-hero ${st.t && !left ? 'full' : ''}"><div class="sd-hring" style="--p:${st.pct}"><div><b>${st.pct}<small>%</small></b></div></div><div class="sd-htxt"><span class="sd-hhi">${hi}</span><b>${st.n} von ${st.t} erledigt</b><span>${msg}</span></div></div>`;
 }
-const empty = (txt, btn) => `<div class="sd-empty"><span>${txt}</span>${btn ? `<button class="sd-btn" data-a="newRoutine">${icon('plus')}Routine anlegen</button>` : ''}</div>`;
+// Vorlagen für den schnellen Start: [Icon, Titel, Tageszeit]
+const TPL = [['drop', 'Glas Wasser nach dem Aufstehen', 'Morgen'], ['pill', 'Vitamine nehmen', 'Morgen'], ['person-simple-tai-chi', '5 Minuten dehnen', 'Morgen'], ['sneaker-move', '10 Minuten spazieren', 'Tagsüber'], ['book-open', '20 Seiten lesen', 'Abend'], ['tooth', 'Zahnseide', 'Abend']];
+const tplChips = action => TPL.map(([i, t], k) => Object.values(data.routines).some(r => r.title === t) ? '' : `<button class="sd-tpl" data-a="${action}" data-v="${k}">${icon(i)}${t}</button>`).join('');
+const empty = (txt, btn) => btn
+  ? `<div class="sd-welcome"><span class="ico">${icon('plant', 'ph-fill')}</span><h2>Willkommen bei SuperDaily</h2><p>Tippe eine Vorlage an, um direkt loszulegen, oder lege eine eigene Routine an.</p><div class="sd-tpls">${tplChips('addTpl')}</div><button class="sd-btn block" data-a="newRoutine">${icon('plus')}Eigene Routine anlegen</button></div>`
+  : `<div class="sd-empty"><span>${txt}</span></div>`;
 
 function listView(p, off) {
   const st = dayStats(p, off);
@@ -273,7 +278,7 @@ function matrixView(p, s, e, withRate) {
   }).join('');
   const foot = cols.map(o => { const ok = o <= 0 && o >= MIN; const pct = ok ? dayStats(p, o).pct : 0; return `<div class="sd-qbar"><div style="height:${ok ? Math.max(4, pct * .36) : 0}px"></div></div>`; }).join('');
   const key = s + '|' + e;
-  return `<div class="sd-gridscroll" data-key="${key}"><div class="sd-grid"><div class="sd-grow head" style="${gtc}"><span class="sd-sticky"></span>${head}</div>${rows}<div class="sd-grow foot" style="${gtc}"><span class="sd-sticky sd-muted" style="font-size:11px;justify-content:flex-end">Tagesquote</span>${foot}</div></div></div>${n > 7 ? `<span class="sd-muted" style="font-size:11px;display:flex;gap:4px;align-items:center">${icon('arrows-horizontal')}Seitlich wischen für frühere Tage</span>` : ''}`;
+  return `<div class="sd-gridscroll" data-key="${key}"><div class="sd-grid ${n <= 7 ? 'fit' : ''}"><div class="sd-grow head" style="${gtc}"><span class="sd-sticky"></span>${head}</div>${rows}<div class="sd-grow foot" style="${gtc}"><span class="sd-sticky sd-muted" style="font-size:11px;justify-content:flex-end">Tagesquote</span>${foot}</div></div></div>${n > 7 ? `<span class="sd-muted" style="font-size:11px;display:flex;gap:4px;align-items:center">${icon('arrows-horizontal')}Seitlich wischen für frühere Tage</span>` : ''}`;
 }
 function calendarView(p, s, e, longRange) {
   const cs = mondayOf(s), ce = mondayOf(e) + 6; let cells = '';
@@ -295,7 +300,7 @@ function tabHeute() {
   const end = off < -6 ? off + 3 : 0; const days = [];
   for (let o = end - 6; o <= end; o++) days.push(o);
   const strip = `<div class="sd-strip">${days.map(o => `<button class="${o === off ? 'on' : ''}" data-a="day" data-o="${o}"><small>${WD[dateAt(o).getDay()]}</small><b>${dateAt(o).getDate()}</b><i class="bar"><i style="width:${dayStats(p, o).pct}%"></i></i></button>`).join('')}</div>`;
-  const body = ui.heuteView === 'liste' ? `${hero(st, off)}${listView(p, off)}` : tilesView(p, off);
+  const body = ui.heuteView === 'liste' ? `${R().length ? hero(st, off) : ''}${listView(p, off)}` : tilesView(p, off);
   return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div>${personDots()}</div>
   ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
   ${strip}${body}`;
@@ -323,6 +328,7 @@ function tabMehr() {
   const fbMode = store.mode === 'firebase';
   return `<div class="sd-hdr"><div><div class="sd-sub">${fbMode ? 'Synchronisiert' : 'Lokaler Modus'}</div><h1>Einstellungen</h1></div></div>
   <div class="sd-card"><h2>Namen</h2><div class="sd-g2"><label class="sd-field">Person 1<input class="sd-input" value="${esc(data.names.a)}" data-ch="nameA"></label><label class="sd-field">Person 2<input class="sd-input" value="${esc(data.names.b)}" data-ch="nameB"></label></div></div>
+  <div class="sd-card"><h2>Darstellung</h2><p>Automatisch folgt der Einstellung deines Handys.</p>${seg([['auto', 'Automatisch'], ['light', 'Hell'], ['dark', 'Dunkel']], modePref(), 'mode')}</div>
   <div class="sd-card"><h2>Ich bin</h2><p>Mit dieser Person startet die App auf diesem ${fbMode ? 'Konto' : 'Gerät'}.</p>${seg([['a', esc(data.names.a)], ['b', esc(data.names.b)]], ui.me, 'me')}</div>
   ${fbMode ? `<div class="sd-card"><h2>Haushalt</h2><p>Mit diesem Code tritt die zweite Person nach der Registrierung bei.</p><span class="sd-code">${esc(hhId)}</span><p>Angemeldet als ${esc(fb.auth.currentUser?.email)}</p><button class="sd-btn ghost" data-a="logout">${icon('sign-out')}Abmelden</button></div>`
       : `<div class="sd-card"><h2>Synchronisierung</h2><p>Die Daten liegen nur auf diesem Gerät. Für den Abgleich zwischen zwei Handys trägst du die Firebase-Konfiguration in firebase-config.js ein (siehe README).</p></div>`}
@@ -346,6 +352,7 @@ function sheetHtml() {
   return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet" data-a="noop">
   <div class="grip"></div><h3>${d.id ? 'Routine bearbeiten' : 'Neue Routine'}</h3>
   <input class="sd-input" value="${esc(d.title)}" placeholder="z. B. Zahnseide" data-in="dTitle" maxlength="80">
+  ${!d.id && !d.title && tplChips('dTpl') ? `<div class="sd-field">Vorschläge<div class="sd-tpls">${tplChips('dTpl')}</div></div>` : ''}
   <div class="sd-field">Tageszeit<div class="sd-g3">${SLOTS.map(s => opt(d.slot === s, 'dSlot', s, s)).join('')}</div></div>
   <div class="sd-field">Für wen<div class="sd-g2">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ['ab', 'Beide einzeln'], ['s', 'Gemeinsam']].map(([k, l]) => opt(d.who === k, 'dWho', k, l)).join('')}</div></div>
   <div class="sd-field">Wiederholung<div class="sd-chips">${[['daily', 'Täglich'], ['weekdays', 'Wochentage'], ['every', 'Alle X Tage'], ['monthly', 'Monatlich'], ['perweek', 'X-mal pro Woche']].map(([k, l]) => `<button class="sd-chip ${x.type === k ? 'on' : ''}" data-a="dRep" data-v="${k}">${l}</button>`).join('')}</div>${extra}</div>
@@ -375,6 +382,18 @@ function setupHtml() {
   <div class="sd-card"><h2>Mit Code beitreten</h2><input class="sd-input" value="${esc(s.code)}" placeholder="z. B. K7Q2XM" data-in="setupCode" style="text-transform:uppercase;letter-spacing:.1em"><div class="sd-field">Ich bin${who}</div><button class="sd-btn block" data-a="joinHH" ${ui.busy ? 'disabled' : ''}>Beitreten</button></div>
   <button class="sd-btn danger" data-a="logout">Abmelden</button></div>`;
 }
+
+// ---------- Hell / Dunkel ----------
+// index.html setzt den Modus schon vor dem ersten Zeichnen; hier nur Umschalten und Systemwechsel.
+const MODE_KEY = 'superdaily-mode';
+const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+function modePref() { try { return localStorage.getItem(MODE_KEY) || 'auto'; } catch { return 'auto'; } }
+function applyMode() {
+  const m = modePref(), dark = m === 'dark' || (m === 'auto' && darkMQ.matches);
+  document.documentElement.dataset.sd = dark ? 'dark' : 'light';
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#0d1615' : '#f2f8f6');
+}
+darkMQ.addEventListener?.('change', applyMode);
 
 // ---------- Render ----------
 const $app = document.getElementById('app');
@@ -422,6 +441,9 @@ const A = {
   edit: d => { ui.sheet = newDraft(data.routines[d.r]); ui.sheetFresh = true; render(); },
   closeSheet: () => { ui.sheet = null; render(); },
   noop: () => {},
+  addTpl: d => { const [, title, slot] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.person, rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); },
+  dTpl: d => { const [, title, slot] = TPL[+d.v]; Object.assign(ui.sheet, { title, slot }); render(); },
+  mode: d => { try { localStorage.setItem(MODE_KEY, d.v); } catch {} applyMode(); render(); },
   dSlot: d => { ui.sheet.slot = d.v; render(); },
   dWho: d => { ui.sheet.who = d.v; render(); },
   dRep: d => {

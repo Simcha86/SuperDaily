@@ -1,12 +1,13 @@
 # SuperDaily
 
-Tägliche Routinen für zwei Personen, als Web-App (PWA) fürs Handy. Design: Nocturne.
+Tägliche Routinen für zwei Personen, als Web-App (PWA) fürs Handy. Design: Minze (hell, mit Dunkelmodus), aufgebaut auf dem Nocturne-Designsystem.
 
 - **Heute**: Abhakliste nach Tageszeit oder Kacheln mit Fortschrittsringen für beide
 - **Kalender**: Tag, Woche, Monat oder freier Zeitraum mit Tagesquote und Quote je Routine
 - **Raster**: Routinen × Tage für den gewählten Zeitraum, jedes Kästchen abhakbar
 - **Routinen**: anlegen, bearbeiten, löschen. Wiederholung täglich, an Wochentagen, alle X Tage, monatlich oder X-mal pro Woche. Für eine Person, für beide einzeln oder gemeinsam (ein Haken für beide)
-- **Mehr**: Namen, „Ich bin“, Haushalts-Code, Export/Import als JSON
+- **Mehr**: Namen, Darstellung (automatisch, hell, dunkel), „Ich bin“, Haushalts-Code, Export/Import als JSON
+- **Start**: Vorlagen wie „Glas Wasser nach dem Aufstehen“ legen mit einem Tippen die erste Routine an
 
 Ohne Firebase-Konfiguration läuft die App im lokalen Modus (Daten nur im Browser dieses Geräts).
 
@@ -53,7 +54,7 @@ Der Firebase-`apiKey` ist kein Geheimnis und darf im öffentlichen Repo stehen; 
 ## 4. Änderungen einspielen
 
 1. Geänderte Datei (meist `app.js` oder `app.css`) herunterladen.
-2. Im Repo **Add file → Upload files**, Datei hineinziehen (überschreibt die alte), kurze Commit-Nachricht, **Commit changes**.
+2. Im Repo **Add file → Upload files**, Datei hineinziehen (überschreibt die alte), kurze Commit-Nachricht, **Commit changes**. Dateien aus `icons/` in den Ordner `icons` hochladen, nicht in den Hauptordner.
 3. Nach ca. 1 Minute ist die neue Version live. Auf dem Handy die App einmal schließen und neu öffnen. Wenn noch die alte Version kommt, ein zweites Mal (der Service Worker lädt im Hintergrund nach).
 
 Ältere Stände findest du unter **Commits** im Repo. Dort kannst du jede Datei vergleichen oder wiederherstellen.
@@ -72,6 +73,7 @@ Der Firebase-`apiKey` ist kein Geheimnis und darf im öffentlichen Repo stehen; 
 | `index.html` | Einstieg, lädt Schrift, Icons, Styles und App |
 | `app.js` | Gesamte App-Logik und Oberfläche |
 | `app.css` | App-Styles auf Basis der Nocturne-Tokens |
+| `theme.css` | Design „Minze“: helle und dunkle Farben, Schrift, Feinschliff |
 | `nocturne.css` | Nocturne-Designsystem (Farben, Schrift, Abstände) |
 | `firebase-config.js` | Deine Firebase-Konfiguration |
 | `firestore.rules` | Sicherheitsregeln für Firestore |

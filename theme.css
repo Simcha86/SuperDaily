@@ -1,0 +1,87 @@
+/* SuperDaily-Design „Minze“. Setzt auf app.css auf.
+   data-sd="light" (Standard) dreht die Nocturne-Rampen um (100 = dunkel, 900 = hell),
+   damit alle Regeln aus app.css ohne Änderung auf hellem Grund funktionieren.
+   data-sd="dark" behält die dunklen Rampen und tauscht nur den Farbton gegen Minze. */
+:root{--font-heading:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--font-body:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--sd-ease:cubic-bezier(.34,1.56,.64,1)}
+
+[data-sd="light"]{color-scheme:light;
+  --color-bg:#f2f8f6;--color-surface:#ffffff;--color-text:#10302b;--color-accent:#14b8a6;
+  --color-neutral-100:#17231f;--color-neutral-200:#26332f;--color-neutral-300:#3a4844;--color-neutral-400:#53625e;--color-neutral-500:#64716d;
+  --color-neutral-600:#97a5a1;--color-neutral-700:#c2ccc9;--color-neutral-800:#dde5e2;--color-neutral-900:#edf2f0;
+  --color-accent-100:#083a34;--color-accent-200:#0f5f56;--color-accent-300:#0d7a70;--color-accent-400:#14b8a6;--color-accent-500:#2dd4bf;--color-accent-600:#5eead4;--color-accent-700:#99f6e4;--color-accent-800:#d3faf1;--color-accent-900:#e9fcf7;
+  --color-divider:color-mix(in srgb,var(--color-text) 12%,transparent);
+  --sd-pink:#84cc16;--sd-glow2:#bef264;--sd-on:#ffffff;--sd-grad:linear-gradient(135deg,#2dd4bf,#14b8a6 50%,#84cc16);
+  --shadow-sm:0 1px 2px rgba(16,48,43,.07),0 1px 1px rgba(16,48,43,.04);--shadow-md:0 6px 18px rgba(16,48,43,.09);--shadow-lg:0 -8px 32px rgba(16,48,43,.14)}
+
+[data-sd="dark"]{color-scheme:dark;
+  --color-bg:#0d1615;--color-surface:#16211f;--color-text:#e6f0ee;--color-accent:#2dd4bf;
+  --color-neutral-100:#eef4f3;--color-neutral-200:#dbe5e3;--color-neutral-300:#c2cecb;--color-neutral-400:#a2b0ad;--color-neutral-500:#8a9895;
+  --color-neutral-600:#66736f;--color-neutral-700:#4b5653;--color-neutral-800:#323c39;--color-neutral-900:#212a28;
+  --color-accent-100:#e9fcf7;--color-accent-200:#c7f7ec;--color-accent-300:#99f6e4;--color-accent-400:#5eead4;--color-accent-500:#2dd4bf;--color-accent-600:#14b8a6;--color-accent-700:#0f766e;--color-accent-800:#115e59;--color-accent-900:#0c3a37;
+  --sd-pink:#a3e635;--sd-on:#06201c;--sd-grad:linear-gradient(135deg,#5eead4,#2dd4bf 50%,#a3e635)}
+[data-sd="dark"] body{background:radial-gradient(120% 60% at 50% -10%,#10332f 0%,var(--color-bg) 60%) fixed}
+[data-sd="dark"] #app::after{background:#3f6212}
+[data-sd="dark"] .sd-sheet{background:linear-gradient(180deg,#1d2b28,var(--color-surface) 40%)}
+
+/* Hell: Stellen, an denen app.css dunkle Werte direkt setzt */
+[data-sd="light"] body{background:radial-gradient(120% 55% at 50% -10%,var(--color-accent-800) 0%,var(--color-bg) 62%) fixed}
+[data-sd="light"] #app::before{background:var(--color-accent-600);opacity:.35}
+[data-sd="light"] #app::after{background:var(--sd-glow2);opacity:.45}
+[data-sd="light"] .sd-hdr h1{background-image:linear-gradient(90deg,var(--color-text) 35%,var(--color-accent-300))}
+[data-sd="light"] .sd-sheet{background:var(--color-surface)}
+[data-sd="light"] .sd-sheet .sd-input{background:var(--color-bg);border-color:var(--color-neutral-800)}
+[data-sd="light"] .sd-back{background:rgba(16,40,36,.28)}
+[data-sd="light"] .sd-item,[data-sd="light"] .sd-row,[data-sd="light"] .sd-card,[data-sd="light"] .sd-tile{background:var(--color-surface);box-shadow:var(--shadow-sm);border-color:var(--color-neutral-800)}
+[data-sd="light"] .sd-item.done{background:var(--color-accent-900);box-shadow:none}
+[data-sd="light"] .sd-hero{background:linear-gradient(140deg,var(--color-accent-800),var(--color-surface));border-color:var(--color-accent-700);box-shadow:var(--shadow-md)}
+[data-sd="light"] .sd-hero::after{background:radial-gradient(circle,color-mix(in srgb,var(--sd-pink) 30%,transparent),transparent 70%)}
+[data-sd="light"] .sd-hring>div,[data-sd="light"] .sd-ring>div{background:var(--color-surface)}
+[data-sd="light"] .sd-hring{background:conic-gradient(var(--color-accent-400),var(--sd-pink) calc(var(--p)*1%),var(--color-neutral-900) 0);filter:none}
+[data-sd="light"] .sd-hero.full{animation:none;border-color:var(--sd-pink)}
+[data-sd="light"] .sd-streak{background:#fff1e3;color:#c2410c}
+[data-sd="light"] .sd-strip button{background:var(--color-surface);border-color:var(--color-neutral-800)}
+[data-sd="light"] .sd-strip button.on{background:var(--color-accent-900);border-color:var(--color-accent);box-shadow:var(--shadow-md)}
+[data-sd="light"] .sd-seg{background:var(--color-neutral-900)}
+[data-sd="light"] .sd-seg button.on{background:var(--color-surface);color:var(--color-text);box-shadow:var(--shadow-sm)}
+[data-sd="light"] .sd-tabs{background:color-mix(in srgb,var(--color-surface) 82%,transparent);border-top-color:var(--color-neutral-800)}
+[data-sd="light"] .sd-tab.on{color:var(--color-accent-300)}
+[data-sd="light"] .sd-tile.done{background:linear-gradient(150deg,var(--color-accent-800),var(--color-accent-900));border-color:var(--color-accent-700)}
+[data-sd="light"] .sd-tile.done .t{color:var(--color-text)}
+[data-sd="light"] .sd-ringcard.on{background:var(--color-surface);box-shadow:var(--shadow-sm)}
+[data-sd="light"] .sd-fab{box-shadow:0 8px 22px color-mix(in srgb,var(--color-accent) 40%,transparent)}
+[data-sd="light"] .sd-err{background:#fff1f0;color:#b42318}
+[data-sd="light"] .sd-code{color:var(--color-accent-300)}
+
+/* Feinschliff, beide Modi */
+body{font-feature-settings:"ss01"}
+.sd-hdr h1{font-size:34px;font-weight:700;letter-spacing:-.035em}
+.sd-brand h1{font-weight:800;letter-spacing:-.04em}
+.sd-htxt b,.sd-ring b,.sd-hring b,.sd-big b,.sd-strip b,.sd-code,.sd-rate .row span:last-child,.sd-prog .row b{font-variant-numeric:tabular-nums}
+.sd-htxt b{font-weight:700}
+.sd-hring b,.sd-ring b{font-weight:700}
+.sd-label{font-size:11px;font-weight:600;letter-spacing:.1em}
+.sd-item .t,.sd-row .t{font-weight:500;line-height:1.3}
+.sd-item .m,.sd-row .m,.sd-tile .m{font-size:12.5px}
+.sd-card h2{font-weight:600}
+.sd-sheet h3{font-weight:700;letter-spacing:-.02em}
+.sd-streak{flex:none;gap:2px;padding:2px 7px;font-size:12px;font-weight:600}
+.sd-streak i{font-size:12px}
+.sd-btn{font-weight:600}
+.sd-btn:not(.ghost):not(.danger):disabled{background:var(--color-neutral-900);color:var(--color-neutral-500);border-color:var(--color-neutral-800);filter:none;opacity:1}
+.sd-tab span{font-weight:500}
+.sd-opt.on,.sd-chip.on{font-weight:600}
+
+/* Leerer Zustand mit Vorlagen */
+.sd-welcome{display:flex;flex-direction:column;gap:14px;padding:22px 18px;border-radius:20px;background:var(--color-surface);border:1px dashed var(--color-accent-700)}
+.sd-welcome .ico{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--sd-grad);color:var(--sd-on);font-size:26px;box-shadow:0 8px 20px color-mix(in srgb,var(--color-accent) 30%,transparent)}
+.sd-welcome h2{margin:0;font-size:19px;font-weight:700;letter-spacing:-.02em}
+.sd-welcome p{margin:0;font-size:14px;line-height:1.5;color:var(--color-neutral-400)}
+.sd-tpls{display:flex;flex-wrap:wrap;gap:8px}
+.sd-tpl{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:18px;border:1px solid var(--color-neutral-800);background:var(--color-bg);color:var(--color-text);font-size:13px;font-weight:500;cursor:pointer;min-height:38px;transition:transform .2s var(--sd-ease),border-color .2s}
+.sd-tpl i{color:var(--color-accent-300);font-size:16px}
+.sd-tpl:hover{border-color:var(--color-accent)}
+.sd-tpl:active{transform:scale(.95)}
+
+/* Raster bis 7 Tage: passt in die Breite, Namen werden gekürzt statt die Tage hinauszuschieben */
+.sd-grid.fit{width:100%}
+.sd-grid.fit .sd-sticky{background:transparent}
