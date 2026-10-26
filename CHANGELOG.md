@@ -2,6 +2,20 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 6 · 26. Oktober 2026
+
+**Heute: Simon | Irina | Duo**
+- Oben wählt ihr, wessen Tag ihr seht: **Simon**, **Irina** oder **Duo**. Der Umschalter ersetzt die runden Knöpfe S/I.
+- **Duo** zeigt euch beide nebeneinander, darunter wie bisher **Liste** oder **Kacheln**: als Liste mit je einer Spalte pro Person, als Kacheln mit den Feldern S und I. Eigene Felder hakt ihr ab, die der anderen Person sind nur zum Ansehen. Gemeinsame Routinen haben ein Feld „Beide“, nicht geplant ist „–“. Im lokalen Modus sind alle Felder abhakbar.
+- Gemeinsame Routinen tragen in der Liste die Avatare beider Personen.
+
+**Verlauf**
+- Kalender und Raster sind ein Tab **Verlauf** mit Tag, Woche, Monat und Von–bis. Woche und Von–bis zeigen das abhakbare Raster mit Quote je Routine, Monat den Kalender.
+- Die Leiste unten hat fünf Tabs: Heute, Verlauf, Routinen, Statistik, Mehr.
+
+**Lesbarkeit**
+- Nebentext im hellen Modus dunkler, Tasten mindestens 44 px groß.
+
 ## Version 5 · 25. Oktober 2026
 
 - Unter **Mehr → Über SuperDaily** stehen die Versionsnummer, die Neuerungen dieser Version und die früheren Versionen.
