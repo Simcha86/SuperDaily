@@ -1,6 +1,6 @@
 # Änderungsprotokoll
 
-Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
+Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen. Danach die Unterlagen in `docs/` neu erzeugen (Anleitung, Vergleich, Release Notes, Screens, Figma), siehe `docs/README.md`.
 
 ## Version 5 · 25. Oktober 2026
 

@@ -1,0 +1,239 @@
+{
+  "version": 5,
+  "steps": [
+    {
+      "n": 1,
+      "phase": "A",
+      "title": "Routinen öffnen",
+      "text": "Unten in der Leiste auf „Routinen“ tippen.",
+      "file": "flow-01.png",
+      "hl": [
+        {
+          "x": 259.3,
+          "y": 784.7,
+          "w": 64.3,
+          "h": 53.3
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "phase": "A",
+      "title": "Bereiche öffnen",
+      "text": "Oben rechts auf „Bereiche“ tippen.",
+      "file": "flow-02.png",
+      "hl": [
+        {
+          "x": 268.7,
+          "y": 42.1,
+          "w": 103.3,
+          "h": 38.1
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "phase": "A",
+      "title": "Namen eingeben",
+      "text": "Unten den neuen Bereich eintippen, z. B. „Wir zwei“, dann „Anlegen“.",
+      "file": "flow-03.png",
+      "hl": [
+        {
+          "x": 20,
+          "y": 705.5,
+          "w": 221.1,
+          "h": 49.3
+        },
+        {
+          "x": 249.1,
+          "y": 705.5,
+          "w": 120.9,
+          "h": 49.3
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "phase": "A",
+      "title": "Symbol wählen (optional)",
+      "text": "Das Symbol links antippen. Jedes Tippen zeigt das nächste, bis es passt.",
+      "file": "flow-04.png",
+      "hl": [
+        {
+          "x": 20,
+          "y": 647,
+          "w": 42,
+          "h": 42
+        }
+      ]
+    },
+    {
+      "n": 5,
+      "phase": "A",
+      "title": "Fertig",
+      "text": "Der Bereich gilt sofort für euch beide. Mit „Fertig“ schließen.",
+      "file": "flow-05.png",
+      "hl": [
+        {
+          "x": 20,
+          "y": 770.8,
+          "w": 350,
+          "h": 49.3
+        }
+      ]
+    },
+    {
+      "n": 6,
+      "phase": "B",
+      "title": "Neue Routine",
+      "text": "Auf den runden +-Knopf unten rechts tippen.",
+      "file": "flow-06.png",
+      "hl": [
+        {
+          "x": 314,
+          "y": 702,
+          "w": 56,
+          "h": 56
+        }
+      ]
+    },
+    {
+      "n": 7,
+      "phase": "B",
+      "title": "Titel und Tageszeit",
+      "text": "Titel eintippen, z. B. „Zusammen kochen“, und die Tageszeit wählen.",
+      "file": "flow-07.png",
+      "hl": [
+        {
+          "x": 20,
+          "y": 218.3,
+          "w": 350,
+          "h": 43
+        },
+        {
+          "x": 257.3,
+          "y": 301.8,
+          "w": 112.7,
+          "h": 42.1
+        }
+      ]
+    },
+    {
+      "n": 8,
+      "phase": "B",
+      "title": "Bereich und „Gemeinsam“",
+      "text": "Den neuen Bereich „Wir zwei“ wählen. Bei „Für wen“ auf „Gemeinsam“ tippen.",
+      "file": "flow-08.png",
+      "hl": [
+        {
+          "x": 20,
+          "y": 468.9,
+          "w": 98.5,
+          "h": 36.1
+        },
+        {
+          "x": 20,
+          "y": 593.7,
+          "w": 172,
+          "h": 42.1
+        }
+      ]
+    },
+    {
+      "n": 9,
+      "phase": "B",
+      "title": "Wiederholung, speichern",
+      "text": "Wiederholung wählen, hier „Täglich“, dann auf „Hinzufügen“ tippen.",
+      "file": "flow-09.png",
+      "hl": [
+        {
+          "x": 20,
+          "y": 676.5,
+          "w": 70,
+          "h": 36.1
+        },
+        {
+          "x": 20,
+          "y": 770.8,
+          "w": 350,
+          "h": 49.3
+        }
+      ]
+    },
+    {
+      "n": 10,
+      "phase": "B",
+      "title": "Kontrolle",
+      "text": "Die Routine steht jetzt unter „Wir zwei“, rechts mit „Gemeinsam“.",
+      "file": "flow-10.png",
+      "hl": [
+        {
+          "x": 18,
+          "y": 646.7,
+          "w": 354,
+          "h": 66.9
+        }
+      ]
+    },
+    {
+      "n": 11,
+      "phase": "C",
+      "title": "In „Heute“ abhaken",
+      "text": "Die Routine steht unter „Abend“. Zum Abhaken antippen.",
+      "file": "flow-11.png",
+      "hl": [
+        {
+          "x": 18,
+          "y": 646.7,
+          "w": 354,
+          "h": 66.9
+        }
+      ]
+    },
+    {
+      "n": 12,
+      "phase": "C",
+      "title": "Erledigt",
+      "text": "Der Haken sitzt und zählt für Simon und Irina zugleich.",
+      "file": "flow-12.png",
+      "hl": [
+        {
+          "x": 18,
+          "y": 646.7,
+          "w": 354,
+          "h": 66.9
+        }
+      ]
+    },
+    {
+      "n": 13,
+      "phase": "C",
+      "title": "Zu Irina wechseln",
+      "text": "Oben rechts auf den Kreis „I“ tippen, um Irinas Tag zu sehen.",
+      "file": "flow-13.png",
+      "hl": [
+        {
+          "x": 334,
+          "y": 42.2,
+          "w": 38,
+          "h": 38
+        }
+      ]
+    },
+    {
+      "n": 14,
+      "phase": "C",
+      "title": "Auch bei Irina erledigt",
+      "text": "Irina muss nichts mehr tun. Gemeinsame Routinen dürfen beide abhaken.",
+      "file": "flow-14.png",
+      "hl": [
+        {
+          "x": 18,
+          "y": 647.6,
+          "w": 354,
+          "h": 66.9
+        }
+      ]
+    }
+  ]
+}

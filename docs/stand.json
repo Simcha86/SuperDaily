@@ -1,0 +1,16 @@
+{
+  "version": 5,
+  "datum": "2026-10-26",
+  "commit": "9178df8e7888aad9cd3f9aadaf9e7c87a6b6980c",
+  "vergleich": {
+    "version": 4,
+    "commit": "d0a7357de345b8a4b402cf57d9706a95bef70f58",
+    "veraendert": [
+      "05-heute-neu-in-version",
+      "32-mehr-haushalt",
+      "33-mehr-ueber-superdaily"
+    ],
+    "neu": [],
+    "unveraendert": 35
+  }
+}

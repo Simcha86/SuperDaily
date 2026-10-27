@@ -1,0 +1,287 @@
+{
+  "version": 5,
+  "groups": [
+    {
+      "name": "Start",
+      "desc": "Anmeldung, Haushalt und erster Start",
+      "screens": [
+        {
+          "key": "01-start-anmelden",
+          "title": "Anmelden",
+          "desc": "E-Mail und Passwort, „Passwort vergessen?“",
+          "file": "01-start-anmelden.png"
+        },
+        {
+          "key": "02-start-registrieren",
+          "title": "Registrieren",
+          "desc": "Neues Konto anlegen",
+          "file": "02-start-registrieren.png"
+        },
+        {
+          "key": "03-start-haushalt",
+          "title": "Haushalt",
+          "desc": "Neuen Haushalt anlegen oder mit Code beitreten",
+          "file": "03-start-haushalt.png"
+        },
+        {
+          "key": "04-start-willkommen",
+          "title": "Willkommen",
+          "desc": "Leerer Start mit Vorlagen",
+          "file": "04-start-willkommen.png"
+        }
+      ]
+    },
+    {
+      "name": "Heute",
+      "desc": "Der Tag: abhaken als Liste oder Kacheln",
+      "screens": [
+        {
+          "key": "05-heute-neu-in-version",
+          "title": "Heute · Neu in Version",
+          "desc": "Einmaliger Hinweis nach einem Update",
+          "file": "05-heute-neu-in-version.png"
+        },
+        {
+          "key": "06-heute-liste",
+          "title": "Heute · Liste",
+          "desc": "Fortschrittsring, Tageszeiten, Serien",
+          "file": "06-heute-liste.png"
+        },
+        {
+          "key": "07-heute-liste-unten",
+          "title": "Heute · Liste unten",
+          "desc": "Abend-Routinen",
+          "file": "07-heute-liste-unten.png"
+        },
+        {
+          "key": "08-heute-kacheln",
+          "title": "Heute · Kacheln",
+          "desc": "Ringe für beide Personen",
+          "file": "08-heute-kacheln.png"
+        },
+        {
+          "key": "09-heute-gestern",
+          "title": "Gestern",
+          "desc": "Vergangener Tag über die Tagesleiste",
+          "file": "09-heute-gestern.png"
+        },
+        {
+          "key": "34-heute-andere-person",
+          "title": "Heute · andere Person",
+          "desc": "Nur ansehen, Hinweis zum Abhaken",
+          "file": "34-heute-andere-person.png"
+        }
+      ]
+    },
+    {
+      "name": "Kalender",
+      "desc": "Rückblick in vier Zeiträumen",
+      "screens": [
+        {
+          "key": "10-kalender-tag",
+          "title": "Kalender · Tag",
+          "desc": "Liste eines Tages, abhakbar",
+          "file": "10-kalender-tag.png"
+        },
+        {
+          "key": "11-kalender-woche",
+          "title": "Kalender · Woche",
+          "desc": "Routinen × 7 Tage",
+          "file": "11-kalender-woche.png"
+        },
+        {
+          "key": "12-kalender-monat",
+          "title": "Kalender · Monat",
+          "desc": "Farbkalender mit Tagesquote",
+          "file": "12-kalender-monat.png"
+        },
+        {
+          "key": "13-kalender-zeitraum",
+          "title": "Kalender · Von – bis",
+          "desc": "Eigener Zeitraum, letzte 7/30/90 Tage",
+          "file": "13-kalender-zeitraum.png"
+        }
+      ]
+    },
+    {
+      "name": "Raster",
+      "desc": "Routinen × Tage, jedes Kästchen abhakbar",
+      "screens": [
+        {
+          "key": "14-raster-woche",
+          "title": "Raster · Woche",
+          "desc": "Gesamtquote oben rechts",
+          "file": "14-raster-woche.png"
+        },
+        {
+          "key": "15-raster-monat",
+          "title": "Raster · Monat",
+          "desc": "Seitlich wischen für frühere Tage",
+          "file": "15-raster-monat.png"
+        }
+      ]
+    },
+    {
+      "name": "Statistik",
+      "desc": "Simon und Irina im Vergleich",
+      "screens": [
+        {
+          "key": "16-statistik-oben",
+          "title": "Statistik · Duell",
+          "desc": "Quote, Krone, perfekte Tage",
+          "file": "16-statistik-oben.png"
+        },
+        {
+          "key": "17-statistik-verlauf",
+          "title": "Statistik · Verlauf",
+          "desc": "Je Woche und nach Wochentag",
+          "file": "17-statistik-verlauf.png"
+        },
+        {
+          "key": "18-statistik-bereich",
+          "title": "Statistik · Nach Bereich",
+          "desc": "Quote je Lebensbereich",
+          "file": "18-statistik-bereich.png"
+        },
+        {
+          "key": "19-statistik-je-routine",
+          "title": "Statistik · Je Routine",
+          "desc": "Schwächste Routinen zuerst",
+          "file": "19-statistik-je-routine.png"
+        }
+      ]
+    },
+    {
+      "name": "Routinen & Bereiche",
+      "desc": "Verwalten, ordnen, archivieren",
+      "screens": [
+        {
+          "key": "20-routinen",
+          "title": "Routinen",
+          "desc": "Nach Bereichen gruppiert",
+          "file": "20-routinen.png"
+        },
+        {
+          "key": "21-routinen-unten",
+          "title": "Routinen unten",
+          "desc": "Weitere Bereiche",
+          "file": "21-routinen-unten.png"
+        },
+        {
+          "key": "35-routinen-archiv",
+          "title": "Routinen · Archiv",
+          "desc": "Wiederherstellen oder endgültig löschen",
+          "file": "35-routinen-archiv.png"
+        },
+        {
+          "key": "22-bereiche",
+          "title": "Bereiche",
+          "desc": "Symbol, Name, entfernen, neu anlegen",
+          "file": "22-bereiche.png"
+        }
+      ]
+    },
+    {
+      "name": "Routine-Formular",
+      "desc": "Neue Routine und Bearbeiten",
+      "screens": [
+        {
+          "key": "23-neue-routine",
+          "title": "Neue Routine",
+          "desc": "Titel, Vorschläge, Tageszeit, Bereich",
+          "file": "23-neue-routine.png"
+        },
+        {
+          "key": "24-neue-routine-unten",
+          "title": "Neue Routine unten",
+          "desc": "Für wen, Wiederholung, Hinzufügen",
+          "file": "24-neue-routine-unten.png"
+        },
+        {
+          "key": "25-wiederholung-wochentage",
+          "title": "Wiederholung · Wochentage",
+          "desc": "Tage einzeln wählen",
+          "file": "25-wiederholung-wochentage.png"
+        },
+        {
+          "key": "26-wiederholung-alle-x-tage",
+          "title": "Wiederholung · Alle X Tage",
+          "desc": "2 bis 30 Tage Abstand",
+          "file": "26-wiederholung-alle-x-tage.png"
+        },
+        {
+          "key": "27-wiederholung-monatlich",
+          "title": "Wiederholung · Monatlich",
+          "desc": "Tag im Monat",
+          "file": "27-wiederholung-monatlich.png"
+        },
+        {
+          "key": "28-wiederholung-x-mal-pro-woche",
+          "title": "Wiederholung · X-mal pro Woche",
+          "desc": "1 bis 6 Mal, Tage frei",
+          "file": "28-wiederholung-x-mal-pro-woche.png"
+        },
+        {
+          "key": "29-routine-bearbeiten",
+          "title": "Routine bearbeiten",
+          "desc": "Archivieren oder speichern",
+          "file": "29-routine-bearbeiten.png"
+        },
+        {
+          "key": "30-routine-bearbeiten-hinweis",
+          "title": "Bearbeiten · Hinweis",
+          "desc": "„Die Änderung gilt ab heute“",
+          "file": "30-routine-bearbeiten-hinweis.png"
+        }
+      ]
+    },
+    {
+      "name": "Mehr",
+      "desc": "Einstellungen und Version",
+      "screens": [
+        {
+          "key": "31-mehr",
+          "title": "Mehr · Einstellungen",
+          "desc": "Namen, Darstellung, Ich bin",
+          "file": "31-mehr.png"
+        },
+        {
+          "key": "32-mehr-haushalt",
+          "title": "Mehr · Haushalt & Daten",
+          "desc": "Code, Abmelden, Export, Import, Über SuperDaily",
+          "file": "32-mehr-haushalt.png"
+        },
+        {
+          "key": "33-mehr-ueber-superdaily",
+          "title": "Mehr · Frühere Versionen",
+          "desc": "Änderungsprotokoll der früheren Versionen",
+          "file": "33-mehr-ueber-superdaily.png"
+        }
+      ]
+    },
+    {
+      "name": "Dunkelmodus",
+      "desc": "Dieselben Screens in Dunkel",
+      "screens": [
+        {
+          "key": "36-dunkel-heute",
+          "title": "Dunkel · Heute",
+          "desc": "",
+          "file": "36-dunkel-heute.png"
+        },
+        {
+          "key": "37-dunkel-statistik",
+          "title": "Dunkel · Statistik",
+          "desc": "",
+          "file": "37-dunkel-statistik.png"
+        },
+        {
+          "key": "38-dunkel-routinen",
+          "title": "Dunkel · Routinen",
+          "desc": "",
+          "file": "38-dunkel-routinen.png"
+        }
+      ]
+    }
+  ]
+}

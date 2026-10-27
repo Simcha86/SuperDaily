@@ -1,0 +1,8 @@
+{
+  "fileKey": "Y2JslhGzdyjmzXKTL8cKFU",
+  "url": "https://www.figma.com/design/Y2JslhGzdyjmzXKTL8cKFU",
+  "pages": {
+    "uebersicht": { "id": "0:1", "name": "Screens · Version 5", "frames": "Rahmenname = Screen-Key aus docs/tools/screens.js, z. B. 06-heute-liste" },
+    "anleitung": { "id": "8:2", "name": "Anleitung · Bereich & gemeinsame Routine", "frames": "Rahmenname beginnt mit der Schrittnummer, z. B. „03 · Namen eingeben“; Tipp-Markierungen heißen „Hier tippen“" }
+  }
+}

@@ -86,6 +86,7 @@ Steht in `firebase-config.js` eine `measurementId` (nur vorhanden, wenn Analytic
 | `firebase-config.js` | Deine Firebase-Konfiguration |
 | `firestore.rules` | Sicherheitsregeln für Firestore |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Offline-Fähigkeit und Installation |
+| `docs/` | Anleitung, Versionsvergleich, Release Notes und Screens zur aktuellen Version (siehe `docs/README.md`) |
 
 ## Datenmodell (Firestore)
 
