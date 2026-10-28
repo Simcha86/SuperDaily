@@ -1,0 +1,75 @@
+# SuperDaily – Hinweise für Claude
+
+SuperDaily ist die Routinen-App von Simon und Irina: eine Web-App (PWA) ohne Build-Schritt, live über GitHub Pages unter https://simcha86.github.io/SuperDaily/, Daten über Firebase. Simons allgemeine Arbeitsweise (Sprache, Git, Release Notes, PowerPoint-Frage) steht in seinen Skills **meine-app-entwicklung**, **app-tests** und **e2e-test-generator**. Diese Datei beschreibt nur, was speziell für SuperDaily gilt, und geht bei Widersprüchen vor.
+
+**Diese Datei aktuell halten:** Wenn sich an der App etwas Grundlegendes ändert (Design, Datenmodell, Rechte, Dateien, Ablauf beim Release), diese Datei im selben Pull Request anpassen. Sonst hält eine spätere Sitzung den neuen Stand für einen Fehler.
+
+## Dateien
+
+| Datei | Inhalt |
+| --- | --- |
+| `index.html` | Einstieg; setzt Hell/Dunkel vor dem ersten Zeichnen, lädt Schrift, Symbole, Styles und `app.js` |
+| `app.js` | Gesamte Logik und Oberfläche (HTML als Text, Neuzeichnen über `render()`, Aktionen im Objekt `A` über `data-a`-Attribute) |
+| `nocturne.css` | Grund-Designsystem (Tokens, Grundbausteine) – nicht ändern |
+| `app.css` | App-Bausteine (`sd-…`-Klassen) |
+| `theme.css` | Design „Minze“ hell/dunkel und alle späteren Ergänzungen |
+| `firestore.rules` | Sicherheitsregeln; Simon veröffentlicht sie von Hand in der Firebase-Konsole |
+| `firebase-config.js` | Echte Web-Konfiguration des Projekts `superdaily-c7408` (kein Geheimnis) |
+| `sw.js` | Service Worker; Konstante `CACHE` |
+| `CHANGELOG.md` | Änderungen je Version |
+| `docs/releases/v<N>/` | Release Notes und ggf. Vergleichs-PowerPoint je Version (ab Version 6) |
+| `tests/` | Tests nach Skill **app-tests** (wird eingerichtet) |
+
+Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Bibliotheken nur mit fester Version (Phosphor-Symbole 2.1.1, Firebase-SDK 10.12.2 von gstatic).
+
+## Design
+
+- Das Design heißt **Minze** (Türkis bis Limette, Schrift Plus Jakarta Sans, hell und dunkel). Simon findet es gut: **nicht verändern**, nur auf seinen Wunsch.
+- Neue Teile aus vorhandenen Bausteinen bauen (`sd-card`, `sd-row`, `sd-item`, `sd-chip`, `sd-opt`, `sd-btn`, `sd-hint`, `sd-mini`, Bottom-Sheet `sd-sheet`) und Farben nur über die Tokens (`--color-accent-…`, `--color-neutral-…`, `--sd-grad`, `--sd-a`/`--sd-b`).
+- Neue Styles ans Ende von `theme.css`, beide Modi beachten (`[data-sd="light"]` dreht die Farbrampen um: 100 = dunkel, 900 = hell).
+- Symbole aus Phosphor; vor Verwendung prüfen, dass der Name existiert.
+
+## Personen und Rechte
+
+- Zwei Personen: **a = Simon** (Person 1), **b = Irina** (Person 2). Jedes Konto ist fest einer Rolle zugeordnet (`roles` im Haushalt), danach nicht änderbar.
+- Routine `who`: `a`, `b`, `ab` (beide einzeln, jede Person hakt selbst ab) oder `s` (gemeinsam, ein Haken für beide).
+- **Alle sehen alles.** Abhaken und Bearbeiten nur bei eigenen sowie `ab`/`s`-Routinen. In der App: `canCheck`, `canEdit`, `viewOnly`; in den Regeln: `editable`, `myRole`.
+- Rechte immer zweifach umsetzen: in der App (Bedienung ausblenden) **und** in `firestore.rules` (durchsetzen).
+- Im lokalen Modus (ohne Firebase) gibt es keine Einschränkungen.
+
+## Datenmodell (Firestore)
+
+```
+users/{uid}                              { hh, person }
+households/{code}                        { members, roles, names, cats }
+households/{code}/routines/{id}          Routine (inkl. hist, cat)
+households/{code}/days/{a|b|s}_{Datum}   { routineId: true }
+```
+
+- Neue Felder im Haushalt-Dokument müssen in `firestore.rules` bei `affectedKeys().hasOnly([...])` freigegeben werden, sonst schlägt das Speichern fehl.
+- Firestore-Regeln können keine Listen oder Maps durchlaufen. Deshalb liegen Routinen und Haken als eigene Dokumente, damit pro Dokument geprüft werden kann.
+- Haken-Dokumente heißen `<Rolle>_<Datum>`; die Regeln prüfen das Präfix.
+
+## Verlauf und Statistik
+
+- **Vergangenheit bleibt richtig:** Ändert sich Wiederholung oder Person einer Routine, wird die alte Einstellung in `hist` mit `until` = gestern gespeichert (`addVersion`). Berechnungen fragen pro Tag `repAt`/`whoAt`. Nie die aktuelle Einstellung rückwirkend anwenden.
+- **Archivieren statt Löschen:** `rep.type = 'off'`; endgültiges Löschen nur über das Archiv.
+- „Alle X Tage“ zählt ab `rep.from`.
+- Wichtigster Regressionstest: Kalender-Quoten vergangener Tage beider Personen sind nach Änderungen, Archivieren und Wiederherstellen unverändert.
+
+## Release-Ablauf für SuperDaily
+
+Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
+
+1. Neue Version oben in `CHANGES` am Anfang von `app.js` eintragen (Nutzersicht, 2–4 Punkte). Die App zeigt sie unter Mehr → Über SuperDaily und einmalig als Hinweis nach dem Update.
+2. `CACHE` in `sw.js` um eins erhöhen.
+3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
+4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen; Simon veröffentlicht sie **vor** dem Merge.
+
+Aktueller Stand: Version 5, `CACHE = 'superdaily-v6'`.
+
+## Testen
+
+- Beispieldaten: Simon und Irina, fünf Routinen (gemeinsam, beide einzeln, je eine pro Person), drei Wochen Verlauf.
+- Für Zwei-Personen-Tests die App mit Test-Konfiguration gegen Auth- und Firestore-Emulator starten (`connectAuthEmulator`, `connectFirestoreEmulator`, Projekt `demo-…`), nie mit der echten `firebase-config.js`.
+- In Cloud-Sitzungen sind gstatic, Google Fonts und GitHub Pages gesperrt: Firebase-SDK 10.12.2 aus npm, Plus Jakarta Sans aus `@fontsource/plus-jakarta-sans`, Phosphor aus `@phosphor-icons/web@2.1.1` über Playwright-`route` ausliefern.
