@@ -93,5 +93,5 @@ function pdf(file) {
   const stand = { version, datum: new Date().toISOString().slice(0, 10), commit: sha, vergleich: prevSha ? { version: prev, commit: prevSha, veraendert: pairs.map(p => p.s.key), neu: added.map(p => p.s.key), unveraendert: unchanged } : null };
   fs.writeFileSync(path.join(DOCS, 'stand.json'), JSON.stringify(stand, null, 2) + '\n');
   log(`Fertig: Version ${version}. Verändert: ${pairs.map(p => p.s.key).join(', ') || '–'}. Neu: ${added.map(p => p.s.key).join(', ') || '–'}.`);
-  log('Jetzt noch Figma aktualisieren (siehe docs/README.md, Schritt „Figma“).');
+  log('Jetzt noch Figma aktualisieren (siehe docs/README.md, Abschnitt „Figma“).');
 })().catch(e => { console.error(e); process.exit(1); });

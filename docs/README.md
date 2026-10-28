@@ -20,7 +20,7 @@ npm install
 npm run docs
 ```
 
-Das Skript startet die aktuelle und die vorherige Version der App im lokalen Modus mit festen Beispieldaten (Simon und Irina), nimmt alle Screens auf, vergleicht sie und schreibt Anleitung, Vergleich, Release Notes und Screens neu. Danach wird Figma über den Figma-Zugang von Claude aktualisiert. Der vollständige Ablauf steht im Skill [`release-docs`](../.claude/skills/release-docs/SKILL.md).
+Das Skript startet die aktuelle und die vorherige Version der App im lokalen Modus mit festen Beispieldaten (Simon und Irina), nimmt alle Screens auf, vergleicht sie und schreibt Anleitung, Vergleich, Release Notes und Screens neu. Danach Figma aktualisieren (siehe unten).
 
 Voraussetzungen: Node.js, Playwright mit Chromium, für die PDFs LibreOffice.
 
@@ -32,3 +32,11 @@ Voraussetzungen: Node.js, Playwright mit Chromium, für die PDFs LibreOffice.
 | `vergleich.js` | Folien des Versionsvergleichs (automatisch aus den Screens) |
 | `release-docs.js` | Ablauf: App vorbereiten, aufnehmen, vergleichen, erzeugen |
 | `lib/` | App starten, Screenshots, Bilder, Folien-Design, Release Notes, Beispieldaten |
+
+## Figma
+
+Datei und Seiten stehen in [`figma.json`](figma.json). Aktualisiert wird über die Figma-Werkzeuge von Claude:
+
+- **Übersicht:** Rahmenname = Screen-Key aus `screens/screens.json`. Bilder aus `screens/<key>.png` mit `upload_assets` in die Rahmen laden; neue Keys als neue Rahmen im passenden Abschnitt anlegen, entfallene entfernen. Kopfzeile und Seitenname auf die neue Version setzen.
+- **Anleitung:** Rahmen beginnen mit der Schrittnummer (`03 · …`). Rechtecke „Hier tippen“ aus `screens/anleitung/flow.json` neu setzen (x−6, y−6, Breite/Höhe +12, Radius 14, Kontur 4 px `#E11D48`), Bilder `flow-NN.png` hochladen.
+- Für den Upload muss `mcp.figma.com` in den Netzwerkregeln der Cloud-Umgebung erlaubt sein.
