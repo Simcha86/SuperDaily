@@ -1,0 +1,20 @@
+{
+  "name": "superdaily-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:regeln && npm run test:app",
+    "test:regeln": "firebase emulators:exec --only firestore --project demo-superdaily \"node regeln.test.mjs\"",
+    "test:app": "firebase emulators:exec --only firestore,auth --project demo-superdaily \"playwright test\"",
+    "test:lokal": "playwright test klick regression"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "6.0.0",
+    "@fontsource/plus-jakarta-sans": "5.0.20",
+    "@phosphor-icons/web": "2.1.1",
+    "@playwright/test": "1.63.0",
+    "firebase": "13.1.0",
+    "firebase-app-sdk": "npm:firebase@10.12.2",
+    "firebase-tools": "15.34.1"
+  }
+}

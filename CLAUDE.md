@@ -18,7 +18,7 @@ SuperDaily ist die Routinen-App von Simon und Irina: eine Web-App (PWA) ohne Bui
 | `sw.js` | Service Worker; Konstante `CACHE` |
 | `CHANGELOG.md` | Änderungen je Version |
 | `docs/releases/v<N>/` | Release Notes und ggf. Vergleichs-PowerPoint je Version (ab Version 6) |
-| `tests/` | Tests nach Skill **app-tests** (wird eingerichtet) |
+| `tests/` | Tests nach Skill **app-tests** (Regeln, Zwei Personen, Regression, Klick); Anleitung in `tests/README.md` |
 
 Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Bibliotheken nur mit fester Version (Phosphor-Symbole 2.1.1, Firebase-SDK 10.12.2 von gstatic).
 
@@ -70,6 +70,8 @@ Aktueller Stand: Version 5, `CACHE = 'superdaily-v6'`.
 
 ## Testen
 
+- Alle Tests: im Ordner `tests/` `npm install`, dann `npm test` (Regeln, danach Browser-Tests mit Auth- und Firestore-Emulator). Vor jedem Release müssen alle grün sein; neue Funktionen bekommen neue Tests im selben Pull Request.
+- `tests/hilfen.js` lädt `firestore.rules` selbst in den Emulator und hängt die Emulator-Verbindung an zwei Ankerzeilen in `app.js` ein (`const auth = A.getAuth(app);`, `fb = { A, F, auth, db };`). Werden diese Zeilen geändert, `hilfen.js` mit anpassen.
 - Beispieldaten: Simon und Irina, fünf Routinen (gemeinsam, beide einzeln, je eine pro Person), drei Wochen Verlauf.
 - Für Zwei-Personen-Tests die App mit Test-Konfiguration gegen Auth- und Firestore-Emulator starten (`connectAuthEmulator`, `connectFirestoreEmulator`, Projekt `demo-…`), nie mit der echten `firebase-config.js`.
 - In Cloud-Sitzungen sind gstatic, Google Fonts und GitHub Pages gesperrt: Firebase-SDK 10.12.2 aus npm, Plus Jakarta Sans aus `@fontsource/plus-jakarta-sans`, Phosphor aus `@phosphor-icons/web@2.1.1` über Playwright-`route` ausliefern.
