@@ -22,6 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 6, date: '2026-10-29', items: ['Beitreten mit Code: die freie Person wird automatisch gewählt', 'Besser mit Vorleseprogramm (VoiceOver, TalkBack): Symbole werden nicht mehr mitgelesen'] },
   { v: 5, date: '2026-10-25', items: ['Versionsnummer und „Neu in dieser Version“ unter Mehr', 'Einmaliger Hinweis nach einem Update'] },
   { v: 4, date: '2026-10-25', items: ['Bereiche selbst anlegen, umbenennen, mit Symbol versehen oder entfernen (Routinen → Bereiche)', 'Statistik „Nach Bereich“', 'Änderungen an Routinen gelten ab heute, vergangene Tage behalten ihre Wertung', 'Archivieren statt Löschen, mit Wiederherstellen'] },
   { v: 3, date: '2026-10-25', items: ['Tab „Statistik“: Simon und Irina im Vergleich', 'Anmeldung und Sync zwischen beiden Handys', 'Jede Person hakt nur eigene und gemeinsame Routinen ab, sieht aber alles', 'Google Analytics'] },
@@ -291,7 +292,8 @@ function stepRange(m, k) {
 function totals(p, s, e) { let a = 0, b = 0; R().filter(r => everVisible(r, p)).forEach(r => { const x = rate(r, p, s, e); a += x.a; b += x.b; }); return { a, b, pct: b ? Math.round(a / b * 100) : 0 }; }
 
 // ---------- Bausteine ----------
-const icon = (n, cls = 'ph') => `<i class="${cls} ph-${n}"></i>`;
+// Symbole sind Schmuck: aria-hidden, damit Vorleseprogramme (VoiceOver, TalkBack) sie nicht als Zeichen vorlesen.
+const icon = (n, cls = 'ph') => `<i class="${cls} ph-${n}" aria-hidden="true"></i>`;
 const initial = p => esc((data.names[p] || '?')[0].toUpperCase());
 const personDots = () => `<div class="sd-dots">${['a', 'b'].map(p => `<button class="sd-dot ${ui.person === p ? 'on' : ''}" data-a="person" data-p="${p}" aria-label="${esc(data.names[p])}">${initial(p)}</button>`).join('')}</div>`;
 const personSeg = () => `<div class="sd-seg">${['a', 'b'].map(p => `<button class="${ui.person === p ? 'on' : ''}" data-a="person" data-p="${p}">${esc(data.names[p])}</button>`).join('')}</div>`;
@@ -545,7 +547,7 @@ function setupHtml() {
   return `<div class="sd-auth"><div class="sd-brand"><h1>Haushalt</h1><p>Einmal anlegen, die zweite Person tritt mit dem Code bei.</p></div>
   ${ui.setupErr ? `<div class="sd-err">${esc(ui.setupErr)}</div>` : ''}
   <div class="sd-card"><h2>Neuen Haushalt anlegen</h2><div class="sd-g2"><label class="sd-field">Person 1<input class="sd-input" value="${esc(s.a)}" data-in="setupA"></label><label class="sd-field">Person 2<input class="sd-input" value="${esc(s.b)}" data-in="setupB"></label></div><div class="sd-field">Ich bin${who}</div><button class="sd-btn block" data-a="createHH" ${ui.busy ? 'disabled' : ''}>Anlegen</button></div>
-  <div class="sd-card"><h2>Mit Code beitreten</h2><input class="sd-input" value="${esc(s.code)}" placeholder="z. B. K7Q2XM" data-in="setupCode" style="text-transform:uppercase;letter-spacing:.1em"><div class="sd-field">Ich bin${who}</div><button class="sd-btn block" data-a="joinHH" ${ui.busy ? 'disabled' : ''}>Beitreten</button></div>
+  <div class="sd-card"><h2>Mit Code beitreten</h2><p>Du bekommst automatisch die noch freie Person.</p><input class="sd-input" value="${esc(s.code)}" placeholder="z. B. K7Q2XM" data-in="setupCode" style="text-transform:uppercase;letter-spacing:.1em"><button class="sd-btn block" data-a="joinHH" ${ui.busy ? 'disabled' : ''}>Beitreten</button></div>
   <button class="sd-btn danger" data-a="logout">Abmelden</button></div>`;
 }
 
@@ -691,11 +693,18 @@ const A = {
   joinHH: async () => {
     const { F, db, auth } = fb, s = ui.setup, code = s.code.trim().toUpperCase(); if (!code) return;
     ui.busy = true; ui.setupErr = ''; render();
-    try {
-      await F.updateDoc(F.doc(db, 'households', code), { members: F.arrayUnion(auth.currentUser.uid), [`roles.${auth.currentUser.uid}`]: s.me });
-      await F.setDoc(F.doc(db, 'users', auth.currentUser.uid), { hh: code, person: s.me });
-      ui.busy = false; attach({ hh: code, person: s.me });
-    } catch (e) { console.error(e); ui.busy = false; ui.setupErr = 'Beitreten fehlgeschlagen. Stimmt der Code, und ist die gewählte Person noch frei? Die Person, die den Haushalt angelegt hat, ist schon vergeben.'; render(); }
+    // Vor dem Beitritt darf man den Haushalt nicht lesen. Deshalb beide Personen probieren:
+    // die Regeln lassen nur die noch freie zu.
+    for (const me of ['a', 'b']) {
+      try {
+        await F.updateDoc(F.doc(db, 'households', code), { members: F.arrayUnion(auth.currentUser.uid), [`roles.${auth.currentUser.uid}`]: me });
+      } catch { continue; }
+      try {
+        await F.setDoc(F.doc(db, 'users', auth.currentUser.uid), { hh: code, person: me });
+        ui.busy = false; return attach({ hh: code, person: me });
+      } catch (e) { console.error(e); break; }
+    }
+    ui.busy = false; ui.setupErr = 'Beitreten fehlgeschlagen. Stimmt der Code? Ein Haushalt hat Platz für zwei Personen; ist er schon voll, geht es nicht.'; render();
   },
   seen: () => { markSeen(); render(); },
   whatsNew: () => { markSeen(); ui.tab = 'mehr'; render(); requestAnimationFrame(() => $app.querySelector('#about')?.scrollIntoView({ block: 'start' })); },
