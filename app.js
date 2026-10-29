@@ -61,10 +61,11 @@ const forWho = (who, p) => who === 's' || who === 'ab' || who === p;
 const visible = (r, p) => forWho(r.who, p);
 const everVisible = (r, p) => visible(r, p) || (r.hist || []).some(h => forWho(h.who, p));
 const keyFor = (r, p, off = 0) => (whoAt(r, off) === 's' ? 's' : p) + '|' + r.id;
-// Mit Firebase gehört jedes Konto fest zu einer Person (ui.me). Alle sehen alles,
-// abhaken und bearbeiten nur die eigenen sowie gemeinsame Routinen. Lokal ist alles erlaubt.
+// Mit Firebase gehört jedes Konto fest zu einer Person (ui.me). Alle sehen alles und dürfen
+// seit Version 7 auch für die andere Person abhaken; bearbeiten nur die eigenen sowie gemeinsame Routinen.
+// Lokal ist alles erlaubt.
 const syncMode = () => firebaseConfig ? 'firebase' : 'local';
-const canCheck = (r, p, off = 0) => syncMode() === 'local' || whoAt(r, off) === 's' || p === ui.me;
+const canCheck = () => true;
 const canEdit = r => syncMode() === 'local' || ['ab', 's', ui.me].includes(r.who);
 const togAttr = (r, p, off) => canCheck(r, p, off) ? `data-a="toggle" data-r="${r.id}" data-o="${off}"` : 'aria-disabled="true"';
 const viewOnly = () => syncMode() === 'firebase' && ui.person !== ui.me;
@@ -358,7 +359,7 @@ const empty = (txt, btn) => btn
   ? `<div class="sd-welcome"><span class="ico">${icon('plant', 'ph-fill')}</span><h2>Willkommen bei SuperDaily</h2><p>Tippe eine Vorlage an, um direkt loszulegen, oder lege eine eigene Routine an.</p><div class="sd-tpls">${tplChips('addTpl')}</div><button class="sd-btn block" data-a="newRoutine">${icon('plus')}Eigene Routine anlegen</button></div>`
   : `<div class="sd-empty"><span>${txt}</span></div>`;
 
-const roNote = () => viewOnly() ? `<div class="sd-ro">${icon('eye')}<span>Du siehst ${esc(data.names[ui.person])}s Routinen. Abhaken kann ${esc(data.names[ui.person])} selbst, gemeinsame Routinen könnt ihr beide.</span></div>` : '';
+const roNote = () => viewOnly() ? `<div class="sd-ro">${icon('eye')}<span>Du siehst ${esc(data.names[ui.person])}s Routinen und kannst sie auch für ${esc(data.names[ui.person])} abhaken.</span></div>` : '';
 function listView(p, off) {
   const st = dayStats(p, off);
   if (!active().length) return empty('Noch keine Routinen. Leg die erste an, zum Beispiel „Glas Wasser nach dem Aufstehen“.', true);

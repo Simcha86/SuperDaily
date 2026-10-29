@@ -52,13 +52,30 @@ await t('Fremder sieht keine Routinen', assertFails(getDoc(R(fremd, 'wasser'))))
 const D = (db, id) => doc(db, 'households', H, 'days', id);
 await t('Simon hakt eigene ab', assertSucceeds(setDoc(D(simon, 'a_2026-10-25'), { zahn: true }, { merge: true })));
 await t('Simon hakt gemeinsame ab', assertSucceeds(setDoc(D(simon, 's_2026-10-25'), { wasser: true }, { merge: true })));
-await t('Simon kann bei Irina nicht abhaken', assertFails(setDoc(D(simon, 'b_2026-10-25'), { zahn: true }, { merge: true })));
+await t('Simon hakt für Irina ab', assertSucceeds(setDoc(D(simon, 'b_2026-10-25'), { zahn: true }, { merge: true })));
 await t('Irina hakt eigene ab', assertSucceeds(setDoc(D(irina, 'b_2026-10-25'), { medi: true }, { merge: true })));
 await t('Irina entfernt gemeinsamen Haken', assertSucceeds(setDoc(D(irina, 's_2026-10-25'), { wasser: deleteField() }, { merge: true })));
-await t('Irina kann Simons Haken nicht entfernen', assertFails(setDoc(D(irina, 'a_2026-10-25'), { zahn: deleteField() }, { merge: true })));
-await t('Irina kann Simons Tag nicht löschen', assertFails(deleteDoc(D(irina, 'a_2026-10-25'))));
+await t('Irina entfernt einen Haken bei Simon', assertSucceeds(setDoc(D(irina, 'a_2026-10-25'), { zahn: deleteField() }, { merge: true })));
+await t('Irina löscht Simons Tag', assertSucceeds(deleteDoc(D(irina, 'a_2026-10-25'))));
 await t('Irina sieht Simons Haken', assertSucceeds(getDoc(D(irina, 'a_2026-10-25'))));
 await t('Kein Schreiben in Dokumente mit falschem Namen', assertFails(setDoc(D(simon, 'x_a_2026-10-25'), { zahn: true })));
+await t('Kein Schreiben in Dokumente ohne Datum', assertFails(setDoc(D(simon, 'a_morgen'), { zahn: true })));
 await t('Fremder sieht keine Haken', assertFails(getDoc(D(fremd, 'a_2026-10-25'))));
+await t('Fremder hakt nicht ab', assertFails(setDoc(D(fremd, 's_2026-10-25'), { wasser: true }, { merge: true })));
+
+// Aufgaben: beide dürfen alles, Fremde nichts
+const TK = (db, id) => doc(db, 'households', H, 'tasks', id);
+const aufgabe = { id: 't1', title: 'Paket zur Post', note: '', from: 'b', to: 'a', due: '2026-10-30', done: false, doneAt: null, doneBy: null, createdAt: 1 };
+await t('Irina gibt Simon eine Aufgabe', assertSucceeds(setDoc(TK(irina, 't1'), aufgabe)));
+await t('Simon sieht die Aufgabe', assertSucceeds(getDoc(TK(simon, 't1'))));
+await t('Simon hakt die Aufgabe ab', assertSucceeds(setDoc(TK(simon, 't1'), { ...aufgabe, done: true, doneAt: '2026-10-29', doneBy: 'a' })));
+await t('Simon ändert Irinas Aufgabe', assertSucceeds(setDoc(TK(simon, 't1'), { ...aufgabe, title: 'Zwei Pakete zur Post' })));
+await t('Gemeinsame Aufgabe', assertSucceeds(setDoc(TK(simon, 't2'), { ...aufgabe, id: 't2', from: 'a', to: 's' })));
+await t('Aufgabe ohne Titel abgelehnt', assertFails(setDoc(TK(simon, 't3'), { ...aufgabe, id: 't3', title: '' })));
+await t('Aufgabe an unbekannte Person abgelehnt', assertFails(setDoc(TK(simon, 't3'), { ...aufgabe, id: 't3', to: 'x' })));
+await t('Fremder sieht keine Aufgaben', assertFails(getDoc(TK(fremd, 't1'))));
+await t('Fremder legt keine Aufgabe an', assertFails(setDoc(TK(fremd, 't9'), { ...aufgabe, id: 't9' })));
+await t('Fremder löscht keine Aufgabe', assertFails(deleteDoc(TK(fremd, 't1'))));
+await t('Irina löscht Simons Aufgabe', assertSucceeds(deleteDoc(TK(irina, 't2'))));
 console.log(`\n${pass} bestanden, ${failN} fehlgeschlagen`);
 await env.cleanup(); process.exit(failN ? 1 : 0);

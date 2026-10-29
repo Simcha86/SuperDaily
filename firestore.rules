@@ -16,6 +16,11 @@ service cloud.firestore {
     function editable(hh, who) {
       return who in [myRole(hh), 'ab', 's'];
     }
+    // Aufgabe: Titel vorhanden, von a oder b, an a, b oder s (gemeinsam)
+    function validTask(t) {
+      return t.title is string && t.title.size() > 0 && t.title.size() <= 200
+        && t.from in ['a', 'b'] && t.to in ['a', 'b', 's'];
+    }
 
     // Jede Person sieht nur ihr eigenes Profil (welcher Haushalt)
     match /users/{uid} {
@@ -51,10 +56,16 @@ service cloud.firestore {
       }
 
       // Haken: ein Dokument je Person und Tag, Name "<a|b|s>_<JJJJ-MM-TT>".
-      // Alle sehen alles; schreiben nur in die eigenen und die gemeinsamen ("s_").
+      // Seit Version 7 dürfen beide auch für die andere Person abhaken.
       match /days/{id} {
         allow read: if isMember(hh);
-        allow write: if isMember(hh) && (id.matches('^' + myRole(hh) + '_.*') || id.matches('^s_.*'));
+        allow write: if isMember(hh) && id.matches('^[abs]_[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      }
+
+      // Aufgaben (seit Version 7): beide dürfen alle Aufgaben vergeben, abhaken, ändern und löschen.
+      match /tasks/{tid} {
+        allow read, delete: if isMember(hh);
+        allow create, update: if isMember(hh) && validTask(request.resource.data);
       }
     }
   }
