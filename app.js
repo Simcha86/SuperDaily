@@ -37,10 +37,10 @@ try { const v = +localStorage.getItem(SEEN); seenVersion = v || APP_VERSION; if 
 const markSeen = () => { seenVersion = APP_VERSION; try { localStorage.setItem(SEEN, APP_VERSION); } catch {} };
 
 // ---------- Daten ----------
-const data = { names: { a: 'Simon', b: 'Irina' }, routines: {}, done: {}, cats: null };
+const data = { names: { a: 'Simon', b: 'Irina' }, routines: {}, done: {}, cats: null, tasks: {} };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
-  heuteView: 'liste', dayOff: 0, stat: 30,
+  heuteView: 'liste', dayOff: 0, stat: 30, calView: 'kalender', taskView: 'mine', task: null,
   cal: { mode: 'monat', anchor: 0, from: -29, to: 0 },
   grid: { mode: 'woche', anchor: 0, from: -29, to: 0 },
   sheet: null, catSheet: false, authMode: 'login', authErr: '', setupErr: '', busy: false,
@@ -142,6 +142,19 @@ const catName = r => catById(catOf(r))?.name || 'Ohne Bereich';
 const catIcon = id => catById(id)?.icon || 'tag';
 const whoLabel = r => r.who === 's' ? 'Gemeinsam' : r.who === 'ab' ? 'Beide' : data.names[r.who];
 
+// ---------- Aufgaben ----------
+// Einmalige Aufgaben: { id, title, note, from: 'a'|'b', to: 'a'|'b'|'s', due: 'JJJJ-MM-TT'|null, done, doneAt, doneBy, createdAt }.
+// Beide dürfen alle Aufgaben vergeben, abhaken, ändern und löschen.
+const T = () => Object.values(data.tasks || {});
+const dueOff = t => t.due ? offOfKey(t.due) : null;
+const taskFor = (t, p) => t.to === p || t.to === 's';
+const openTasks = p => T().filter(t => !t.done && (!p || taskFor(t, p)));
+const dueNow = p => openTasks(p).filter(t => t.due && dueOff(t) <= 0);
+const sortTasks = l => l.sort((x, y) => (x.due || '9999') .localeCompare(y.due || '9999') || (x.createdAt || 0) - (y.createdAt || 0));
+const dueLabel = o => o === 0 ? 'heute' : o === -1 ? 'gestern' : o === 1 ? 'morgen' : o < 0 ? `seit ${fmtS(o)}` : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' });
+const taskChip = t => t.to === 's' ? 'Beide' : t.from === t.to ? initial(t.to) : `${initial(t.from)} → ${initial(t.to)}`;
+const taskMeta = t => t.to === 's' ? 'gemeinsam' : t.from === t.to ? 'selbst' : `von ${esc(data.names[t.from])} an ${esc(data.names[t.to])}`;
+
 // ---------- Speicher ----------
 const LS = 'superdaily-v1';
 let fb = null, hhId = null, unsubs = [];
@@ -178,14 +191,25 @@ const store = {
     if (this.mode === 'local') return this.saveLocal();
     const { F, db } = fb; await F.updateDoc(F.doc(db, 'households', hhId), { cats: list });
   },
+  async saveTask(t) {
+    data.tasks = { ...data.tasks, [t.id]: t }; render();
+    if (this.mode === 'local') return this.saveLocal();
+    const { F, db } = fb; await F.setDoc(F.doc(db, 'households', hhId, 'tasks', t.id), t);
+  },
+  async deleteTask(id) {
+    const n = { ...data.tasks }; delete n[id]; data.tasks = n; render();
+    if (this.mode === 'local') return this.saveLocal();
+    const { F, db } = fb; await F.deleteDoc(F.doc(db, 'households', hhId, 'tasks', id));
+  },
   setMe(p) { ui.me = p; ui.person = p; render(); this.saveLocal(); },
   async importAll(obj) {
     if (!obj || typeof obj !== 'object' || !obj.routines) throw new Error('Ungültige Datei');
-    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats }); this.saveLocal(); return render(); }
+    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats, tasks: obj.tasks || {} }); this.saveLocal(); return render(); }
     // Mit Firebase nur übernehmen, was dieses Konto schreiben darf; der Rest bleibt für die andere Person.
     const { F, db } = fb, own = [ui.me, 's'];
     const routines = Object.values(obj.routines).filter(canEdit), skipped = Object.keys(obj.routines).length - routines.length;
     const writes = routines.map(r => [F.doc(db, 'households', hhId, 'routines', r.id), r, false]);
+    Object.values(obj.tasks || {}).forEach(t => writes.push([F.doc(db, 'households', hhId, 'tasks', t.id), t, false]));
     const days = {};
     for (const [d, v] of Object.entries(obj.done || {})) for (const k of Object.keys(v || {})) {
       const [p, rid] = k.split('|'); if (!own.includes(p)) continue;
@@ -203,7 +227,7 @@ const store = {
 };
 
 function initLocal() {
-  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; ui.me = ui.person = s.me || 'a'; } } catch {}
+  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; data.tasks = s.tasks || {}; ui.me = ui.person = s.me || 'a'; } } catch {}
   ui.screen = 'app'; render();
 }
 
@@ -255,6 +279,9 @@ function attach(u) {
   }, err => { console.error(err); ui.screen = 'setup'; ui.setupErr = 'Kein Zugriff auf den Haushalt. Code prüfen oder neu beitreten.'; render(); }));
   unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'routines'), qs => {
     const r = {}; qs.forEach(d => { r[d.id] = d.data(); }); data.routines = r; render();
+  }));
+  unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'tasks'), qs => {
+    const t = {}; qs.forEach(d => { t[d.id] = d.data(); }); data.tasks = t; render();
   }));
   // Dokumente "<a|b|s>_<Datum>" mit { routineId: true } → data.done[Datum]["<a|b|s>|routineId"]
   unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'days'), qs => {
@@ -403,18 +430,26 @@ function tabHeute() {
   const body = ui.heuteView === 'liste' ? `${R().length ? hero(st, off) : ''}${listView(p, off)}` : tilesView(p, off);
   return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div>${personDots()}</div>
   ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
-  ${strip}${newNote()}${roNote()}${body}`;
+  ${strip}${newNote()}${roNote()}${body}${off === 0 ? heuteTasks(p) : ''}`;
+}
+// Fällige und überfällige Aufgaben der Person unter den Routinen; heute Erledigtes bleibt durchgestrichen stehen.
+function heuteTasks(p) {
+  const list = sortTasks(T().filter(t => taskFor(t, p) && t.due && dueOff(t) <= 0 && (!t.done || t.doneAt === dk(0))));
+  if (!list.length) return '';
+  return `<div class="sd-group sd-tasks"><span class="sd-label sd-catlabel">${icon('check-square-offset')}Aufgaben<button class="sd-mini" data-a="tab" data-v="aufgaben">Alle</button></span>${list.map(taskItem).join('')}</div>`;
 }
 function tabKalender() {
   const m = ui.cal, p = ui.person, { s, e, title, sub } = rangeOf(m), tot = totals(p, s, e);
   let body;
   if (m.mode === 'tag') { const st = dayStats(p, s); body = prog(`${st.n} von ${st.t} erledigt`, st.pct) + listView(p, s); }
   else { body = prog(`${tot.a} von ${tot.b} Erledigungen`, tot.pct) + (m.mode === 'woche' ? matrixView(p, s, e, false) : calendarView(p, s, e, m.mode === 'zeitraum')); }
-  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>${title}</h1></div>${personDots()}</div>${rangeControls(m, 'cal')}${roNote()}${body}`;
+  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>${title}</h1></div>${personDots()}</div>${calViewSeg()}${rangeControls(m, 'cal')}${roNote()}${body}`;
 }
+// Das Raster ist seit Version 7 eine Ansicht im Kalender-Tab.
+const calViewSeg = () => seg([['kalender', icon('calendar-blank') + 'Kalender'], ['raster', icon('grid-four') + 'Raster']], ui.calView, 'calView');
 function tabRaster() {
   const m = ui.grid, p = ui.person, { s, e, title, sub } = rangeOf(m), tot = totals(p, s, e);
-  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>${title}</h1></div><div class="sd-big"><b>${tot.pct}%</b><span>${tot.a} von ${tot.b} erfüllt</span></div></div>${rangeControls(m, 'grid')}${personSeg()}${roNote()}${matrixView(p, s, e, true)}`;
+  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>${title}</h1></div><div class="sd-big"><b>${tot.pct}%</b><span>${tot.a} von ${tot.b} erfüllt</span></div></div>${calViewSeg()}${rangeControls(m, 'grid')}${personSeg()}${roNote()}${matrixView(p, s, e, true)}`;
 }
 function tabRoutinen() {
   const all = active(), arch = R().filter(archived);
@@ -426,6 +461,43 @@ function tabRoutinen() {
   const archived_ = arch.length ? `<details class="sd-arch"><summary>${icon('archive')}Archiviert<em>${arch.length}</em></summary><p>Archivierte Routinen erscheinen nicht mehr, ihre vergangenen Tage zählen aber weiter in Kalender und Statistik.</p>${arch.map(r => `<div class="sd-row ro"><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${esc(catName(r))} · ${esc(whoLabel(r))}</span></span>${canEdit(r) ? `<button class="sd-mini" data-a="restore" data-r="${r.id}">${icon('arrow-counter-clockwise')}Wiederherstellen</button><button class="sd-mini danger" data-a="purge" data-r="${r.id}" aria-label="Endgültig löschen">${icon('trash')}</button>` : icon('lock-simple')}</div>`).join('')}</details>` : '';
   const body = !all.length && !arch.length ? empty('Noch keine Routinen.', true) : (all.length ? groups : empty('Alle Routinen sind archiviert.', true)) + archived_;
   return `<div class="sd-hdr"><div><div class="sd-sub">${all.length} ${all.length === 1 ? 'Routine' : 'Routinen'}</div><h1>Routinen</h1></div><button class="sd-btn ghost sm" data-a="openCats">${icon('folders')}Bereiche</button></div>${body}`;
+}
+function taskItem(t) {
+  const o = dueOff(t), late = !t.done && o !== null && o < 0;
+  const due = o === null ? '' : `<span class="due ${late ? 'late' : ''}">${icon(late ? 'warning-circle' : 'calendar-blank')}${dueLabel(o)}</span> · `;
+  return `<div class="sd-item sd-titem ${t.done ? 'done' : ''}"><button class="sd-check" data-a="taskToggle" data-t="${t.id}" aria-label="${esc(t.title)} ${t.done ? 'wieder öffnen' : 'abhaken'}">${icon('check', 'ph-bold')}</button><button class="txt" data-a="taskEdit" data-t="${t.id}"><span class="t">${esc(t.title)}</span><span class="m">${due}${taskMeta(t)}${t.note ? ' · ' + icon('note') : ''}</span></button><span class="sd-from">${taskChip(t)}</span></div>`;
+}
+function tabAufgaben() {
+  const me = ui.me, v = ui.taskView, open = openTasks(), late = open.filter(t => t.due && dueOff(t) < 0).length, today = dueNow(me).length;
+  let list, body;
+  if (v === 'done') {
+    list = T().filter(t => t.done && t.doneAt >= dk(-30)).sort((x, y) => (y.doneAt || '').localeCompare(x.doneAt || ''));
+    body = list.length ? `<div class="sd-group">${list.map(taskItem).join('')}</div><p class="sd-muted sd-tnote">Erledigte Aufgaben der letzten 30 Tage.</p>` : '';
+  } else {
+    list = sortTasks(open.filter(t => v === 'all' || (v === 'mine' ? taskFor(t, me) : t.from === me && t.to !== me)));
+    const groups = [['Überfällig', t => t.due && dueOff(t) < 0], ['Heute', t => t.due && dueOff(t) === 0], ['Morgen', t => t.due && dueOff(t) === 1], ['Später', t => t.due && dueOff(t) > 1], ['Ohne Datum', t => !t.due]];
+    body = groups.map(([name, f]) => { const g = list.filter(f); return g.length ? `<div class="sd-group"><span class="sd-label">${name}</span>${g.map(taskItem).join('')}</div>` : ''; }).join('');
+  }
+  const none = { mine: 'Nichts zu tun. Tippe auf +, um eine Aufgabe anzulegen.', from: 'Du hast gerade keine offenen Aufgaben vergeben.', all: 'Keine offenen Aufgaben.', done: 'In den letzten 30 Tagen wurde nichts erledigt.' }[v];
+  const sub = `${open.length} offen${late ? ` · ${late} überfällig` : ''}`;
+  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>Aufgaben</h1></div></div>
+  <div class="sd-tbanner"><span>${icon('sun-horizon', 'ph-fill')}Fällig für dich</span><b>${today}</b></div>
+  ${seg([['mine', 'Für mich'], ['from', 'Vergeben'], ['all', 'Alle'], ['done', 'Erledigt']], v, 'taskView')}
+  ${body || `<div class="sd-empty"><span>${none}</span></div>`}`;
+}
+function taskSheetHtml() {
+  const d = ui.task, opt = (on, a, v, l) => `<button class="sd-opt ${on ? 'on' : ''}" data-a="${a}" data-v="${v}">${l}</button>`;
+  const enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
+  const quick = [['', 'Ohne Datum'], [dk(0), 'Heute'], [dk(1), 'Morgen'], [dk((6 - dateAt(0).getDay() + 7) % 7 || 7), 'Samstag'], [dk(7), 'In einer Woche']];
+  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-tsheet" data-a="noop">
+  <div class="grip"></div><h3>${d.id ? 'Aufgabe bearbeiten' : 'Neue Aufgabe'}</h3>
+  <input class="sd-input" value="${esc(d.title)}" placeholder="z. B. Paket zur Post bringen" data-in="tTitle" maxlength="120">
+  <div class="sd-field">Für wen<div class="sd-g3">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ['s', 'Gemeinsam']].map(([k, l]) => opt(d.to === k, 'tTo', k, l)).join('')}</div></div>
+  <div class="sd-field">Fällig<div class="sd-chips">${quick.map(([k, l]) => `<button class="sd-chip ${(d.due || '') === k ? 'on' : ''}" data-a="tDue" data-v="${k}">${l}</button>`).join('')}</div><input class="sd-input" type="date" value="${d.due || ''}" data-ch="tDate" aria-label="Datum wählen"></div>
+  <label class="sd-field">Notiz<textarea class="sd-input" rows="2" maxlength="500" placeholder="optional" data-in="tNote">${esc(d.note || '')}</textarea></label>
+  <button class="sd-btn block" data-a="tSave" ${d.title.trim() ? '' : 'disabled'}>${d.id ? 'Speichern' : 'Aufgabe vergeben'}</button>
+  ${d.id ? `<button class="sd-btn danger block" data-a="tDelete">${icon('trash')}Aufgabe löschen</button>` : ''}
+  </div></div>`;
 }
 const CAT_ICONS = ['heartbeat', 'barbell', 'house-line', 'users-three', 'broom', 'dots-three-circle', 'tag', 'briefcase', 'book-open', 'leaf', 'moon', 'sun', 'heart', 'brain', 'paint-brush', 'music-notes', 'baby', 'dog', 'currency-eur', 'fork-knife', 'drop', 'graduation-cap'];
 function catSheetHtml() {
@@ -565,7 +637,7 @@ darkMQ.addEventListener?.('change', applyMode);
 
 // ---------- Render ----------
 const $app = document.getElementById('app');
-const TABS = [['heute', 'sun', 'Heute'], ['kalender', 'calendar-blank', 'Kalender'], ['raster', 'grid-four', 'Raster'], ['statistik', 'chart-bar', 'Statistik'], ['routinen', 'list-checks', 'Routinen'], ['mehr', 'gear-six', 'Mehr']];
+const TABS = [['heute', 'sun', 'Heute'], ['kalender', 'calendar-blank', 'Kalender'], ['aufgaben', 'check-square-offset', 'Aufgaben'], ['statistik', 'chart-bar', 'Statistik'], ['routinen', 'list-checks', 'Routinen'], ['mehr', 'gear-six', 'Mehr']];
 const scrollMem = {}; let gridMem = { key: null, left: 0 };
 function render() {
   const sc = $app.querySelector('.sd-scroll'); if (sc) scrollMem[sc.dataset.tab] = sc.scrollTop;
@@ -575,9 +647,11 @@ function render() {
   if (ui.screen === 'error') { $app.innerHTML = `<div class="sd-auth"><div class="sd-err">${esc(ui.authErr)}</div></div>`; return; }
   if (ui.screen === 'login') { $app.innerHTML = loginHtml(); return; }
   if (ui.screen === 'setup') { $app.innerHTML = setupHtml(); return; }
-  const tab = { heute: tabHeute, kalender: tabKalender, raster: tabRaster, statistik: tabStatistik, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
-  const fab = ['heute', 'routinen', 'kalender'].includes(ui.tab) ? `<button class="sd-fab" data-a="newRoutine" aria-label="Routine hinzufügen">${icon('plus')}</button>` : '';
-  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${tab}</main>${fab}<nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${ui.tab === k ? 'on' : ''}" data-a="tab" data-v="${k}">${icon(i, ui.tab === k ? 'ph-fill' : 'ph')}<span>${l}</span></button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}`;
+  const tab = { heute: tabHeute, kalender: ui.calView === 'raster' ? tabRaster : tabKalender, aufgaben: tabAufgaben, statistik: tabStatistik, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
+  const fab = ui.tab === 'aufgaben' ? `<button class="sd-fab sd-tfab" data-a="newTask" aria-label="Aufgabe hinzufügen">${icon('plus')}</button>`
+    : ['heute', 'routinen', 'kalender'].includes(ui.tab) ? `<button class="sd-fab" data-a="newRoutine" aria-label="Routine hinzufügen">${icon('plus')}</button>` : '';
+  const badge = dueNow(ui.me).length;
+  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${tab}</main>${fab}<nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${ui.tab === k ? 'on' : ''}" data-a="tab" data-v="${k}">${icon(i, ui.tab === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}`;
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
   const ngs = $app.querySelector('.sd-gridscroll'); if (ngs) ngs.scrollLeft = ngs.dataset.key === gridMem.key ? gridMem.left : ngs.scrollWidth;
   if (focusCh) { const el = $app.querySelector(`[data-in="${focusCh}"]`); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } }
@@ -600,6 +674,30 @@ const A = {
     navigator.vibrate?.(12);
     if (was < 100 && dayStats(p, off).pct === 100) celebrate();
   },
+  calView: d => { ui.calView = d.v; render(); },
+  taskView: d => { ui.taskView = d.v; render(); },
+  newTask: () => { ui.task = { id: null, title: '', note: '', to: ui.me === 'a' ? 'b' : 'a', due: dk(0) }; ui.sheetFresh = true; render(); },
+  taskEdit: d => { const t = data.tasks[d.t]; if (!t) return; ui.task = { ...t }; ui.sheetFresh = true; render(); },
+  taskToggle: d => {
+    const t = data.tasks[d.t]; if (!t) return;
+    store.saveTask(t.done ? { ...t, done: false, doneAt: null, doneBy: null } : { ...t, done: true, doneAt: dk(0), doneBy: ui.me }).catch(fail);
+    if (!t.done) { $app.querySelector(`[data-a="taskToggle"][data-t="${t.id}"]`)?.closest('.sd-item')?.classList.add('pop'); navigator.vibrate?.(12); }
+    track(t.done ? 'task_reopen' : 'task_done');
+  },
+  tTo: d => { ui.task.to = d.v; render(); },
+  tDue: d => { ui.task.due = d.v || null; render(); },
+  tSave: () => {
+    const d = ui.task, title = d.title.trim(); if (!title) return;
+    const old = d.id && data.tasks[d.id];
+    const t = { id: d.id || rid(), title, note: (d.note || '').trim(), from: old?.from || ui.me, to: d.to, due: d.due || null, done: old?.done || false, doneAt: old?.doneAt || null, doneBy: old?.doneBy || null, createdAt: old?.createdAt || Date.now() };
+    ui.task = null; store.saveTask(t).catch(fail);
+    track(old ? 'task_edit' : 'task_create', { to: t.to === 's' ? 'shared' : t.to === ui.me ? 'self' : 'other', due: !!t.due });
+  },
+  tDelete: () => {
+    const t = data.tasks[ui.task?.id]; if (!t) return;
+    if (!confirm(`Aufgabe „${t.title}“ löschen?`)) return;
+    ui.task = null; store.deleteTask(t.id).catch(fail); track('task_delete');
+  },
   calMode: d => { ui.cal.mode = d.v; render(); },
   gridMode: d => { ui.grid.mode = d.v; render(); },
   calStep: d => { stepRange(ui.cal, +d.v); render(); },
@@ -609,7 +707,7 @@ const A = {
   calDay: d => { Object.assign(ui.cal, { mode: 'tag', anchor: +d.o }); render(); },
   newRoutine: () => { ui.sheet = newDraft(); ui.sheetFresh = true; render(); },
   edit: d => { if (!canEdit(data.routines[d.r])) return; ui.sheet = newDraft(data.routines[d.r]); ui.sheetFresh = true; render(); },
-  closeSheet: () => { if (ui.catSheet && ui.sheet) { ui.catSheet = false; return render(); } ui.sheet = null; ui.catSheet = false; render(); },
+  closeSheet: () => { if (ui.catSheet && ui.sheet) { ui.catSheet = false; return render(); } ui.sheet = null; ui.catSheet = false; ui.task = null; render(); },
   noop: () => {},
   addTpl: d => { const [, title, slot, cat] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.me, cat: tplCat(cat) || guessCat(title), rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); track('routine_create', { slot, repeat: 'daily', who: ui.me, template: true }); },
   dTpl: d => { const [, title, slot, cat] = TPL[+d.v]; Object.assign(ui.sheet, { title, slot, cat: tplCat(cat) || ui.sheet.cat }); render(); },
@@ -670,7 +768,7 @@ const A = {
   },
   me: d => store.setMe(d.v),
   export: () => {
-    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), routines: data.routines, done: data.done }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), routines: data.routines, done: data.done, tasks: data.tasks }, null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `superdaily-${dk(0)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
   authMode: d => { ui.authMode = d.v; ui.authErr = ''; render(); },
@@ -733,6 +831,8 @@ document.addEventListener('input', e => {
   const k = e.target.dataset?.in; if (!k) return; const v = e.target.value;
   if (k === 'dTitle') { ui.sheet.title = v; const b = $app.querySelector('[data-a="dSave"]'); if (b) b.disabled = !(v.trim() && (ui.sheet.rep.type !== 'weekdays' || ui.sheet.rep.days.length)); }
   if (k === 'catNew') ui.catDraft = v;
+  if (k === 'tTitle') { ui.task.title = v; const b = $app.querySelector('[data-a="tSave"]'); if (b) b.disabled = !v.trim(); }
+  if (k === 'tNote') ui.task.note = v;
   if (k === 'setupA') ui.setup.a = v;
   if (k === 'setupB') ui.setup.b = v;
   if (k === 'setupCode') ui.setup.code = v;
@@ -740,6 +840,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', async e => {
   const k = e.target.dataset?.ch; if (!k) return; const v = e.target.value;
   const toOff = v => clamp(offOfKey(v));
+  if (k === 'tDate') { ui.task.due = v || null; render(); }
   if (k === 'calFrom' && v) { ui.cal.from = toOff(v); render(); }
   if (k === 'calTo' && v) { ui.cal.to = toOff(v); render(); }
   if (k === 'gridFrom' && v) { ui.grid.from = toOff(v); render(); }
