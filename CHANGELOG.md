@@ -2,6 +2,19 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 7 · 29. Oktober 2026 · [Release Notes](docs/releases/v7/RELEASE-NOTES.md)
+
+**Aufgaben**
+- Neuer Tab **Aufgaben** in Senfgold: Simon und Irina vergeben sich gegenseitig, sich selbst oder gemeinsam einmalige Aufgaben, mit Fälligkeitsdatum und Notiz. Beide dürfen alle Aufgaben abhaken, ändern und löschen.
+- Ansichten „Für mich“, „Vergeben“, „Alle“ und „Erledigt“, sortiert nach überfällig, heute, morgen, später und ohne Datum. Eine rote Zahl am Tab zeigt, was für dich fällig ist.
+- Fällige Aufgaben stehen ganz oben auf **Heute**.
+- **Kalender:** Punkte an den Tagen mit Aufgaben (offen, erledigt, überfällig) und eine Liste der Aufgaben im gewählten Zeitraum.
+- **Statistik:** Karte „Aufgaben“ mit erledigt, pünktlich, offen und überfällig je Person sowie wer wem wie viele Aufgaben gegeben hat.
+
+**Geändert**
+- Routinen dürfen beide jetzt auch für die andere Person abhaken. Bearbeiten bleibt bei den eigenen und gemeinsamen Routinen.
+- Das **Raster** ist jetzt eine Ansicht im Kalender-Tab (Umschalter „Kalender | Raster“).
+
 ## Version 6 · 29. Oktober 2026 · [Release Notes](docs/releases/v6/RELEASE-NOTES.md)
 
 - **Beitreten mit Code:** Die Auswahl „Ich bin …“ entfällt. Die App nimmt automatisch die noch freie Person. Bisher konnte man die schon vergebene Person antippen und bekam dann einen Fehler.

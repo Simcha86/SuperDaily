@@ -96,7 +96,7 @@ test('Legt Irina den Haushalt an, wird die zweite Person automatisch Simon', asy
   expect([...simon.fehler, ...irina.fehler]).toEqual([]);
 });
 
-test('Irina sieht Simons Tag nur an; gemeinsame Routinen haken beide ab, live abgeglichen', async ({ browser, emulator }) => {
+test('Irina hakt bei Simon ab (seit Version 7); gemeinsame Routinen haken beide ab, live abgeglichen', async ({ browser, emulator }) => {
   const { simon, irina } = await haushalt(browser, emulator);
   await tab(simon, 'Heute');
   await routineHeute(simon, 'Sport').click();
@@ -110,12 +110,14 @@ test('Irina sieht Simons Tag nur an; gemeinsame Routinen haken beide ab, live ab
 
   // Simons Tag ansehen
   await irina.locator('.sd-dots').getByRole('button', { name: 'Simon', exact: true }).click();
-  await expect(irina.getByText('Du siehst Simons Routinen')).toBeVisible();
+  await expect(irina.getByText(/Du siehst Simons Routinen und kannst sie auch für Simon abhaken/)).toBeVisible();
   await expect(routineHeute(irina, 'Sport')).toHaveClass(/done/);
-  await expect(routineHeute(irina, 'Sport')).toHaveClass(/ro/);
-  await routineHeute(irina, 'Sport').click({ force: true });
-  await expect(routineHeute(irina, 'Sport')).toHaveClass(/done/);
-  await expect(routineHeute(irina, 'Zahnseide')).toHaveClass(/ro/);
+  await expect(routineHeute(irina, 'Sport')).not.toHaveClass(/ro/);
+  await routineHeute(irina, 'Sport').click();
+  await expect(routineHeute(irina, 'Sport')).not.toHaveClass(/done/);
+  await expect(routineHeute(simon, 'Sport')).not.toHaveClass(/done/);
+  await routineHeute(irina, 'Zahnseide').click();
+  await expect(routineHeute(simon, 'Zahnseide')).toHaveClass(/done/);
 
   // Gemeinsame Routine: Irina hakt ab, Simon sieht es live
   await routineHeute(irina, 'Glas Wasser').click();
@@ -123,10 +125,10 @@ test('Irina sieht Simons Tag nur an; gemeinsame Routinen haken beide ab, live ab
   await tab(simon, 'Heute');
   await expect(routineHeute(simon, 'Glas Wasser')).toHaveClass(/done/);
 
-  // Simon sieht Irinas Zahnseide erledigt, nur zum Ansehen
+  // Simon sieht Irinas Zahnseide erledigt und dürfte auch für sie abhaken
   await simon.locator('.sd-dots').getByRole('button', { name: 'Irina', exact: true }).click();
   await expect(routineHeute(simon, 'Zahnseide')).toHaveClass(/done/);
-  await expect(routineHeute(simon, 'Zahnseide')).toHaveClass(/ro/);
+  await expect(routineHeute(simon, 'Zahnseide')).not.toHaveClass(/ro/);
 
   expect([...simon.fehler, ...irina.fehler]).toEqual([]);
 });
@@ -166,6 +168,45 @@ test('Routinen und Bereiche: fremde Routinen gesperrt, Bereiche und Archiv live 
   await tab(irina, 'Statistik');
   await expect(irina.locator('.sd-duel')).toContainText('Simon');
   await expect(irina.locator('.sd-duel')).toContainText('Irina');
+
+  expect([...simon.fehler, ...irina.fehler]).toEqual([]);
+});
+
+test('Aufgaben: Simon gibt Irina eine Aufgabe, beide haken ab, ändern und löschen – live bei beiden', async ({ browser, emulator }) => {
+  const { simon, irina } = await haushalt(browser, emulator);
+  const aufgabe = (seite, titel) => seite.locator('.sd-titem', { hasText: titel });
+
+  await tab(simon, 'Aufgaben');
+  await simon.getByRole('button', { name: 'Aufgabe hinzufügen' }).click();
+  await simon.getByPlaceholder('z. B. Paket zur Post bringen').fill('Blumen kaufen');
+  await simon.locator('.sd-sheet').getByRole('button', { name: 'Irina', exact: true }).click();
+  await simon.locator('.sd-sheet').getByRole('button', { name: 'Heute', exact: true }).click();
+  await simon.getByRole('button', { name: 'Aufgabe vergeben' }).click();
+  await expect(simon.locator('.sd-sheet')).toHaveCount(0);
+  await simon.getByRole('button', { name: 'Vergeben', exact: true }).click();
+  await expect(aufgabe(simon, 'Blumen kaufen')).toContainText('von Simon an Irina');
+
+  // Irina sieht sie ganz oben auf „Heute“ und mit Zahl am Tab
+  await tab(irina, 'Heute');
+  await expect(irina.locator('.sd-tasks')).toContainText('Blumen kaufen');
+  await expect(irina.locator('.sd-tab .sd-badge')).toHaveText('1');
+  await irina.getByRole('button', { name: 'Blumen kaufen abhaken' }).click();
+  await expect(aufgabe(simon, 'Blumen kaufen')).toHaveCount(0);
+  await simon.getByRole('button', { name: 'Erledigt', exact: true }).click();
+  await expect(aufgabe(simon, 'Blumen kaufen')).toHaveClass(/done/);
+
+  // Simon öffnet sie wieder und benennt sie um; Irina löscht sie
+  await simon.getByRole('button', { name: 'Blumen kaufen wieder öffnen' }).click();
+  await simon.getByRole('button', { name: 'Vergeben', exact: true }).click();
+  await aufgabe(simon, 'Blumen kaufen').locator('.txt').click();
+  await simon.getByPlaceholder('z. B. Paket zur Post bringen').fill('Tulpen kaufen');
+  await simon.getByRole('button', { name: 'Speichern' }).click();
+  await expect(irina.locator('.sd-tasks')).toContainText('Tulpen kaufen');
+  await tab(irina, 'Aufgaben');
+  await aufgabe(irina, 'Tulpen kaufen').locator('.txt').click();
+  await irina.getByRole('button', { name: 'Aufgabe löschen' }).click();
+  await expect(aufgabe(simon, 'Tulpen kaufen')).toHaveCount(0);
+  await expect(simon.locator('.sd-tab .sd-badge')).toHaveCount(0);
 
   expect([...simon.fehler, ...irina.fehler]).toEqual([]);
 });

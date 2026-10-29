@@ -26,6 +26,7 @@ Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Biblioth
 
 - Das Design heißt **Minze** (Türkis bis Limette, Schrift Plus Jakarta Sans, hell und dunkel). Simon findet es gut: **nicht verändern**, nur auf seinen Wunsch.
 - Neue Teile aus vorhandenen Bausteinen bauen (`sd-card`, `sd-row`, `sd-item`, `sd-chip`, `sd-opt`, `sd-btn`, `sd-hint`, `sd-mini`, Bottom-Sheet `sd-sheet`) und Farben nur über die Tokens (`--color-accent-…`, `--color-neutral-…`, `--sd-grad`, `--sd-a`/`--sd-b`).
+- Der Bereich **Aufgaben** hat eine eigene Akzentfarbe **Senfgold** (Simons Wunsch): eigene Rampe für `.sd-scroll[data-tab="aufgaben"]`, `.sd-tasks`, `.sd-tfab`, `.sd-tsheet` am Ende von `theme.css`. Alles andere bleibt Minze.
 - Neue Styles ans Ende von `theme.css`, beide Modi beachten (`[data-sd="light"]` dreht die Farbrampen um: 100 = dunkel, 900 = hell).
 - Symbole aus Phosphor; vor Verwendung prüfen, dass der Name existiert.
 
@@ -33,7 +34,8 @@ Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Biblioth
 
 - Zwei Personen: **a = Simon** (Person 1), **b = Irina** (Person 2). Jedes Konto ist fest einer Rolle zugeordnet (`roles` im Haushalt), danach nicht änderbar.
 - Routine `who`: `a`, `b`, `ab` (beide einzeln, jede Person hakt selbst ab) oder `s` (gemeinsam, ein Haken für beide).
-- **Alle sehen alles.** Abhaken und Bearbeiten nur bei eigenen sowie `ab`/`s`-Routinen. In der App: `canCheck`, `canEdit`, `viewOnly`; in den Regeln: `editable`, `myRole`.
+- **Alle sehen alles.** Abhaken dürfen beide bei allen Routinen, auch für die andere Person (seit Version 7). Bearbeiten nur bei eigenen sowie `ab`/`s`-Routinen. In der App: `canCheck`, `canEdit`, `viewOnly`; in den Regeln: `editable`, `myRole`.
+- **Aufgaben** (seit Version 7): beide dürfen alle Aufgaben vergeben, abhaken, ändern und löschen. Aufgabe `to`: `a`, `b` oder `s` (gemeinsam), `from`: wer sie vergeben hat.
 - Rechte immer zweifach umsetzen: in der App (Bedienung ausblenden) **und** in `firestore.rules` (durchsetzen).
 - Im lokalen Modus (ohne Firebase) gibt es keine Einschränkungen.
 
@@ -44,6 +46,7 @@ users/{uid}                              { hh, person }
 households/{code}                        { members, roles, names, cats }
 households/{code}/routines/{id}          Routine (inkl. hist, cat)
 households/{code}/days/{a|b|s}_{Datum}   { routineId: true }
+households/{code}/tasks/{id}             Aufgabe { title, note, from, to, due, done, doneAt, doneBy, createdAt }
 ```
 
 - Neue Felder im Haushalt-Dokument müssen in `firestore.rules` bei `affectedKeys().hasOnly([...])` freigegeben werden, sonst schlägt das Speichern fehl.
@@ -66,7 +69,7 @@ Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
 3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
 4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen; Simon veröffentlicht sie **vor** dem Merge.
 
-Aktueller Stand: Version 6, `CACHE = 'superdaily-v7'`.
+Aktueller Stand: Version 7, `CACHE = 'superdaily-v8'`.
 
 ## Testen
 

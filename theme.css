@@ -175,3 +175,50 @@ body{font-feature-settings:"ss01"}
 .sd-changes li::marker{color:var(--color-accent-400)}
 .sd-oldv{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid var(--color-neutral-900)}
 .sd-oldv b{font-size:14px;font-weight:600}
+
+/* ---------- Aufgaben (Version 7): eigener Bereich in Senfgold ----------
+   Die Aufgaben-Teile bekommen eine eigene Akzent-Rampe; alles andere bleibt Minze. */
+[data-sd="light"] :is(.sd-scroll[data-tab="aufgaben"],.sd-tasks,.sd-tab[data-v="aufgaben"],.sd-tfab,.sd-tsheet){
+  --color-accent:#a16207;--color-accent-100:#713f12;--color-accent-200:#854d0e;--color-accent-300:#a16207;--color-accent-400:#ca8a04;--color-accent-500:#eab308;
+  --color-accent-600:#facc15;--color-accent-700:#fde047;--color-accent-800:#fef08a;--color-accent-900:#fef9c3;
+  --sd-grad:linear-gradient(135deg,#eab308,#ca8a04 50%,#a16207);--sd-pink:#ca8a04}
+[data-sd="dark"] :is(.sd-scroll[data-tab="aufgaben"],.sd-tasks,.sd-tab[data-v="aufgaben"],.sd-tfab,.sd-tsheet){
+  --color-accent:#facc15;--color-accent-100:#fef9c3;--color-accent-200:#fef08a;--color-accent-300:#fde047;--color-accent-400:#facc15;--color-accent-500:#eab308;
+  --color-accent-600:#ca8a04;--color-accent-700:#a16207;--color-accent-800:#854d0e;--color-accent-900:#713f12;
+  --sd-grad:linear-gradient(135deg,#eab308,#ca8a04 50%,#a16207);--sd-pink:#facc15}
+[data-sd="light"] .sd-scroll[data-tab="aufgaben"]{background:#faf8ef}
+[data-sd="dark"] .sd-scroll[data-tab="aufgaben"]{background:radial-gradient(120% 50% at 50% -10%,#2a2410 0%,transparent 60%)}
+.sd-tbanner{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-radius:var(--radius-md);background:var(--sd-grad);color:#fff;font-weight:600;box-shadow:0 8px 20px color-mix(in srgb,var(--color-accent) 25%,transparent)}
+.sd-tbanner span{display:flex;align-items:center;gap:8px}
+.sd-tbanner b{font-size:24px;font-weight:800}
+.sd-titem{cursor:default;padding:0 12px 0 0;gap:0}
+.sd-titem .sd-check{margin:0 2px 0 14px;background:none;cursor:pointer;padding:0;position:relative}
+.sd-titem.done .sd-check{background:var(--color-accent-800)}
+.sd-titem .txt{background:none;border:0;padding:12px 10px 12px 12px;color:inherit;font:inherit;text-align:left;cursor:pointer;min-height:56px;justify-content:center}
+.sd-titem .due{font-weight:600;color:var(--color-accent-300);display:inline-flex;align-items:center;gap:3px}
+.sd-titem .due.late{color:#e11d48}
+[data-sd="dark"] .sd-titem .due.late{color:#fb7185}
+.sd-from{flex:none;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:var(--color-accent-800);color:var(--color-accent-200);white-space:nowrap}
+.sd-tasks .sd-catlabel{display:flex;align-items:center;gap:6px}
+.sd-tasks .sd-catlabel .sd-mini{margin-left:auto;text-transform:none;letter-spacing:0;min-height:28px;padding:3px 10px}
+.sd-tnote{font-size:12.5px;margin:0}
+.sd-tsheet textarea{resize:vertical;min-height:64px;font:inherit}
+.sd-tfab{background:var(--sd-grad);border:0;color:#fff}
+.sd-tfab:hover{background:var(--sd-grad);filter:brightness(1.05)}
+.sd-tab .sd-badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#e11d48;color:#fff;font-size:10px;font-weight:700;font-style:normal;display:grid;place-items:center;line-height:1}
+/* Aufgaben im Kalender (Punkt am Tag) und in der Statistik */
+.sd-cal button.topen,.sd-cal button.tdone,.sd-cal button.tlate{position:relative}
+.sd-cal button:is(.topen,.tdone,.tlate)::after{content:"";position:absolute;bottom:4px;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#ca8a04;box-shadow:0 0 0 1.5px var(--color-surface)}
+.sd-cal button.tdone::after{background:color-mix(in srgb,#ca8a04 45%,var(--color-surface))}
+.sd-cal button.tlate::after{background:#e11d48}
+.sd-tlegend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;font-size:11.5px;color:var(--color-neutral-500)}
+.sd-tlegend span{display:inline-flex;align-items:center;gap:5px}
+.sd-tlegend span::before{content:"";width:7px;height:7px;border-radius:50%;background:#ca8a04}
+.sd-tlegend .tdone::before{background:color-mix(in srgb,#ca8a04 45%,var(--color-surface))}
+.sd-tlegend .tlate::before{background:#e11d48}
+.sd-stgrid.c4{grid-template-columns:minmax(0,1.1fr) repeat(4,minmax(0,1fr))}
+.sd-stgrid .late{color:#e11d48}
+.sd-tstat h2 .ph-fill{color:var(--color-accent-400)}
+.sd-given{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;padding-top:12px;border-top:1px solid var(--color-neutral-900);font-size:13px}
+.sd-given span{width:100%;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-500)}
+.sd-given b{font-weight:600}
