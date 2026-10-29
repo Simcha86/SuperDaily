@@ -151,8 +151,12 @@ const taskFor = (t, p) => t.to === p || t.to === 's';
 const openTasks = p => T().filter(t => !t.done && (!p || taskFor(t, p)));
 const dueNow = p => openTasks(p).filter(t => t.due && dueOff(t) <= 0);
 const sortTasks = l => l.sort((x, y) => (x.due || '9999') .localeCompare(y.due || '9999') || (x.createdAt || 0) - (y.createdAt || 0));
-const dueLabel = o => o === 0 ? 'heute' : o === -1 ? 'gestern' : o === 1 ? 'morgen' : o < 0 ? `seit ${fmtS(o)}` : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' });
+const dueLabel = (o, done) => o === 0 ? 'heute' : o === -1 ? 'gestern' : o === 1 ? 'morgen' : o < 0 && !done ? `seit ${fmtS(o)}` : o < 0 ? fmtS(o) : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' });
 const taskChip = t => t.to === 's' ? 'Beide' : t.from === t.to ? initial(t.to) : `${initial(t.from)} → ${initial(t.to)}`;
+const tasksDueOn = (p, o) => T().filter(t => taskFor(t, p) && t.due === dk(o));
+// Aufgaben einer Person im Zeitraum: fällig im Zeitraum oder darin erledigt
+const tasksIn = (p, s, e) => sortTasks(T().filter(t => taskFor(t, p) && ((t.due && dueOff(t) >= s && dueOff(t) <= e) || (t.done && t.doneAt && offOfKey(t.doneAt) >= s && offOfKey(t.doneAt) <= e))));
+const taskGroup = (list, label = 'Aufgaben') => list.length ? `<div class="sd-group sd-tasks"><span class="sd-label sd-catlabel">${icon('check-square-offset')}${label}<em>${list.length}</em></span>${list.map(taskItem).join('')}</div>` : '';
 const taskMeta = t => t.to === 's' ? 'gemeinsam' : t.from === t.to ? 'selbst' : `von ${esc(data.names[t.from])} an ${esc(data.names[t.to])}`;
 
 // ---------- Speicher ----------
@@ -413,11 +417,12 @@ function calendarView(p, s, e, longRange) {
     const inR = o >= s && o <= e, ok = inR && o <= 0 && o >= MIN, d = dateAt(o);
     const pct = ok ? dayStats(p, o).pct : 0;
     const label = d.getDate() === 1 && longRange ? d.toLocaleDateString('de-DE', { month: 'short' }) : d.getDate();
-    cells += `<button class="${ok ? 'ok' : inR ? 'in' : ''} ${o === 0 ? 'today' : ''}" ${ok ? `data-a="calDay" data-o="${o}" style="background:color-mix(in srgb, var(--color-accent) ${Math.round(8 + pct * .62)}%, var(--color-surface))"` : 'tabindex="-1"'} aria-label="${dk(o)}${ok ? ' ' + pct + ' %' : ''}">${label}</button>`;
+    const td = inR ? tasksDueOn(p, o) : [], tdot = !td.length ? '' : td.some(t => !t.done && o < 0) ? 'tlate' : td.every(t => t.done) ? 'tdone' : 'topen';
+    cells += `<button class="${ok ? 'ok' : inR ? 'in' : ''} ${o === 0 ? 'today' : ''} ${tdot}" ${ok ? `data-a="calDay" data-o="${o}" style="background:color-mix(in srgb, var(--color-accent) ${Math.round(8 + pct * .62)}%, var(--color-surface))"` : 'tabindex="-1"'} aria-label="${dk(o)}${ok ? ' ' + pct + ' %' : ''}${td.length ? ', ' + td.length + ' Aufgabe(n)' : ''}">${label}</button>`;
   }
   const rates = R().filter(r => everVisible(r, p)).map(r => ({ r, x: rate(r, p, s, e) })).filter(({ x }) => x.b).sort((a, b) => b.x.pct - a.x.pct)
     .map(({ r, x }) => `<div class="sd-rate"><div class="row"><span>${esc(r.title)}</span><span>${x.a} / ${x.b} · ${x.pct} %</span></div><div class="sd-track"><div style="width:${x.pct}%"></div></div></div>`).join('');
-  return `<div style="display:flex;flex-direction:column;gap:6px"><div class="sd-cal">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(w => `<span>${w}</span>`).join('')}</div><div class="sd-cal">${cells}</div><div class="sd-legend" style="padding-top:4px"><span>0 %</span><i></i><span>100 %</span></div></div>${rates ? `<div class="sd-group" style="gap:12px"><span class="sd-label">Je Routine</span>${rates}</div>` : ''}`;
+  return `<div style="display:flex;flex-direction:column;gap:6px"><div class="sd-cal">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(w => `<span>${w}</span>`).join('')}</div><div class="sd-cal">${cells}</div><div class="sd-legend" style="padding-top:4px"><span>0 %</span><i></i><span>100 %</span></div>${T().length ? `<div class="sd-tlegend"><span class="topen">Aufgabe fällig</span><span class="tdone">erledigt</span><span class="tlate">überfällig</span></div>` : ''}</div>${rates ? `<div class="sd-group" style="gap:12px"><span class="sd-label">Je Routine</span>${rates}</div>` : ''}`;
 }
 
 // ---------- Tabs ----------
@@ -430,11 +435,12 @@ function tabHeute() {
   const body = ui.heuteView === 'liste' ? `${R().length ? hero(st, off) : ''}${listView(p, off)}` : tilesView(p, off);
   return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div>${personDots()}</div>
   ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
-  ${strip}${newNote()}${roNote()}${body}${off === 0 ? heuteTasks(p) : ''}`;
+  ${strip}${newNote()}${roNote()}${heuteTasks(p, off)}${body}`;
 }
-// Fällige und überfällige Aufgaben der Person unter den Routinen; heute Erledigtes bleibt durchgestrichen stehen.
-function heuteTasks(p) {
-  const list = sortTasks(T().filter(t => taskFor(t, p) && t.due && dueOff(t) <= 0 && (!t.done || t.doneAt === dk(0))));
+// Ganz oben auf „Heute“: fällige und überfällige Aufgaben der Person; an diesem Tag Erledigtes bleibt durchgestrichen stehen.
+// An vergangenen Tagen: die an diesem Tag fälligen Aufgaben.
+function heuteTasks(p, off) {
+  const list = off === 0 ? sortTasks(T().filter(t => taskFor(t, p) && t.due && dueOff(t) <= 0 && (!t.done || t.doneAt === dk(0)))) : sortTasks(tasksDueOn(p, off));
   if (!list.length) return '';
   return `<div class="sd-group sd-tasks"><span class="sd-label sd-catlabel">${icon('check-square-offset')}Aufgaben<button class="sd-mini" data-a="tab" data-v="aufgaben">Alle</button></span>${list.map(taskItem).join('')}</div>`;
 }
@@ -443,7 +449,8 @@ function tabKalender() {
   let body;
   if (m.mode === 'tag') { const st = dayStats(p, s); body = prog(`${st.n} von ${st.t} erledigt`, st.pct) + listView(p, s); }
   else { body = prog(`${tot.a} von ${tot.b} Erledigungen`, tot.pct) + (m.mode === 'woche' ? matrixView(p, s, e, false) : calendarView(p, s, e, m.mode === 'zeitraum')); }
-  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>${title}</h1></div>${personDots()}</div>${calViewSeg()}${rangeControls(m, 'cal')}${roNote()}${body}`;
+  const tl = tasksIn(p, s, m.mode === 'monat' ? e : Math.min(e, 0));
+  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>${title}</h1></div>${personDots()}</div>${calViewSeg()}${rangeControls(m, 'cal')}${roNote()}${m.mode === 'tag' ? taskGroup(tl) : ''}${body}${m.mode === 'tag' ? '' : taskGroup(tl, m.mode === 'monat' ? 'Aufgaben in diesem Monat' : 'Aufgaben im Zeitraum')}`;
 }
 // Das Raster ist seit Version 7 eine Ansicht im Kalender-Tab.
 const calViewSeg = () => seg([['kalender', icon('calendar-blank') + 'Kalender'], ['raster', icon('grid-four') + 'Raster']], ui.calView, 'calView');
@@ -464,7 +471,7 @@ function tabRoutinen() {
 }
 function taskItem(t) {
   const o = dueOff(t), late = !t.done && o !== null && o < 0;
-  const due = o === null ? '' : `<span class="due ${late ? 'late' : ''}">${icon(late ? 'warning-circle' : 'calendar-blank')}${dueLabel(o)}</span> · `;
+  const due = o === null ? '' : `<span class="due ${late ? 'late' : ''}">${icon(late ? 'warning-circle' : 'calendar-blank')}${dueLabel(o, t.done)}</span> · `;
   return `<div class="sd-item sd-titem ${t.done ? 'done' : ''}"><button class="sd-check" data-a="taskToggle" data-t="${t.id}" aria-label="${esc(t.title)} ${t.done ? 'wieder öffnen' : 'abhaken'}">${icon('check', 'ph-bold')}</button><button class="txt" data-a="taskEdit" data-t="${t.id}"><span class="t">${esc(t.title)}</span><span class="m">${due}${taskMeta(t)}${t.note ? ' · ' + icon('note') : ''}</span></button><span class="sd-from">${taskChip(t)}</span></div>`;
 }
 function tabAufgaben() {
@@ -532,7 +539,7 @@ function tabMehr() {
 function tabStatistik() {
   const days = ui.stat, s = -(days - 1), e = 0, P = ['a', 'b'], nm = p => esc(data.names[p]);
   const head = `<div class="sd-hdr"><div><div class="sd-sub">${fmtS(s)} – ${fmtS(e)}</div><h1>Statistik</h1></div></div>${seg([[7, '7 Tage'], [30, '30 Tage'], [90, '90 Tage']], days, 'stat')}`;
-  if (!active().length) return head + empty('', true);
+  if (!active().length && !T().length) return head + empty('', true);
   const tot = Object.fromEntries(P.map(p => [p, totals(p, s, e)]));
   const lead = tot.a.pct === tot.b.pct ? null : tot.a.pct > tot.b.pct ? 'a' : 'b';
   const duel = `<div class="sd-duel">${P.map(p => `<div class="sd-duelp ${p}"><div class="sd-ring" style="background:conic-gradient(var(--sd-${p}) ${tot[p].pct * 3.6}deg, var(--color-neutral-900) 0)"><div><b>${tot[p].pct}%</b><small>${tot[p].a} von ${tot[p].b}</small></div></div><span>${nm(p)}${lead === p ? ` <em>${icon('crown-simple', 'ph-fill')}vorne</em>` : ''}</span></div>`).join('')}</div>`;
@@ -568,7 +575,14 @@ function tabStatistik() {
     return { c, x };
   }).filter(({ x }) => x.some(Boolean));
   const area = byCat.length ? `<div class="sd-card"><h2>Nach Bereich</h2><div class="sd-rtab">${byCat.map(({ c, x }) => `<div class="row"><span class="t sd-catt">${icon(c.icon)}${esc(c.name)}</span>${x.map((q, i) => q ? `<span class="v ${P[i]}"><i style="width:${q.pct}%"></i><b>${q.pct}%</b></span>` : '<span class="v na">–</span>').join('')}</div>`).join('')}</div>${legend()}</div>` : '';
-  return head + duel + streaks + trend + weekday + area + per;
+  const tk = Object.fromEntries(P.map(p => {
+    const mine = T().filter(t => taskFor(t, p)), inR = k => k && offOfKey(k) >= s && offOfKey(k) <= e;
+    const done = mine.filter(t => t.done && inR(t.doneAt)), timed = done.filter(t => t.due);
+    return [p, { done: done.length, ontime: timed.length ? Math.round(timed.filter(t => t.doneAt <= t.due).length / timed.length * 100) + '%' : '–', open: mine.filter(t => !t.done).length, late: mine.filter(t => !t.done && t.due && dueOff(t) < 0).length }];
+  }));
+  const given = (f, to) => T().filter(t => t.from === f && t.to === to && t.createdAt && offOf(new Date(t.createdAt)) >= s).length;
+  const tasks = T().length ? `<div class="sd-card sd-tasks sd-tstat"><h2>${icon('check-square-offset', 'ph-fill')} Aufgaben</h2><p>Gemeinsame Aufgaben zählen bei beiden. „Pünktlich“: bis zum Fälligkeitstag erledigt.</p><div class="sd-stgrid c4"><span></span><b>Erledigt</b><b>Pünktlich</b><b>Offen</b><b>Über­fällig</b>${P.map(p => `<span class="nm ${p}">${nm(p)}</span><span>${tk[p].done}</span><span>${tk[p].ontime}</span><span>${tk[p].open}</span><span class="${tk[p].late ? 'late' : ''}">${tk[p].late}</span>`).join('')}</div><div class="sd-given"><span>Vergeben im Zeitraum</span><b>${nm('a')} → ${nm('b')}: ${given('a', 'b')}</b><b>${nm('b')} → ${nm('a')}: ${given('b', 'a')}</b><b>Gemeinsam: ${given('a', 's') + given('b', 's')}</b></div></div>` : '';
+  return head + duel + tasks + streaks + trend + weekday + area + per;
 }
 const legend = () => `<div class="sd-leg">${['a', 'b'].map(p => `<span><i class="${p}"></i>${esc(data.names[p])}</span>`).join('')}</div>`;
 

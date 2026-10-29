@@ -21,7 +21,7 @@
   [['t1', 'Paket zur Post bringen', 'b', 'a', -1, false], ['t2', 'Arzttermin für Mia ausmachen', 'b', 'a', 0, false], ['t3', 'Geschenk für Oma besorgen', 'a', 's', 0, false],
    ['t4', 'Steuerunterlagen sortieren', 'a', 'a', 4, false], ['t5', 'Babysitter für Samstag fragen', 'a', 'b', 1, false], ['t6', 'Urlaub planen', 'b', 's', null, false],
    ['t7', 'Fahrrad zur Inspektion', 'b', 'a', -2, true]].forEach(([id, title, from, to, due, isDone], i) => {
-    tasks[id] = { id, title, note: id === 't2' ? 'Kinderarzt Dr. Weber, vormittags anrufen' : '', from, to, due: due === null ? null : dk(due), done: isDone, doneAt: isDone ? dk(-1) : null, doneBy: isDone ? to : null, createdAt: i };
+    tasks[id] = { id, title, note: id === 't2' ? 'Kinderarzt Dr. Weber, vormittags anrufen' : '', from, to, due: due === null ? null : dk(due), done: isDone, doneAt: isDone ? dk(-1) : null, doneBy: isDone ? to : null, createdAt: Date.now() - (7 - i) * 864e5 };
   });
   globalThis.SD_SAMPLE = { app: 'SuperDaily', version: 1, names: { a: 'Simon', b: 'Irina' }, routines, done, tasks, me: 'a' };
 })();
