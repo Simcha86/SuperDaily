@@ -1,0 +1,152 @@
+// Zwei Personen gegen Auth- und Firestore-Emulator: Simon und Irina auf je einem „Handy“.
+// Prüft Haushalt anlegen und beitreten, Rechte (alle sehen alles, abhaken/bearbeiten nur
+// eigene und gemeinsame Routinen) und den Live-Abgleich zwischen beiden Geräten.
+// Starten nur über: npm run test:app (startet die Emulatoren).
+import { test, expect, oeffneHandy, tab } from './hilfen.js';
+
+let zaehler = 0;
+const neueEmail = name => `${name}.${Date.now()}.${++zaehler}@beispiel.de`;
+
+async function registrieren(seite, email) {
+  await seite.getByRole('button', { name: 'Registrieren' }).click();
+  await seite.getByLabel('E-Mail').fill(email);
+  await seite.getByLabel('Passwort').fill('geheim123');
+  await seite.getByRole('button', { name: 'Konto anlegen' }).click();
+  await expect(seite.getByRole('heading', { name: 'Haushalt', exact: true })).toBeVisible();
+}
+
+async function beitreten(seite, code, als) {
+  const karte = seite.locator('.sd-card', { hasText: 'Mit Code beitreten' });
+  await karte.getByPlaceholder('z. B. K7Q2XM').fill(code);
+  await karte.getByRole('button', { name: als, exact: true }).click();
+  await karte.getByRole('button', { name: 'Beitreten' }).click();
+}
+
+async function routineAnlegen(seite, titel, fuer) {
+  await tab(seite, 'Routinen');
+  await seite.getByRole('button', { name: 'Routine hinzufügen' }).click();
+  await seite.getByPlaceholder('z. B. Zahnseide').fill(titel);
+  await seite.locator('.sd-sheet').getByRole('button', { name: fuer, exact: true }).click();
+  await seite.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
+  await expect(seite.locator('.sd-sheet')).toHaveCount(0);
+}
+
+// Simon legt den Haushalt an, Irina tritt bei; Simon legt drei Routinen an.
+async function haushalt(browser, server) {
+  const simon = await oeffneHandy(browser, server);
+  await registrieren(simon, neueEmail('simon'));
+  await simon.getByRole('button', { name: 'Anlegen' }).click();
+  await tab(simon, 'Mehr');
+  const code = (await simon.locator('.sd-code').innerText()).trim();
+  await routineAnlegen(simon, 'Sport', 'Simon');
+  await routineAnlegen(simon, 'Zahnseide', 'Beide einzeln');
+  await routineAnlegen(simon, 'Glas Wasser', 'Gemeinsam');
+  const irina = await oeffneHandy(browser, server);
+  await registrieren(irina, neueEmail('irina'));
+  await beitreten(irina, code, 'Irina');
+  await expect(irina.locator('.sd-tabs')).toBeVisible();
+  return { simon, irina, code };
+}
+
+const routineHeute = (seite, titel) => seite.locator('.sd-item', { hasText: titel });
+
+test('Haushalt anlegen und beitreten; die vergebene Person ist gesperrt', async ({ browser, emulator }) => {
+  const simon = await oeffneHandy(browser, emulator);
+  await registrieren(simon, neueEmail('simon'));
+  await simon.getByRole('button', { name: 'Anlegen' }).click();
+  await tab(simon, 'Mehr');
+  const code = (await simon.locator('.sd-code').innerText()).trim();
+  expect(code).toMatch(/^[A-Z0-9]{6}$/);
+  await expect(simon.getByRole('heading', { name: 'Ich bin Simon' })).toBeVisible();
+
+  const irina = await oeffneHandy(browser, emulator);
+  await registrieren(irina, neueEmail('irina'));
+  await beitreten(irina, code, 'Simon');
+  await expect(irina.getByText(/Beitreten fehlgeschlagen/)).toBeVisible();
+  await beitreten(irina, code, 'Irina');
+  await expect(irina.locator('.sd-tabs')).toBeVisible();
+  await expect(irina.locator('.sd-dot.on')).toHaveText('I');
+
+  const fremd = await oeffneHandy(browser, emulator);
+  await registrieren(fremd, neueEmail('fremd'));
+  await beitreten(fremd, code, 'Simon');
+  await expect(fremd.getByText(/Beitreten fehlgeschlagen/)).toBeVisible();
+  await beitreten(fremd, code, 'Irina');
+  await expect(fremd.getByText(/Beitreten fehlgeschlagen/)).toBeVisible();
+
+  expect([...simon.fehler, ...irina.fehler]).toEqual([]);
+});
+
+test('Irina sieht Simons Tag nur an; gemeinsame Routinen haken beide ab, live abgeglichen', async ({ browser, emulator }) => {
+  const { simon, irina } = await haushalt(browser, emulator);
+  await tab(simon, 'Heute');
+  await routineHeute(simon, 'Sport').click();
+  await expect(routineHeute(simon, 'Sport')).toHaveClass(/done/);
+
+  await tab(irina, 'Heute');
+  await expect(routineHeute(irina, 'Zahnseide')).toBeVisible();
+  await expect(routineHeute(irina, 'Sport')).toHaveCount(0);
+  await routineHeute(irina, 'Zahnseide').click();
+  await expect(routineHeute(irina, 'Zahnseide')).toHaveClass(/done/);
+
+  // Simons Tag ansehen
+  await irina.locator('.sd-dots').getByRole('button', { name: 'Simon', exact: true }).click();
+  await expect(irina.getByText('Du siehst Simons Routinen')).toBeVisible();
+  await expect(routineHeute(irina, 'Sport')).toHaveClass(/done/);
+  await expect(routineHeute(irina, 'Sport')).toHaveClass(/ro/);
+  await routineHeute(irina, 'Sport').click({ force: true });
+  await expect(routineHeute(irina, 'Sport')).toHaveClass(/done/);
+  await expect(routineHeute(irina, 'Zahnseide')).toHaveClass(/ro/);
+
+  // Gemeinsame Routine: Irina hakt ab, Simon sieht es live
+  await routineHeute(irina, 'Glas Wasser').click();
+  await expect(routineHeute(irina, 'Glas Wasser')).toHaveClass(/done/);
+  await tab(simon, 'Heute');
+  await expect(routineHeute(simon, 'Glas Wasser')).toHaveClass(/done/);
+
+  // Simon sieht Irinas Zahnseide erledigt, nur zum Ansehen
+  await simon.locator('.sd-dots').getByRole('button', { name: 'Irina', exact: true }).click();
+  await expect(routineHeute(simon, 'Zahnseide')).toHaveClass(/done/);
+  await expect(routineHeute(simon, 'Zahnseide')).toHaveClass(/ro/);
+
+  expect([...simon.fehler, ...irina.fehler]).toEqual([]);
+});
+
+test('Routinen und Bereiche: fremde Routinen gesperrt, Bereiche und Archiv live bei beiden', async ({ browser, emulator }) => {
+  const { simon, irina } = await haushalt(browser, emulator);
+
+  await tab(irina, 'Routinen');
+  await expect(irina.locator('.sd-row.ro', { hasText: 'Sport' })).toHaveCount(1);
+  await expect(irina.locator('.sd-row:not(.ro)', { hasText: 'Glas Wasser' })).toHaveCount(1);
+  await irina.locator('.sd-row', { hasText: 'Sport' }).click({ force: true });
+  await expect(irina.locator('.sd-sheet')).toHaveCount(0);
+
+  await irina.getByRole('button', { name: 'Routine hinzufügen' }).click();
+  const personen = await irina.locator('.sd-sheet [data-a="dWho"]').allInnerTexts();
+  expect(personen).toEqual(['Irina', 'Beide einzeln', 'Gemeinsam']);
+  await irina.locator('.sd-back').click({ position: { x: 20, y: 20 } });
+
+  // Irina legt einen Bereich an, Simon sieht ihn
+  await irina.locator('.sd-hdr').getByRole('button', { name: 'Bereiche' }).click();
+  await irina.getByPlaceholder('Neuer Bereich, z. B. Beruf').fill('Garten');
+  await irina.getByRole('button', { name: 'Anlegen' }).click();
+  await expect(irina.locator('.sd-catrow input[value="Garten"]')).toHaveCount(1);
+  await irina.getByRole('button', { name: 'Fertig' }).click();
+  await tab(simon, 'Routinen');
+  await simon.locator('.sd-hdr').getByRole('button', { name: 'Bereiche' }).click();
+  await expect(simon.locator('.sd-catrow input[value="Garten"]')).toHaveCount(1);
+  await simon.getByRole('button', { name: 'Fertig' }).click();
+  await expect(simon.locator('.sd-sheet')).toHaveCount(0);
+
+  // Simon archiviert seine Routine; Irina sieht sie im Archiv ohne Wiederherstellen
+  await simon.getByRole('button', { name: /Sport/ }).click();
+  await simon.getByRole('button', { name: 'Routine archivieren' }).click();
+  await expect(irina.locator('.sd-arch summary')).toContainText('1');
+  await expect(irina.getByRole('button', { name: 'Wiederherstellen' })).toHaveCount(0);
+
+  await tab(irina, 'Statistik');
+  await expect(irina.locator('.sd-duel')).toContainText('Simon');
+  await expect(irina.locator('.sd-duel')).toContainText('Irina');
+
+  expect([...simon.fehler, ...irina.fehler]).toEqual([]);
+});
