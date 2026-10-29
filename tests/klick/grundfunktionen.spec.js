@@ -44,3 +44,15 @@ test('Darstellung auf Dunkel umschalten', async ({ browser, lokal }) => {
   await seite.reload();
   await expect(seite.locator('html')).toHaveAttribute('data-sd', 'dark');
 });
+
+test('Vorleseprogramme: Symbole sind ausgeblendet, Knöpfe heißen nur wie ihr Text', async ({ browser, lokal }) => {
+  const seite = await oeffneHandy(browser, lokal);
+  await expect(seite.getByRole('button', { name: 'Eigene Routine anlegen', exact: true })).toBeVisible();
+  await seite.getByRole('button', { name: 'Vitamine nehmen' }).click();
+  for (const name of ['Heute', 'Kalender', 'Raster', 'Statistik', 'Routinen', 'Mehr']) {
+    await expect(seite.locator('.sd-tabs').getByRole('button', { name, exact: true })).toHaveCount(1);
+  }
+  await tab(seite, 'Routinen');
+  await expect(seite.locator('.sd-hdr').getByRole('button', { name: 'Bereiche', exact: true })).toBeVisible();
+  expect(await seite.locator('i.ph, i[class*="ph-"]').evaluateAll(l => l.filter(i => i.className.includes('ph-') && i.getAttribute('aria-hidden') !== 'true').length)).toBe(0);
+});

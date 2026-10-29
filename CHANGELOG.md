@@ -2,6 +2,11 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 6 · 29. Oktober 2026 · [Release Notes](docs/releases/v6/RELEASE-NOTES.md)
+
+- **Beitreten mit Code:** Die Auswahl „Ich bin …“ entfällt. Die App nimmt automatisch die noch freie Person. Bisher konnte man die schon vergebene Person antippen und bekam dann einen Fehler.
+- **Vorleseprogramme:** VoiceOver (iPhone) und TalkBack (Android) lesen die Symbole auf Knöpfen nicht mehr als seltsame Zeichen vor. Sichtbar ändert sich nichts.
+
 ## Version 5 · 25. Oktober 2026
 
 - Unter **Mehr → Über SuperDaily** stehen die Versionsnummer, die Neuerungen dieser Version und die früheren Versionen.

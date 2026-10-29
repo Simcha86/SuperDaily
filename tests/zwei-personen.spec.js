@@ -15,10 +15,10 @@ async function registrieren(seite, email) {
   await expect(seite.getByRole('heading', { name: 'Haushalt', exact: true })).toBeVisible();
 }
 
-async function beitreten(seite, code, als) {
+// Beitreten ohne Personenwahl: die App nimmt automatisch die noch freie Person (Version 6).
+async function beitreten(seite, code) {
   const karte = seite.locator('.sd-card', { hasText: 'Mit Code beitreten' });
   await karte.getByPlaceholder('z. B. K7Q2XM').fill(code);
-  await karte.getByRole('button', { name: als, exact: true }).click();
   await karte.getByRole('button', { name: 'Beitreten' }).click();
 }
 
@@ -43,14 +43,14 @@ async function haushalt(browser, server) {
   await routineAnlegen(simon, 'Glas Wasser', 'Gemeinsam');
   const irina = await oeffneHandy(browser, server);
   await registrieren(irina, neueEmail('irina'));
-  await beitreten(irina, code, 'Irina');
+  await beitreten(irina, code);
   await expect(irina.locator('.sd-tabs')).toBeVisible();
   return { simon, irina, code };
 }
 
 const routineHeute = (seite, titel) => seite.locator('.sd-item', { hasText: titel });
 
-test('Haushalt anlegen und beitreten; die vergebene Person ist gesperrt', async ({ browser, emulator }) => {
+test('Haushalt anlegen und beitreten: freie Person automatisch, dritte Person abgewiesen', async ({ browser, emulator }) => {
   const simon = await oeffneHandy(browser, emulator);
   await registrieren(simon, neueEmail('simon'));
   await simon.getByRole('button', { name: 'Anlegen' }).click();
@@ -61,19 +61,38 @@ test('Haushalt anlegen und beitreten; die vergebene Person ist gesperrt', async 
 
   const irina = await oeffneHandy(browser, emulator);
   await registrieren(irina, neueEmail('irina'));
-  await beitreten(irina, code, 'Simon');
+  const karte = irina.locator('.sd-card', { hasText: 'Mit Code beitreten' });
+  await expect(karte.getByRole('button', { name: 'Simon', exact: true })).toHaveCount(0);
+  await expect(karte).toContainText('automatisch die noch freie Person');
+  await beitreten(irina, 'FALSCH');
   await expect(irina.getByText(/Beitreten fehlgeschlagen/)).toBeVisible();
-  await beitreten(irina, code, 'Irina');
+  await beitreten(irina, code);
   await expect(irina.locator('.sd-tabs')).toBeVisible();
   await expect(irina.locator('.sd-dot.on')).toHaveText('I');
+  await tab(irina, 'Mehr');
+  await expect(irina.getByRole('heading', { name: 'Ich bin Irina' })).toBeVisible();
 
   const fremd = await oeffneHandy(browser, emulator);
   await registrieren(fremd, neueEmail('fremd'));
-  await beitreten(fremd, code, 'Simon');
+  await beitreten(fremd, code);
   await expect(fremd.getByText(/Beitreten fehlgeschlagen/)).toBeVisible();
-  await beitreten(fremd, code, 'Irina');
-  await expect(fremd.getByText(/Beitreten fehlgeschlagen/)).toBeVisible();
+  await expect(fremd.locator('.sd-tabs')).toHaveCount(0);
 
+  expect([...simon.fehler, ...irina.fehler]).toEqual([]);
+});
+
+test('Legt Irina den Haushalt an, wird die zweite Person automatisch Simon', async ({ browser, emulator }) => {
+  const irina = await oeffneHandy(browser, emulator);
+  await registrieren(irina, neueEmail('irina'));
+  await irina.locator('.sd-card', { hasText: 'Neuen Haushalt anlegen' }).getByRole('button', { name: 'Irina', exact: true }).click();
+  await irina.getByRole('button', { name: 'Anlegen' }).click();
+  await tab(irina, 'Mehr');
+  const code = (await irina.locator('.sd-code').innerText()).trim();
+
+  const simon = await oeffneHandy(browser, emulator);
+  await registrieren(simon, neueEmail('simon'));
+  await beitreten(simon, code);
+  await expect(simon.locator('.sd-dot.on')).toHaveText('S');
   expect([...simon.fehler, ...irina.fehler]).toEqual([]);
 });
 
