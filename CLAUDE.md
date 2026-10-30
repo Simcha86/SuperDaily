@@ -69,7 +69,7 @@ Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
 3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
 4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen; Simon veröffentlicht sie **vor** dem Merge.
 
-Aktueller Stand: Version 7, `CACHE = 'superdaily-v8'`.
+Aktueller Stand: Version 8, `CACHE = 'superdaily-v9'`.
 
 ## Testen
 

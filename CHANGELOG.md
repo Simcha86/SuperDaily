@@ -2,6 +2,10 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 8 · 30. Oktober 2026 · [Release Notes](docs/releases/v8/RELEASE-NOTES.md)
+
+- Bei einer Störung von GitHub (dort liegt die App) zeigt SuperDaily nicht mehr die Fehlerseite des Servers, sondern öffnet sich mit der zuletzt gespeicherten Version. Abhaken und Aufgaben laufen weiter über Firebase. Fehlerseiten werden nie mehr als Kopie gespeichert.
+
 ## Version 7 · 29. Oktober 2026 · [Release Notes](docs/releases/v7/RELEASE-NOTES.md)
 
 **Aufgaben**
