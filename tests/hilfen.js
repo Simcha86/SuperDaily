@@ -41,7 +41,10 @@ export async function starteServer(modus) {
   const konfig = modus === 'emulator'
     ? "export const firebaseConfig = { apiKey: 'demo-key', authDomain: 'localhost', projectId: 'demo-superdaily', appId: '1:1:web:1' };"
     : 'export const firebaseConfig = null;';
+  const zustand = { stoerung: false };
   const server = http.createServer((q, r) => {
+    // Simulierte Störung des Servers (wie GitHub mit „We're having a really bad day“)
+    if (zustand.stoerung) { r.writeHead(503, { 'content-type': TYPEN['.html'] }); return r.end('<h1>Störung beim Server</h1>'); }
     const url = decodeURIComponent(q.url.split('?')[0]);
     if (url === '/firebase-config.js') { r.writeHead(200, { 'content-type': TYPEN['.js'] }); return r.end(konfig); }
     let datei = path.join(ROOT, url.endsWith('/') ? url + 'index.html' : url);
@@ -51,7 +54,7 @@ export async function starteServer(modus) {
     r.writeHead(200, { 'content-type': TYPEN[path.extname(datei)] || 'application/octet-stream' });
     r.end(inhalt);
   });
-  return new Promise(ok => server.listen(0, '127.0.0.1', () => ok({ url: `http://127.0.0.1:${server.address().port}/`, schliessen: () => server.close() })));
+  return new Promise(ok => server.listen(0, '127.0.0.1', () => ok({ url: `http://127.0.0.1:${server.address().port}/`, zustand, schliessen: () => server.close() })));
 }
 
 async function externeDateienLokal(ctx) {
@@ -70,8 +73,9 @@ async function externeDateienLokal(ctx) {
 // Öffnet ein „Handy“ (eigener Browser-Kontext = eigenes Gerät mit eigenem Speicher).
 // beispieldaten: Beispieldaten in den lokalen Speicher legen (nur lokaler Modus).
 // schonGesehen: zuletzt gesehene App-Version vorgeben (für den Hinweis nach Updates).
-export async function oeffneHandy(browser, server, { beispieldaten = false, schonGesehen = null, farbschema = 'light' } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: farbschema, reducedMotion: 'reduce', serviceWorkers: 'block' });
+// serviceWorker: den Service Worker der App zulassen (sonst blockiert, damit Tests immer frische Dateien laden).
+export async function oeffneHandy(browser, server, { beispieldaten = false, schonGesehen = null, farbschema = 'light', serviceWorker = false } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: farbschema, reducedMotion: 'reduce', serviceWorkers: serviceWorker ? 'allow' : 'block' });
   await externeDateienLokal(ctx);
   if (beispieldaten) await ctx.addInitScript(BEISPIELDATEN + ";try{if(!localStorage.getItem('superdaily-v1'))localStorage.setItem('superdaily-v1',JSON.stringify(globalThis.SD_SAMPLE))}catch{}");
   if (schonGesehen) await ctx.addInitScript(`try{if(!sessionStorage.getItem('gesetzt')){localStorage.setItem('superdaily-seen-version','${schonGesehen}');sessionStorage.setItem('gesetzt','1')}}catch{}`);

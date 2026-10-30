@@ -22,6 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 8, date: '2026-10-30', items: ['Bei einer Störung des Servers öffnet sich die App weiter mit der gespeicherten Version statt einer Fehlerseite'] },
   { v: 7, date: '2026-10-29', items: ['Neu: Aufgaben – vergebt euch gegenseitig oder gemeinsam Aufgaben mit Datum, eigener Bereich in Senfgold', 'Fällige Aufgaben ganz oben auf „Heute“, im Kalender und in der Statistik', 'Routinen dürft ihr jetzt auch für die andere Person abhaken', 'Das Raster ist jetzt eine Ansicht im Kalender'] },
   { v: 6, date: '2026-10-29', items: ['Beitreten mit Code: die freie Person wird automatisch gewählt', 'Besser mit Vorleseprogramm (VoiceOver, TalkBack): Symbole werden nicht mehr mitgelesen'] },
   { v: 5, date: '2026-10-25', items: ['Versionsnummer und „Neu in dieser Version“ unter Mehr', 'Einmaliger Hinweis nach einem Update'] },
