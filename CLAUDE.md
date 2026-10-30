@@ -60,6 +60,13 @@ households/{code}/tasks/{id}             Aufgabe { title, note, from, to, due, d
 - „Alle X Tage“ zählt ab `rep.from`.
 - Wichtigster Regressionstest: Kalender-Quoten vergangener Tage beider Personen sind nach Änderungen, Archivieren und Wiederherstellen unverändert.
 
+## Anforderungen und Ideen
+
+- Ideen, Wünsche und Fehler stehen als **GitHub Issues** im Repository (Kennzeichnung `idee`, `technik`, `fehler`). Simon kann selbst Einträge anlegen, auch in der GitHub-App.
+- Format: **User Story** („Als … möchte ich …, damit …“) mit **Abnahmekriterien** als Checkliste; Vorlagen unter `.github/ISSUE_TEMPLATE/`. Die Abnahmekriterien werden bei der Umsetzung zu Tests.
+- Neue Wünsche aus dem Chat nur auf Simons Wunsch als Issue anlegen, und Issues nur umsetzen, wenn Simon es ausdrücklich sagt. Zu Beginn neuer Arbeit die offenen Issues ansehen.
+- Ein Pull Request, der einen Eintrag erledigt, nennt ihn mit `Closes #<Nummer>` in der Beschreibung; beim Merge schließt GitHub ihn automatisch.
+
 ## Release-Ablauf für SuperDaily
 
 Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
