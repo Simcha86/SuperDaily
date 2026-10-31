@@ -37,6 +37,7 @@ Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Biblioth
 - **Alle sehen alles.** Abhaken dürfen beide bei allen Routinen, auch für die andere Person (seit Version 7). Bearbeiten nur bei eigenen sowie `ab`/`s`-Routinen. In der App: `canCheck`, `canEdit`, `viewOnly`; in den Regeln: `editable`, `myRole`.
 - **Aufgaben** (seit Version 7): beide dürfen alle Aufgaben vergeben, abhaken, ändern und löschen. Aufgabe `to`: `a`, `b` oder `s` (gemeinsam), `from`: wer sie vergeben hat.
 - Rechte immer zweifach umsetzen: in der App (Bedienung ausblenden) **und** in `firestore.rules` (durchsetzen).
+- „Heute“ hat seit Version 9 den Umschalter Simon | Irina | Duo (`whoSeg`, `ui.duo`); Duo zeigt beide nebeneinander (`duoListView`, `duoTilesView`). Abhak-Knöpfe tragen `data-p` für die Person; `A.toggle` nimmt sonst `ui.person`.
 - Im lokalen Modus (ohne Firebase) gibt es keine Einschränkungen.
 
 ## Datenmodell (Firestore)
@@ -76,7 +77,7 @@ Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
 3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
 4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen; Simon veröffentlicht sie **vor** dem Merge.
 
-Aktueller Stand: Version 8, `CACHE = 'superdaily-v9'`.
+Aktueller Stand: Version 9, `CACHE = 'superdaily-v10'`.
 
 ## Testen
 
