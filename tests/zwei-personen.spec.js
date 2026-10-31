@@ -68,7 +68,7 @@ test('Haushalt anlegen und beitreten: freie Person automatisch, dritte Person ab
   await expect(irina.getByText(/Beitreten fehlgeschlagen/)).toBeVisible();
   await beitreten(irina, code);
   await expect(irina.locator('.sd-tabs')).toBeVisible();
-  await expect(irina.locator('.sd-dot.on')).toHaveText('I');
+  await expect(irina.locator('.sd-who3 button.on')).toHaveText('Irina');
   await tab(irina, 'Mehr');
   await expect(irina.getByRole('heading', { name: 'Ich bin Irina' })).toBeVisible();
 
@@ -92,7 +92,7 @@ test('Legt Irina den Haushalt an, wird die zweite Person automatisch Simon', asy
   const simon = await oeffneHandy(browser, emulator);
   await registrieren(simon, neueEmail('simon'));
   await beitreten(simon, code);
-  await expect(simon.locator('.sd-dot.on')).toHaveText('S');
+  await expect(simon.locator('.sd-who3 button.on')).toHaveText('Simon');
   expect([...simon.fehler, ...irina.fehler]).toEqual([]);
 });
 
@@ -109,7 +109,7 @@ test('Irina hakt bei Simon ab (seit Version 7); gemeinsame Routinen haken beide 
   await expect(routineHeute(irina, 'Zahnseide')).toHaveClass(/done/);
 
   // Simons Tag ansehen
-  await irina.locator('.sd-dots').getByRole('button', { name: 'Simon', exact: true }).click();
+  await irina.locator('.sd-who3').getByRole('button', { name: 'Simon', exact: true }).click();
   await expect(irina.getByText(/Du siehst Simons Routinen und kannst sie auch für Simon abhaken/)).toBeVisible();
   await expect(routineHeute(irina, 'Sport')).toHaveClass(/done/);
   await expect(routineHeute(irina, 'Sport')).not.toHaveClass(/ro/);
@@ -126,7 +126,7 @@ test('Irina hakt bei Simon ab (seit Version 7); gemeinsame Routinen haken beide 
   await expect(routineHeute(simon, 'Glas Wasser')).toHaveClass(/done/);
 
   // Simon sieht Irinas Zahnseide erledigt und dürfte auch für sie abhaken
-  await simon.locator('.sd-dots').getByRole('button', { name: 'Irina', exact: true }).click();
+  await simon.locator('.sd-who3').getByRole('button', { name: 'Irina', exact: true }).click();
   await expect(routineHeute(simon, 'Zahnseide')).toHaveClass(/done/);
   await expect(routineHeute(simon, 'Zahnseide')).not.toHaveClass(/ro/);
 

@@ -22,6 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 9, date: '2026-10-31', items: ['Heute: Umschalter Simon | Irina | Duo – Duo zeigt euch beide nebeneinander, als Liste oder Kacheln', 'Gemeinsame Routinen tragen die Avatare von euch beiden', 'Besser lesbar: dunklerer Nebentext und größere Tasten'] },
   { v: 8, date: '2026-10-30', items: ['Bei einer Störung des Servers öffnet sich die App weiter mit der gespeicherten Version statt einer Fehlerseite'] },
   { v: 7, date: '2026-10-29', items: ['Neu: Aufgaben – vergebt euch gegenseitig oder gemeinsam Aufgaben mit Datum, eigener Bereich in Senfgold', 'Fällige Aufgaben ganz oben auf „Heute“, im Kalender und in der Statistik', 'Routinen dürft ihr jetzt auch für die andere Person abhaken', 'Das Raster ist jetzt eine Ansicht im Kalender'] },
   { v: 6, date: '2026-10-29', items: ['Beitreten mit Code: die freie Person wird automatisch gewählt', 'Besser mit Vorleseprogramm (VoiceOver, TalkBack): Symbole werden nicht mehr mitgelesen'] },
@@ -42,7 +43,7 @@ const markSeen = () => { seenVersion = APP_VERSION; try { localStorage.setItem(S
 const data = { names: { a: 'Simon', b: 'Irina' }, routines: {}, done: {}, cats: null, tasks: {} };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
-  heuteView: 'liste', dayOff: 0, stat: 30, calView: 'kalender', taskView: 'mine', task: null,
+  heuteView: 'liste', duo: false, dayOff: 0, stat: 30, calView: 'kalender', taskView: 'mine', task: null,
   cal: { mode: 'monat', anchor: 0, from: -29, to: 0 },
   grid: { mode: 'woche', anchor: 0, from: -29, to: 0 },
   sheet: null, catSheet: false, authMode: 'login', authErr: '', setupErr: '', busy: false,
@@ -69,7 +70,7 @@ const keyFor = (r, p, off = 0) => (whoAt(r, off) === 's' ? 's' : p) + '|' + r.id
 const syncMode = () => firebaseConfig ? 'firebase' : 'local';
 const canCheck = () => true;
 const canEdit = r => syncMode() === 'local' || ['ab', 's', ui.me].includes(r.who);
-const togAttr = (r, p, off) => canCheck(r, p, off) ? `data-a="toggle" data-r="${r.id}" data-o="${off}"` : 'aria-disabled="true"';
+const togAttr = (r, p, off) => canCheck(r, p, off) ? `data-a="toggle" data-r="${r.id}" data-o="${off}" data-p="${p}"` : 'aria-disabled="true"';
 const viewOnly = () => syncMode() === 'firebase' && ui.person !== ui.me;
 const isDone = (r, p, off) => !!(data.done[dk(off)] || {})[keyFor(r, p, off)];
 const startOff = r => offOfKey(r.created || dk(0));
@@ -330,6 +331,9 @@ function totals(p, s, e) { let a = 0, b = 0; R().filter(r => everVisible(r, p)).
 const icon = (n, cls = 'ph') => `<i class="${cls} ph-${n}" aria-hidden="true"></i>`;
 const initial = p => esc((data.names[p] || '?')[0].toUpperCase());
 const personDots = () => `<div class="sd-dots">${['a', 'b'].map(p => `<button class="sd-dot ${ui.person === p ? 'on' : ''}" data-a="person" data-p="${p}" aria-label="${esc(data.names[p])}">${initial(p)}</button>`).join('')}</div>`;
+// Heute: Simon | Irina | Duo (seit Version 9 statt der runden Knöpfe)
+const whoSeg = () => `<div class="sd-seg sd-who3">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ['duo', 'Duo']].map(([k, l]) => `<button class="${(ui.duo ? 'duo' : ui.person) === k ? 'on' : ''}" data-a="who" data-v="${k}"><i class="sd-wdot ${k}" aria-hidden="true"></i>${l}</button>`).join('')}</div>`;
+const pair = () => `<span class="sd-pair" aria-label="Gemeinsam">${['a', 'b'].map(q => `<span class="${q}" aria-hidden="true">${initial(q)}</span>`).join('')}</span>`;
 const personSeg = () => `<div class="sd-seg">${['a', 'b'].map(p => `<button class="${ui.person === p ? 'on' : ''}" data-a="person" data-p="${p}">${esc(data.names[p])}</button>`).join('')}</div>`;
 const seg = (opts, cur, action) => `<div class="sd-seg">${opts.map(([k, l]) => `<button class="${k === cur ? 'on' : ''}" data-a="${action}" data-v="${k}">${l}</button>`).join('')}</div>`;
 const prog = (label, pct, glow = true) => `<div class="sd-prog"><div class="row"><span>${label}</span><b>${pct}%</b></div><div class="sd-track ${glow ? 'glow' : ''}"><div style="width:${pct}%"></div></div></div>`;
@@ -372,7 +376,7 @@ function listView(p, off) {
       const dn = isDone(r, p, off), sk = streak(r, p, off), x = rep(r);
       let meta = `${esc(catName(r))} · ${repLabel(r)}` + (r.who === 's' ? ' · gemeinsam' : '');
       if (x.type === 'perweek') meta += ` · ${weekDone(r, p, off, null)}/${x.n} diese Woche`;
-      return `<button class="sd-item ${dn ? 'done' : ''} ${canCheck(r, p) ? '' : 'ro'}" ${togAttr(r, p, off)}><span class="sd-check">${icon('check', 'ph-bold')}</span><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></span>${sk > 1 ? `<span class="sd-streak">${icon('flame')}${sk}</span>` : ''}</button>`;
+      return `<button class="sd-item ${dn ? 'done' : ''} ${canCheck(r, p) ? '' : 'ro'}" ${togAttr(r, p, off)}><span class="sd-check">${icon('check', 'ph-bold')}</span><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></span>${r.who === 's' ? pair() : ''}${sk > 1 ? `<span class="sd-streak">${icon('flame')}${sk}</span>` : ''}</button>`;
     }).join('')}</div>`;
   }).join('');
 }
@@ -391,6 +395,39 @@ function tilesView(p, off) {
     return `<button class="sd-tile ${dn ? 'done' : ''} ${canCheck(r, p) ? '' : 'ro'}" ${togAttr(r, p, off)}><div class="top"><span>${r.slot}</span><span class="sd-check">${icon('check', 'ph-bold')}</span></div><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></button>`;
   }).join('')}</div>`;
   return `<div class="sd-rings">${rings}</div><div class="sd-hdr" style="align-items:baseline"><span style="font-size:15px;font-weight:500">${off === 0 ? 'Heute dran' : 'An diesem Tag'}</span><span class="sd-muted">${st.t - st.n ? (st.t - st.n) + ' offen' : st.t ? 'Alles erledigt' : ''}</span></div>${tiles}`;
+}
+// Duo: beide Personen nebeneinander. Beide dürfen für beide abhaken (seit Version 7);
+// gemeinsame Routinen haben ein Feld für beide.
+const PP = ['a', 'b'];
+function duoPct(off) { const [x, y] = PP.map(p => dayStats(p, off)); return x.t + y.t ? Math.round((x.n + y.n) / (x.t + y.t) * 100) : 0; }
+const duoList = off => R().filter(r => PP.some(p => shows(r, p, off)));
+function duoCell(r, p, off, tag) {
+  const nm = esc(data.names[p]);
+  if (!shows(r, p, off)) return `<span class="sd-dcell na" aria-label="${nm}: nicht geplant">–</span>`;
+  const dn = isDone(r, p, off), inner = (tag ? initial(p) : '') + (dn ? icon('check', 'ph-bold') : '');
+  return `<button class="sd-dcell ${p} ${dn ? 'done' : ''}" ${togAttr(r, p, off)} aria-pressed="${dn}" aria-label="${esc(r.title)}, ${nm}: ${dn ? 'erledigt' : 'offen'}">${inner}</button>`;
+}
+function duoCells(r, off, tag) {
+  if (whoAt(r, off) !== 's') return PP.map(p => duoCell(r, p, off, tag)).join('');
+  const dn = isDone(r, ui.me, off);
+  return `<button class="sd-dcell both ${dn ? 'done' : ''}" ${togAttr(r, ui.me, off)} aria-pressed="${dn}" aria-label="${esc(r.title)}, gemeinsam: ${dn ? 'erledigt' : 'offen'}">${dn ? icon('check', 'ph-bold') : ''}Beide</button>`;
+}
+const duoWho = (r, off) => ({ s: 'Gemeinsam', ab: 'Beide einzeln', a: 'Nur ' + esc(data.names.a), b: 'Nur ' + esc(data.names.b) })[whoAt(r, off)] || '';
+const duoScore = off => `<div class="sd-duoscore">${PP.map(p => { const s = dayStats(p, off); return `<button class="sd-dsc" data-a="person" data-p="${p}" aria-label="${esc(data.names[p])} öffnen"><span class="sd-dring" style="background:conic-gradient(var(--sd-${p}) ${s.pct * 3.6}deg, var(--color-neutral-900) 0)"><span>${s.pct}%</span></span><span class="txt"><b>${esc(data.names[p])}</b><small>${s.n} von ${s.t}</small></span></button>`; }).join('')}</div>`;
+function duoListView(off) {
+  if (!active().length) return empty('', true);
+  const list = duoList(off); if (!list.length) return duoScore(off) + empty('An diesem Tag ist nichts geplant.');
+  const head = `<div class="sd-drow head" aria-hidden="true"><span></span>${PP.map(p => `<span class="${p}">${esc(data.names[p])}</span>`).join('')}</div>`;
+  const groups = SLOTS.map(slot => {
+    const items = list.filter(r => r.slot === slot); if (!items.length) return '';
+    return `<span class="sd-label">${slot}</span>${items.map(r => `<div class="sd-drow ${whoAt(r, off) === 's' ? 'shared' : ''}"><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${esc(catName(r))} · ${duoWho(r, off)}</span></span>${duoCells(r, off, false)}</div>`).join('')}`;
+  }).join('');
+  return `${duoScore(off)}<div class="sd-duo">${head}${groups}</div>`;
+}
+function duoTilesView(off) {
+  if (!active().length) return empty('', true);
+  const list = duoList(off); if (!list.length) return duoScore(off) + empty('An diesem Tag ist nichts geplant.');
+  return `${duoScore(off)}<div class="sd-dtiles">${list.map(r => `<div class="sd-dtile"><span class="top">${r.slot}${whoAt(r, off) === 's' ? ' · gemeinsam' : ''}</span><span class="t">${esc(r.title)}</span><div class="sd-dcells">${duoCells(r, off, true)}</div></div>`).join('')}</div>`;
 }
 function matrixView(p, s, e, withRate) {
   const vis = R().filter(r => everVisible(r, p) && (!archived(r) || rate(r, p, s, e).b));
@@ -434,11 +471,13 @@ function tabHeute() {
   const title = off === 0 ? 'Heute' : off === -1 ? 'Gestern' : dateAt(off).toLocaleDateString('de-DE', { weekday: 'long' });
   const end = off < -6 ? off + 3 : 0; const days = [];
   for (let o = end - 6; o <= end; o++) days.push(o);
-  const strip = `<div class="sd-strip">${days.map(o => `<button class="${o === off ? 'on' : ''}" data-a="day" data-o="${o}"><small>${WD[dateAt(o).getDay()]}</small><b>${dateAt(o).getDate()}</b><i class="bar"><i style="width:${dayStats(p, o).pct}%"></i></i></button>`).join('')}</div>`;
-  const body = ui.heuteView === 'liste' ? `${R().length ? hero(st, off) : ''}${listView(p, off)}` : tilesView(p, off);
-  return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div>${personDots()}</div>
+  const strip = `<div class="sd-strip">${days.map(o => `<button class="${o === off ? 'on' : ''}" data-a="day" data-o="${o}"><small>${WD[dateAt(o).getDay()]}</small><b>${dateAt(o).getDate()}</b><i class="bar"><i style="width:${ui.duo ? duoPct(o) : dayStats(p, o).pct}%"></i></i></button>`).join('')}</div>`;
+  const body = ui.duo ? (ui.heuteView === 'liste' ? duoListView(off) : duoTilesView(off))
+    : ui.heuteView === 'liste' ? `${R().length ? hero(st, off) : ''}${listView(p, off)}` : tilesView(p, off);
+  return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div></div>
+  ${whoSeg()}
   ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
-  ${strip}${newNote()}${roNote()}${heuteTasks(p, off)}${body}`;
+  ${strip}${newNote()}${ui.duo ? '' : roNote()}${heuteTasks(ui.duo ? ui.me : p, off)}${body}`;
 }
 // Ganz oben auf „Heute“: fällige und überfällige Aufgaben der Person; an diesem Tag Erledigtes bleibt durchgestrichen stehen.
 // An vergangenen Tagen: die an diesem Tag fälligen Aufgaben.
@@ -677,17 +716,19 @@ function render() {
 // ---------- Aktionen ----------
 const A = {
   tab: d => { ui.tab = d.v; render(); track('screen_view', { firebase_screen: d.v }); },
-  person: d => { ui.person = d.p; render(); },
+  person: d => { ui.person = d.p; ui.duo = false; render(); },
+  who: d => { ui.duo = d.v === 'duo'; if (!ui.duo) ui.person = d.v; render(); track('view_change', { view: ui.duo ? 'duo' : 'person' }); },
   stat: d => { ui.stat = +d.v; render(); track('stats_range', { days: +d.v }); },
   heuteView: d => { ui.heuteView = d.v; render(); track('view_change', { view: d.v }); },
   day: d => { ui.dayOff = +d.o; render(); },
   toggle: d => {
-    const r = data.routines[d.r]; if (!r || !canCheck(r, ui.person)) return;
-    const p = ui.person, off = +d.o, was = dayStats(p, off).pct;
-    store.toggle(dk(off), keyFor(r, p)).catch(fail);
+    const r = data.routines[d.r], p = d.p || ui.person, off = +d.o; if (!r || !canCheck(r, p, off)) return;
+    const was = dayStats(p, off).pct;
+    // Schlüssel nach der Einstellung an diesem Tag (z. B. früher gemeinsam, heute beide einzeln)
+    store.toggle(dk(off), keyFor(r, p, off)).catch(fail);
     track(isDone(r, p, off) ? 'routine_check' : 'routine_uncheck', { slot: r.slot, for_person: p === 'b' ? 'person_2' : 'person_1', days_ago: -off, shared: r.who === 's' });
     if (!isDone(r, p, off)) return;
-    $app.querySelector(`[data-a="toggle"][data-r="${r.id}"][data-o="${off}"]`)?.classList.add('pop');
+    $app.querySelector(`[data-a="toggle"][data-r="${r.id}"][data-o="${off}"]${d.p ? `[data-p="${p}"]` : ''}`)?.classList.add('pop');
     navigator.vibrate?.(12);
     if (was < 100 && dayStats(p, off).pct === 100) celebrate();
   },

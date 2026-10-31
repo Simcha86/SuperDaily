@@ -19,7 +19,7 @@ test('Nach einem Update: Hinweis erscheint einmal und lässt sich schließen', a
 
 test('„Mehr“ im Hinweis öffnet „Über SuperDaily“ mit aktueller und früheren Versionen', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true, schonGesehen: '3' });
-  await expect(seite.locator('.sd-new')).toContainText('Aufgaben');
+  await expect(seite.locator('.sd-new')).toContainText('Duo');
   await seite.locator('.sd-new').getByRole('button', { name: 'Mehr' }).click();
   const ueber = seite.locator('#about');
   await expect(ueber.getByRole('heading', { name: 'Über SuperDaily' })).toBeVisible();

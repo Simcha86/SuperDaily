@@ -64,7 +64,7 @@ test('Archivieren und Wiederherstellen: vergangene Quoten beider Personen bleibe
   expect(await vergangeneQuoten(seite, 'Irina')).toEqual(irina);
 
   await tab(seite, 'Heute');
-  await seite.locator('.sd-dots').getByRole('button', { name: 'Simon', exact: true }).click();
+  await seite.locator('.sd-who3').getByRole('button', { name: 'Simon', exact: true }).click();
   // Heute schon abgehakt → bleibt heute als erledigt sichtbar, darf aber nicht mehr offen sein
   await expect(seite.locator('.sd-item:not(.done)', { hasText: 'Zahnseide' })).toHaveCount(0);
 
@@ -74,5 +74,25 @@ test('Archivieren und Wiederherstellen: vergangene Quoten beider Personen bleibe
   await expect(seite.locator('.sd-group').getByRole('button', { name: /Zahnseide/ })).toHaveCount(1);
   expect(await vergangeneQuoten(seite, 'Simon')).toEqual(simon);
   expect(await vergangeneQuoten(seite, 'Irina')).toEqual(irina);
+  expect(seite.fehler).toEqual([]);
+});
+
+test('Abhaken an einem vergangenen Tag nutzt die Einstellung dieses Tages (früher gemeinsam, jetzt beide einzeln)', async ({ browser, lokal }) => {
+  const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
+  await routineOeffnen(seite, 'Glas Wasser');
+  await seite.getByRole('button', { name: 'Beide einzeln', exact: true }).click();
+  await seite.getByRole('button', { name: 'Speichern' }).click();
+  expect((await gespeicherteRoutine(seite, 'w')).hist[0].who).toBe('s');
+
+  const gestern = await seite.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
+  const haken = () => seite.evaluate(k => JSON.parse(localStorage.getItem('superdaily-v1')).done[k] || {}, gestern);
+  const vorher = !!(await haken())['s|w'];
+
+  await tab(seite, 'Heute');
+  await seite.locator('.sd-strip button').nth(5).click();
+  await seite.locator('.sd-item', { hasText: 'Glas Wasser' }).click();
+  const nachher = await haken();
+  expect(!!nachher['s|w']).toBe(!vorher);
+  expect(nachher['a|w']).toBeUndefined();
   expect(seite.fehler).toEqual([]);
 });

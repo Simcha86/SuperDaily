@@ -2,6 +2,19 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 9 · 31. Oktober 2026 · [Release Notes](docs/releases/v9/RELEASE-NOTES.md)
+
+**Heute: Simon | Irina | Duo**
+- Oben wählt ihr, wessen Tag ihr seht: **Simon**, **Irina** oder **Duo**. Der Umschalter ersetzt die runden Knöpfe S/I.
+- **Duo** zeigt euch beide nebeneinander, als Liste (je eine Spalte pro Person) oder als Kacheln (Felder S und I). Alle Felder sind abhakbar; gemeinsame Routinen haben ein Feld „Beide“, nicht geplant ist „–“.
+- Gemeinsame Routinen tragen in der Liste die Avatare beider Personen.
+
+**Lesbarkeit**
+- Nebentext im hellen Modus dunkler, Tasten größer; die Seite verrutscht nicht mehr seitlich.
+
+**Behoben**
+- Abhaken an früheren Tagen nutzt die Einstellung dieses Tages (z. B. früher gemeinsam, jetzt beide einzeln).
+
 ## Version 8 · 30. Oktober 2026 · [Release Notes](docs/releases/v8/RELEASE-NOTES.md)
 
 - Bei einer Störung von GitHub (dort liegt die App) zeigt SuperDaily nicht mehr die Fehlerseite des Servers, sondern öffnet sich mit der zuletzt gespeicherten Version. Abhaken und Aufgaben laufen weiter über Firebase. Fehlerseiten werden nie mehr als Kopie gespeichert.
