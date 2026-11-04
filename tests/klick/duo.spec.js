@@ -69,7 +69,7 @@ test('Duo bleibt auf Handybreite ohne seitliches Verrutschen, auch im Dunkelmodu
     await seite.locator('.sd-who3').getByRole('button', { name: 'Duo' }).click();
     const breiten = await seite.evaluate(() => { const m = document.querySelector('.sd-scroll'); return [m.scrollWidth, m.clientWidth]; });
     expect(breiten[0]).toBeLessThanOrEqual(breiten[1]);
-    await tab(seite, 'Kalender');
+    await tab(seite, 'Verlauf');
     await tab(seite, 'Heute');
     await expect(seite.locator('.sd-who3 button.on')).toHaveText('Duo');
   }

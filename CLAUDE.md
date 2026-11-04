@@ -26,7 +26,8 @@ Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Biblioth
 
 - Das Design heißt **Minze** (Türkis bis Limette, Schrift Plus Jakarta Sans, hell und dunkel). Simon findet es gut: **nicht verändern**, nur auf seinen Wunsch.
 - Neue Teile aus vorhandenen Bausteinen bauen (`sd-card`, `sd-row`, `sd-item`, `sd-chip`, `sd-opt`, `sd-btn`, `sd-hint`, `sd-mini`, Bottom-Sheet `sd-sheet`) und Farben nur über die Tokens (`--color-accent-…`, `--color-neutral-…`, `--sd-grad`, `--sd-a`/`--sd-b`).
-- Der Bereich **Aufgaben** hat eine eigene Akzentfarbe **Senfgold** (Simons Wunsch): eigene Rampe für `.sd-scroll[data-tab="aufgaben"]`, `.sd-tasks`, `.sd-tfab`, `.sd-tsheet` am Ende von `theme.css`. Alles andere bleibt Minze.
+- Der Bereich **Aufgaben** hat eine eigene Akzentfarbe **Senfgold** (Simons Wunsch): eigene Rampe für `.sd-scroll[data-tab="aufgaben"]`, `.sd-tasks`, `.sd-tfab`, `.sd-tsheet` am Ende von `theme.css`.
+- Der Bereich **Einkauf** (seit Version 10) hat die Akzentfarbe **Koralle** (Simons Wahl aus drei Vorschlägen): eigene Rampe für `.sd-scroll[data-tab="einkauf"]`, `.sd-tab[data-v="einkauf"]`, `.sd-ssheet` am Ende von `theme.css`. Alles andere bleibt Minze.
 - Neue Styles ans Ende von `theme.css`, beide Modi beachten (`[data-sd="light"]` dreht die Farbrampen um: 100 = dunkel, 900 = hell).
 - Symbole aus Phosphor; vor Verwendung prüfen, dass der Name existiert.
 
@@ -36,6 +37,7 @@ Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Biblioth
 - Routine `who`: `a`, `b`, `ab` (beide einzeln, jede Person hakt selbst ab) oder `s` (gemeinsam, ein Haken für beide).
 - **Alle sehen alles.** Abhaken dürfen beide bei allen Routinen, auch für die andere Person (seit Version 7). Bearbeiten nur bei eigenen sowie `ab`/`s`-Routinen. In der App: `canCheck`, `canEdit`, `viewOnly`; in den Regeln: `editable`, `myRole`.
 - **Aufgaben** (seit Version 7): beide dürfen alle Aufgaben vergeben, abhaken, ändern und löschen. Aufgabe `to`: `a`, `b` oder `s` (gemeinsam), `from`: wer sie vergeben hat.
+- **Einkauf** (seit Version 10): beide dürfen alles hinzufügen, abhaken, ändern und löschen.
 - Rechte immer zweifach umsetzen: in der App (Bedienung ausblenden) **und** in `firestore.rules` (durchsetzen).
 - „Heute“ hat seit Version 9 den Umschalter Simon | Irina | Duo (`whoSeg`, `ui.duo`); Duo zeigt beide nebeneinander (`duoListView`, `duoTilesView`). Abhak-Knöpfe tragen `data-p` für die Person; `A.toggle` nimmt sonst `ui.person`.
 - Im lokalen Modus (ohne Firebase) gibt es keine Einschränkungen.
@@ -48,13 +50,17 @@ households/{code}                        { members, roles, names, cats }
 households/{code}/routines/{id}          Routine (inkl. hist, cat)
 households/{code}/days/{a|b|s}_{Datum}   { routineId: true }
 households/{code}/tasks/{id}             Aufgabe { title, note, from, to, due, done, doneAt, doneBy, createdAt }
+households/{code}/shop/{id}              Einkauf { title, qty, aisle, open, done, count, by, addedAt, doneAt }
 ```
 
 - Neue Felder im Haushalt-Dokument müssen in `firestore.rules` bei `affectedKeys().hasOnly([...])` freigegeben werden, sonst schlägt das Speichern fehl.
 - Firestore-Regeln können keine Listen oder Maps durchlaufen. Deshalb liegen Routinen und Haken als eigene Dokumente, damit pro Dokument geprüft werden kann.
 - Haken-Dokumente heißen `<Rolle>_<Datum>`; die Regeln prüfen das Präfix.
+- Einkauf: ein Dokument je Produkt (gleicher Name = gleiches Dokument). `open` = steht auf der Liste, `done` = im Wagen, `count` = wie oft gekauft (für Vorschläge). „Erledigte löschen“ setzt `open: false`, das Dokument bleibt; nur „Ganz löschen“ entfernt es. Bereiche (`aisle`) und Erkennung nach Wortteilen: `AISLES`, `AISLE_WORDS` in `app.js`.
 
 ## Verlauf und Statistik
+
+- Tab **Verlauf** (seit Version 10) mit Umschalter Statistik | Kalender | Raster (`ui.verlauf`, Statistik zuerst) und einem gemeinsamen Zeitraum `ui.cal`; in der Statistik wird „Tag“ zur Woche (`verlaufRange`). Leiste: Heute · Verlauf · Aufgaben · Einkauf · Routinen · Mehr.
 
 - **Vergangenheit bleibt richtig:** Ändert sich Wiederholung oder Person einer Routine, wird die alte Einstellung in `hist` mit `until` = gestern gespeichert (`addVersion`). Berechnungen fragen pro Tag `repAt`/`whoAt`. Nie die aktuelle Einstellung rückwirkend anwenden.
 - **Archivieren statt Löschen:** `rep.type = 'off'`; endgültiges Löschen nur über das Archiv.
@@ -77,7 +83,7 @@ Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
 3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
 4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen; Simon veröffentlicht sie **vor** dem Merge.
 
-Aktueller Stand: Version 9, `CACHE = 'superdaily-v10'`.
+Aktueller Stand: Version 10, `CACHE = 'superdaily-v11'`.
 
 ## Testen
 

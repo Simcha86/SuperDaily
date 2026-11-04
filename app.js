@@ -22,6 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 10, date: '2026-11-04', items: ['Neu: Einkaufsliste für euch beide, sortiert nach Bereichen im Laden, mit Vorschlägen', 'Statistik, Kalender und Raster sind jetzt ein Tab „Verlauf“ mit einem Zeitraum', 'Die Statistik wertet bis zu 365 Tage aus'] },
   { v: 9, date: '2026-10-31', items: ['Heute: Umschalter Simon | Irina | Duo – Duo zeigt euch beide nebeneinander, als Liste oder Kacheln', 'Gemeinsame Routinen tragen die Avatare von euch beiden', 'Besser lesbar: dunklerer Nebentext und größere Tasten'] },
   { v: 8, date: '2026-10-30', items: ['Bei einer Störung des Servers öffnet sich die App weiter mit der gespeicherten Version statt einer Fehlerseite'] },
   { v: 7, date: '2026-10-29', items: ['Neu: Aufgaben – vergebt euch gegenseitig oder gemeinsam Aufgaben mit Datum, eigener Bereich in Senfgold', 'Fällige Aufgaben ganz oben auf „Heute“, im Kalender und in der Statistik', 'Routinen dürft ihr jetzt auch für die andere Person abhaken', 'Das Raster ist jetzt eine Ansicht im Kalender'] },
@@ -40,12 +41,12 @@ try { const v = +localStorage.getItem(SEEN); seenVersion = v || APP_VERSION; if 
 const markSeen = () => { seenVersion = APP_VERSION; try { localStorage.setItem(SEEN, APP_VERSION); } catch {} };
 
 // ---------- Daten ----------
-const data = { names: { a: 'Simon', b: 'Irina' }, routines: {}, done: {}, cats: null, tasks: {} };
+const data = { names: { a: 'Simon', b: 'Irina' }, routines: {}, done: {}, cats: null, tasks: {}, shop: {} };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
-  heuteView: 'liste', duo: false, dayOff: 0, stat: 30, calView: 'kalender', taskView: 'mine', task: null,
-  cal: { mode: 'monat', anchor: 0, from: -29, to: 0 },
-  grid: { mode: 'woche', anchor: 0, from: -29, to: 0 },
+  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '',
+  // Verlauf (seit Version 10): ein Zeitraum für Statistik, Kalender und Raster; Start: letzte 30 Tage
+  cal: { mode: 'zeitraum', anchor: 0, from: -29, to: 0 },
   sheet: null, catSheet: false, authMode: 'login', authErr: '', setupErr: '', busy: false,
   setup: { me: 'a', a: 'Simon', b: 'Irina', code: '' }
 };
@@ -163,6 +164,40 @@ const tasksIn = (p, s, e) => sortTasks(T().filter(t => taskFor(t, p) && ((t.due 
 const taskGroup = (list, label = 'Aufgaben') => list.length ? `<div class="sd-group sd-tasks"><span class="sd-label sd-catlabel">${icon('check-square-offset')}${label}<em>${list.length}</em></span>${list.map(taskItem).join('')}</div>` : '';
 const taskMeta = t => t.to === 's' ? 'gemeinsam' : t.from === t.to ? 'selbst' : `von ${esc(data.names[t.from])} an ${esc(data.names[t.to])}`;
 
+// ---------- Einkauf ----------
+// Ein Dokument je Produkt: { id, title, qty, aisle, open, done, count, by, addedAt, doneAt }.
+// open = steht auf der Liste, done = im Laden abgehakt. „Erledigte löschen“ nimmt Abgehaktes von der Liste;
+// das Dokument bleibt für Vorschläge (count = wie oft gekauft). Beide dürfen alles.
+const AISLES = [['obst', 'Obst & Gemüse', 'carrot'], ['brot', 'Brot & Backwaren', 'bread'], ['kuehl', 'Kühlregal', 'cheese'], ['tk', 'Tiefkühl', 'snowflake'],
+  ['vorrat', 'Vorrat', 'package'], ['getraenke', 'Getränke', 'wine'], ['snacks', 'Süßes & Snacks', 'cookie'], ['drogerie', 'Drogerie & Haushalt', 'spray-bottle'], ['sonst', 'Sonstiges', 'basket']];
+// Zuordnung nach Wortteilen, in dieser Reihenfolge geprüft (z. B. „Apfelsaft“ → Getränke vor Obst).
+// „^“ heißt: nur am Wortanfang (damit „Reis“ nicht bei „Eis“ landet).
+const AISLE_WORDS = [
+  ['drogerie', 'shampoo seife zahnpasta zahnbürste duschgel deo toilettenpapier klopapier taschentüch waschmittel spülmittel müllbeutel schwamm windel creme rasier putzmittel küchenrolle batterie spültabs weichspüler'],
+  ['snacks', 'schoko chips keks gummibär süßigkeit snack ^nüsse ^nuss praline bonbon'],
+  ['tk', 'tiefkühl ^tk pizza pommes fischstäbchen ^eis speiseeis'],
+  ['getraenke', 'wasser saft ^bier ^wein ^sekt cola limo sprudel getränk schorle'],
+  ['kuehl', 'milch joghurt jogurt käse butter quark sahne ^eier ^ei wurst schinken aufschnitt margarine tofu schmand frischkäse fleisch hähnchen ^hack fisch lachs salami mozzarella feta'],
+  ['brot', 'brot brötchen toast croissant brezel kuchen semmel baguette'],
+  ['vorrat', 'nudel pasta spaghetti ^reis mehl zucker ^salz ^öl essig konserve ^dose müsli haferflocken kaffee ^tee honig marmelade gewürz soße sauce ketchup senf ^mais linsen bohnen tomatenmark'],
+  ['obst', 'apfel äpfel banane tomate gurke salat kartoffel zwiebel möhre karotte paprika zitrone beere obst gemüse avocado knoblauch kräuter petersilie pilz champignon birne traube orange mandarine kiwi spinat brokkoli zucchini lauch ingwer']];
+const AISLE_RE = AISLE_WORDS.map(([id, w]) => [id, new RegExp(w.split(' ').map(x => x[0] === '^' ? `(?:^|[\\s-])${x.slice(1)}` : x).join('|'), 'i')]);
+const guessAisle = t => AISLE_RE.find(([, re]) => re.test(t))?.[0] || 'sonst';
+const S = () => Object.values(data.shop || {});
+const norm = t => String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
+const findShop = t => S().find(x => norm(x.title) === norm(t));
+const onList = x => x.open && !x.done;
+// „Milch – 2“, „2 Milch“, „500 g Mehl“, „Eier 10“ → { title, qty }
+const QTY = '\\d+(?:[.,]\\d+)?\\s*(?:x|×|g|kg|l|ml|stk\\.?|stück|pck\\.?|packungen?|flaschen?|dosen?|becher|bund)?';
+function parseShop(raw) {
+  const t = String(raw || '').trim().replace(/\s+/g, ' '); let m;
+  const out = (title, qty = '') => ({ title: title.charAt(0).toUpperCase() + title.slice(1), qty: qty.trim() });
+  if ((m = t.match(/^(.+?)\s+[–—-]\s+(.+)$/))) return out(m[1], m[2]);
+  if ((m = t.match(new RegExp(`^(${QTY})\\s+(.+)$`, 'i')))) return out(m[2], m[1]);
+  if ((m = t.match(new RegExp(`^(.+?)\\s+(${QTY})$`, 'i')))) return out(m[1], m[2]);
+  return out(t);
+}
+
 // ---------- Speicher ----------
 const LS = 'superdaily-v1';
 let fb = null, hhId = null, unsubs = [];
@@ -209,15 +244,26 @@ const store = {
     if (this.mode === 'local') return this.saveLocal();
     const { F, db } = fb; await F.deleteDoc(F.doc(db, 'households', hhId, 'tasks', id));
   },
+  async saveShop(x) {
+    data.shop = { ...data.shop, [x.id]: x }; render();
+    if (this.mode === 'local') return this.saveLocal();
+    const { F, db } = fb; await F.setDoc(F.doc(db, 'households', hhId, 'shop', x.id), x);
+  },
+  async deleteShop(id) {
+    const n = { ...data.shop }; delete n[id]; data.shop = n; render();
+    if (this.mode === 'local') return this.saveLocal();
+    const { F, db } = fb; await F.deleteDoc(F.doc(db, 'households', hhId, 'shop', id));
+  },
   setMe(p) { ui.me = p; ui.person = p; render(); this.saveLocal(); },
   async importAll(obj) {
     if (!obj || typeof obj !== 'object' || !obj.routines) throw new Error('Ungültige Datei');
-    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats, tasks: obj.tasks || {} }); this.saveLocal(); return render(); }
+    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats, tasks: obj.tasks || {}, shop: obj.shop || {} }); this.saveLocal(); return render(); }
     // Mit Firebase nur übernehmen, was dieses Konto schreiben darf; der Rest bleibt für die andere Person.
     const { F, db } = fb, own = [ui.me, 's'];
     const routines = Object.values(obj.routines).filter(canEdit), skipped = Object.keys(obj.routines).length - routines.length;
     const writes = routines.map(r => [F.doc(db, 'households', hhId, 'routines', r.id), r, false]);
     Object.values(obj.tasks || {}).forEach(t => writes.push([F.doc(db, 'households', hhId, 'tasks', t.id), t, false]));
+    Object.values(obj.shop || {}).forEach(x => writes.push([F.doc(db, 'households', hhId, 'shop', x.id), x, false]));
     const days = {};
     for (const [d, v] of Object.entries(obj.done || {})) for (const k of Object.keys(v || {})) {
       const [p, rid] = k.split('|'); if (!own.includes(p)) continue;
@@ -235,7 +281,7 @@ const store = {
 };
 
 function initLocal() {
-  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; data.tasks = s.tasks || {}; ui.me = ui.person = s.me || 'a'; } } catch {}
+  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; data.tasks = s.tasks || {}; data.shop = s.shop || {}; ui.me = ui.person = s.me || 'a'; } } catch {}
   ui.screen = 'app'; render();
 }
 
@@ -291,6 +337,9 @@ function attach(u) {
   unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'tasks'), qs => {
     const t = {}; qs.forEach(d => { t[d.id] = d.data(); }); data.tasks = t; render();
   }));
+  unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'shop'), qs => {
+    const x = {}; qs.forEach(d => { x[d.id] = d.data(); }); data.shop = x; render();
+  }));
   // Dokumente "<a|b|s>_<Datum>" mit { routineId: true } → data.done[Datum]["<a|b|s>|routineId"]
   unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'days'), qs => {
     const done = {};
@@ -330,17 +379,17 @@ function totals(p, s, e) { let a = 0, b = 0; R().filter(r => everVisible(r, p)).
 // Symbole sind Schmuck: aria-hidden, damit Vorleseprogramme (VoiceOver, TalkBack) sie nicht als Zeichen vorlesen.
 const icon = (n, cls = 'ph') => `<i class="${cls} ph-${n}" aria-hidden="true"></i>`;
 const initial = p => esc((data.names[p] || '?')[0].toUpperCase());
-const personDots = () => `<div class="sd-dots">${['a', 'b'].map(p => `<button class="sd-dot ${ui.person === p ? 'on' : ''}" data-a="person" data-p="${p}" aria-label="${esc(data.names[p])}">${initial(p)}</button>`).join('')}</div>`;
 // Heute: Simon | Irina | Duo (seit Version 9 statt der runden Knöpfe)
-const whoSeg = () => `<div class="sd-seg sd-who3">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ['duo', 'Duo']].map(([k, l]) => `<button class="${(ui.duo ? 'duo' : ui.person) === k ? 'on' : ''}" data-a="who" data-v="${k}"><i class="sd-wdot ${k}" aria-hidden="true"></i>${l}</button>`).join('')}</div>`;
+const whoSeg = (duo = true) => `<div class="sd-seg sd-who3">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ...(duo ? [['duo', 'Duo']] : [])].map(([k, l]) => `<button class="${(duo && ui.duo ? 'duo' : ui.person) === k ? 'on' : ''}" data-a="who" data-v="${k}"><i class="sd-wdot ${k}" aria-hidden="true"></i>${l}</button>`).join('')}</div>`;
+// In Kalender und Raster gibt es kein Duo: dort zeigt der Umschalter die gewählte Person.
+const personSeg = () => whoSeg(false);
 const pair = () => `<span class="sd-pair" aria-label="Gemeinsam">${['a', 'b'].map(q => `<span class="${q}" aria-hidden="true">${initial(q)}</span>`).join('')}</span>`;
-const personSeg = () => `<div class="sd-seg">${['a', 'b'].map(p => `<button class="${ui.person === p ? 'on' : ''}" data-a="person" data-p="${p}">${esc(data.names[p])}</button>`).join('')}</div>`;
 const seg = (opts, cur, action) => `<div class="sd-seg">${opts.map(([k, l]) => `<button class="${k === cur ? 'on' : ''}" data-a="${action}" data-v="${k}">${l}</button>`).join('')}</div>`;
 const prog = (label, pct, glow = true) => `<div class="sd-prog"><div class="row"><span>${label}</span><b>${pct}%</b></div><div class="sd-track ${glow ? 'glow' : ''}"><div style="width:${pct}%"></div></div></div>`;
 const MODES = [['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat'], ['zeitraum', 'Von – bis']];
-function rangeControls(m, scope) {
+function rangeControls(m, scope, modes = MODES) {
   const { s, e, nav } = rangeOf(m);
-  let h = seg(MODES, m.mode, scope + 'Mode');
+  let h = seg(modes, m.mode, scope + 'Mode');
   if (m.mode === 'zeitraum') {
     h += `<div class="sd-range"><label class="sd-field">Von<input class="sd-input" type="date" value="${dk(s)}" min="${dk(MIN)}" max="${dk(0)}" data-ch="${scope}From"></label><span>–</span><label class="sd-field">Bis<input class="sd-input" type="date" value="${dk(e)}" min="${dk(MIN)}" max="${dk(0)}" data-ch="${scope}To"></label></div>`;
     h += `<div class="sd-chips">${[7, 30, 90].map(d => `<button class="sd-chip ${e === 0 && s === -(d - 1) ? 'on' : ''}" data-a="${scope}Preset" data-v="${d}">Letzte ${d} Tage</button>`).join('')}</div>`;
@@ -460,9 +509,7 @@ function calendarView(p, s, e, longRange) {
     const td = inR ? tasksDueOn(p, o) : [], tdot = !td.length ? '' : td.some(t => !t.done && o < 0) ? 'tlate' : td.every(t => t.done) ? 'tdone' : 'topen';
     cells += `<button class="${ok ? 'ok' : inR ? 'in' : ''} ${o === 0 ? 'today' : ''} ${tdot}" ${ok ? `data-a="calDay" data-o="${o}" style="background:color-mix(in srgb, var(--color-accent) ${Math.round(8 + pct * .62)}%, var(--color-surface))"` : 'tabindex="-1"'} aria-label="${dk(o)}${ok ? ' ' + pct + ' %' : ''}${td.length ? ', ' + td.length + ' Aufgabe(n)' : ''}">${label}</button>`;
   }
-  const rates = R().filter(r => everVisible(r, p)).map(r => ({ r, x: rate(r, p, s, e) })).filter(({ x }) => x.b).sort((a, b) => b.x.pct - a.x.pct)
-    .map(({ r, x }) => `<div class="sd-rate"><div class="row"><span>${esc(r.title)}</span><span>${x.a} / ${x.b} · ${x.pct} %</span></div><div class="sd-track"><div style="width:${x.pct}%"></div></div></div>`).join('');
-  return `<div style="display:flex;flex-direction:column;gap:6px"><div class="sd-cal">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(w => `<span>${w}</span>`).join('')}</div><div class="sd-cal">${cells}</div><div class="sd-legend" style="padding-top:4px"><span>0 %</span><i></i><span>100 %</span></div>${T().length ? `<div class="sd-tlegend"><span class="topen">Aufgabe fällig</span><span class="tdone">erledigt</span><span class="tlate">überfällig</span></div>` : ''}</div>${rates ? `<div class="sd-group" style="gap:12px"><span class="sd-label">Je Routine</span>${rates}</div>` : ''}`;
+  return `<div style="display:flex;flex-direction:column;gap:6px"><div class="sd-cal">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(w => `<span>${w}</span>`).join('')}</div><div class="sd-cal">${cells}</div><div class="sd-legend" style="padding-top:4px"><span>0 %</span><i></i><span>100 %</span></div>${T().length ? `<div class="sd-tlegend"><span class="topen">Aufgabe fällig</span><span class="tdone">erledigt</span><span class="tlate">überfällig</span></div>` : ''}</div>`;
 }
 
 // ---------- Tabs ----------
@@ -486,19 +533,20 @@ function heuteTasks(p, off) {
   if (!list.length) return '';
   return `<div class="sd-group sd-tasks"><span class="sd-label sd-catlabel">${icon('check-square-offset')}Aufgaben<button class="sd-mini" data-a="tab" data-v="aufgaben">Alle</button></span>${list.map(taskItem).join('')}</div>`;
 }
-function tabKalender() {
-  const m = ui.cal, p = ui.person, { s, e, title, sub } = rangeOf(m), tot = totals(p, s, e);
+// Verlauf (seit Version 10): Statistik, Kalender und Raster mit einem gemeinsamen Zeitraum.
+// Die Statistik kennt keinen Tag: steht der Zeitraum auf „Tag“, zeigt sie die Woche dieses Tages.
+const VIEWS = [['statistik', 'chart-bar', 'Statistik'], ['kalender', 'calendar-blank', 'Kalender'], ['raster', 'grid-four', 'Raster']];
+const verlaufRange = () => ui.verlauf === 'statistik' && ui.cal.mode === 'tag' ? { ...ui.cal, mode: 'woche' } : ui.cal;
+function tabVerlauf() {
+  const v = ui.verlauf, m = verlaufRange(), p = ui.person, { s, e, title, sub } = rangeOf(m);
+  const head = `<div class="sd-hdr"><div><div class="sd-sub">${title} · ${sub}</div><h1>Verlauf</h1></div></div>${seg(VIEWS.map(([k, i, l]) => [k, icon(i) + l]), v, 'verlauf')}${rangeControls(m, 'cal', v === 'statistik' ? MODES.slice(1) : MODES)}`;
+  if (v === 'statistik') return head + statistikView(s, e);
+  const tot = totals(p, s, e), tl = tasksIn(p, s, m.mode === 'monat' ? e : Math.min(e, 0));
   let body;
-  if (m.mode === 'tag') { const st = dayStats(p, s); body = prog(`${st.n} von ${st.t} erledigt`, st.pct) + listView(p, s); }
-  else { body = prog(`${tot.a} von ${tot.b} Erledigungen`, tot.pct) + (m.mode === 'woche' ? matrixView(p, s, e, false) : calendarView(p, s, e, m.mode === 'zeitraum')); }
-  const tl = tasksIn(p, s, m.mode === 'monat' ? e : Math.min(e, 0));
-  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>${title}</h1></div>${personDots()}</div>${calViewSeg()}${rangeControls(m, 'cal')}${roNote()}${m.mode === 'tag' ? taskGroup(tl) : ''}${body}${m.mode === 'tag' ? '' : taskGroup(tl, m.mode === 'monat' ? 'Aufgaben in diesem Monat' : 'Aufgaben im Zeitraum')}`;
-}
-// Das Raster ist seit Version 7 eine Ansicht im Kalender-Tab.
-const calViewSeg = () => seg([['kalender', icon('calendar-blank') + 'Kalender'], ['raster', icon('grid-four') + 'Raster']], ui.calView, 'calView');
-function tabRaster() {
-  const m = ui.grid, p = ui.person, { s, e, title, sub } = rangeOf(m), tot = totals(p, s, e);
-  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>${title}</h1></div><div class="sd-big"><b>${tot.pct}%</b><span>${tot.a} von ${tot.b} erfüllt</span></div></div>${calViewSeg()}${rangeControls(m, 'grid')}${personSeg()}${roNote()}${matrixView(p, s, e, true)}`;
+  if (v === 'raster') body = prog(`${tot.a} von ${tot.b} erfüllt`, tot.pct) + matrixView(p, s, e, true);
+  else if (m.mode === 'tag') { const st = dayStats(p, s); body = taskGroup(tl) + prog(`${st.n} von ${st.t} erledigt`, st.pct) + listView(p, s); }
+  else body = prog(`${tot.a} von ${tot.b} Erledigungen`, tot.pct) + (m.mode === 'woche' ? matrixView(p, s, e, false) : calendarView(p, s, e, m.mode === 'zeitraum')) + taskGroup(tl, m.mode === 'monat' ? 'Aufgaben in diesem Monat' : 'Aufgaben im Zeitraum');
+  return head + personSeg() + roNote() + body;
 }
 function tabRoutinen() {
   const all = active(), arch = R().filter(archived);
@@ -548,6 +596,44 @@ function taskSheetHtml() {
   ${d.id ? `<button class="sd-btn danger block" data-a="tDelete">${icon('trash')}Aufgabe löschen</button>` : ''}
   </div></div>`;
 }
+function shopItem(x) {
+  const who = x.by && x.by !== ui.me ? `von ${esc(data.names[x.by])}` : '';
+  return `<div class="sd-item sd-titem sd-sitem ${x.done ? 'done' : ''}" data-sid="${x.id}"><button class="sd-check" data-a="shopToggle" data-s="${x.id}" aria-label="${esc(x.title)} ${x.done ? 'wieder offen' : 'abhaken'}">${icon('check', 'ph-bold')}</button><button class="txt" data-a="shopEdit" data-s="${x.id}"><span class="t">${esc(x.title)}</span>${who ? `<span class="m">${who}</span>` : ''}</button>${x.qty ? `<span class="sd-from sd-qty">${esc(x.qty)}</span>` : ''}</div>`;
+}
+// Vorschläge: beim Tippen passende bekannte Produkte, sonst die am häufigsten gekauften.
+function shopSuggest() {
+  const q = norm(ui.shopDraft), known = S().filter(x => !x.open);
+  const list = q ? known.filter(x => norm(x.title).includes(q) && norm(x.title) !== q) : known.filter(x => (x.count || 0) > 0);
+  const top = list.sort((a, b) => (b.count || 0) - (a.count || 0) || a.title.localeCompare(b.title)).slice(0, q ? 6 : 8);
+  if (!top.length) return '';
+  return `<span class="sd-label">${q ? 'Vorschläge' : 'Häufig gekauft'}</span><div class="sd-chips">${top.map(x => `<button class="sd-chip" data-a="shopQuick" data-s="${x.id}">${icon('plus')}${esc(x.title)}</button>`).join('')}</div>`;
+}
+function tabEinkauf() {
+  const open = S().filter(onList), cart = S().filter(x => x.open && x.done).sort((a, b) => (a.doneAt || 0) - (b.doneAt || 0));
+  const groups = AISLES.map(([id, name, ic]) => {
+    const g = open.filter(x => (x.aisle || 'sonst') === id).sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0)); if (!g.length) return '';
+    return `<div class="sd-group"><span class="sd-label sd-catlabel">${icon(ic)}${name}<em>${g.length}</em></span>${g.map(shopItem).join('')}</div>`;
+  }).join('');
+  const done = cart.length ? `<div class="sd-group"><span class="sd-label sd-catlabel">${icon('shopping-cart-simple')}Im Wagen<em>${cart.length}</em><button class="sd-mini" data-a="shopClear">${icon('trash-simple')}Erledigte löschen</button></span>${cart.map(shopItem).join('')}</div>` : '';
+  const msg = ui.shopMsg ? `<div class="sd-hint">${icon('info')}<span>${esc(ui.shopMsg)}</span></div>` : '';
+  return `<div class="sd-hdr"><div><div class="sd-sub">${open.length ? `${open.length} auf der Liste` : 'Alles da'}${cart.length ? ` · ${cart.length} im Wagen` : ''}</div><h1>Einkauf</h1></div></div>
+  <div class="sd-shop">
+  <form class="sd-sadd" data-form="shop"><input class="sd-input" data-in="shopNew" value="${esc(ui.shopDraft)}" placeholder="Was fehlt? z. B. Milch – 2" maxlength="80" enterkeyhint="done" autocomplete="off" aria-label="Neuer Eintrag"><button class="sd-btn" type="submit" aria-label="Auf die Liste">${icon('plus')}</button></form>
+  ${msg}<div class="sd-ssug">${shopSuggest()}</div>
+  ${groups || (cart.length ? '' : `<div class="sd-empty"><span>Die Liste ist leer. Was fehlt?</span></div>`)}${done}
+  </div>`;
+}
+function shopSheetHtml() {
+  const d = ui.shopEdit, enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
+  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-ssheet" data-a="noop">
+  <div class="grip"></div><h3>Eintrag bearbeiten</h3>
+  <div class="sd-g2"><label class="sd-field">Was<input class="sd-input" value="${esc(d.title)}" data-in="sTitle" maxlength="80"></label><label class="sd-field">Menge<input class="sd-input" value="${esc(d.qty || '')}" data-in="sQty" maxlength="30" placeholder="z. B. 2"></label></div>
+  <div class="sd-field">Bereich im Laden<div class="sd-chips">${AISLES.map(([id, name, ic]) => `<button class="sd-chip ${d.aisle === id ? 'on' : ''}" data-a="sAisle" data-v="${id}">${icon(ic)}${name}</button>`).join('')}</div></div>
+  <button class="sd-btn block" data-a="sSave" ${d.title.trim() ? '' : 'disabled'}>Speichern</button>
+  ${d.open ? `<button class="sd-btn ghost block" data-a="sRemove">${icon('minus-circle')}Von der Liste nehmen</button>` : ''}
+  <button class="sd-btn danger block" data-a="sDelete">${icon('trash')}Ganz löschen (auch aus den Vorschlägen)</button>
+  </div></div>`;
+}
 const CAT_ICONS = ['heartbeat', 'barbell', 'house-line', 'users-three', 'broom', 'dots-three-circle', 'tag', 'briefcase', 'book-open', 'leaf', 'moon', 'sun', 'heart', 'brain', 'paint-brush', 'music-notes', 'baby', 'dog', 'currency-eur', 'fork-knife', 'drop', 'graduation-cap'];
 function catSheetHtml() {
   const enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
@@ -578,10 +664,10 @@ function tabMehr() {
   ${aboutCard()}`;
 }
 
-function tabStatistik() {
-  const days = ui.stat, s = -(days - 1), e = 0, P = ['a', 'b'], nm = p => esc(data.names[p]);
-  const head = `<div class="sd-hdr"><div><div class="sd-sub">${fmtS(s)} – ${fmtS(e)}</div><h1>Statistik</h1></div></div>${seg([[7, '7 Tage'], [30, '30 Tage'], [90, '90 Tage']], days, 'stat')}`;
-  if (!active().length && !T().length) return head + empty('', true);
+function statistikView(s, end) {
+  const e = Math.min(end, 0), P = ['a', 'b'], nm = p => esc(data.names[p]), head = '';
+  if (!active().length && !T().length) return empty('', true);
+  if (s > 0) return empty('Dieser Zeitraum liegt in der Zukunft.');
   const tot = Object.fromEntries(P.map(p => [p, totals(p, s, e)]));
   const lead = tot.a.pct === tot.b.pct ? null : tot.a.pct > tot.b.pct ? 'a' : 'b';
   const duel = `<div class="sd-duel">${P.map(p => `<div class="sd-duelp ${p}"><div class="sd-ring" style="background:conic-gradient(var(--sd-${p}) ${tot[p].pct * 3.6}deg, var(--color-neutral-900) 0)"><div><b>${tot[p].pct}%</b><small>${tot[p].a} von ${tot[p].b}</small></div></div><span>${nm(p)}${lead === p ? ` <em>${icon('crown-simple', 'ph-fill')}vorne</em>` : ''}</span></div>`).join('')}</div>`;
@@ -622,7 +708,7 @@ function tabStatistik() {
     const done = mine.filter(t => t.done && inR(t.doneAt)), timed = done.filter(t => t.due);
     return [p, { done: done.length, ontime: timed.length ? Math.round(timed.filter(t => t.doneAt <= t.due).length / timed.length * 100) + '%' : '–', open: mine.filter(t => !t.done).length, late: mine.filter(t => !t.done && t.due && dueOff(t) < 0).length }];
   }));
-  const given = (f, to) => T().filter(t => t.from === f && t.to === to && t.createdAt && offOf(new Date(t.createdAt)) >= s).length;
+  const given = (f, to) => T().filter(t => t.from === f && t.to === to && t.createdAt && offOf(new Date(t.createdAt)) >= s && offOf(new Date(t.createdAt)) <= e).length;
   const tasks = T().length ? `<div class="sd-card sd-tasks sd-tstat"><h2>${icon('check-square-offset', 'ph-fill')} Aufgaben</h2><p>Gemeinsame Aufgaben zählen bei beiden. „Pünktlich“: bis zum Fälligkeitstag erledigt.</p><div class="sd-stgrid c4"><span></span><b>Erledigt</b><b>Pünktlich</b><b>Offen</b><b>Über­fällig</b>${P.map(p => `<span class="nm ${p}">${nm(p)}</span><span>${tk[p].done}</span><span>${tk[p].ontime}</span><span>${tk[p].open}</span><span class="${tk[p].late ? 'late' : ''}">${tk[p].late}</span>`).join('')}</div><div class="sd-given"><span>Vergeben im Zeitraum</span><b>${nm('a')} → ${nm('b')}: ${given('a', 'b')}</b><b>${nm('b')} → ${nm('a')}: ${given('b', 'a')}</b><b>Gemeinsam: ${given('a', 's') + given('b', 's')}</b></div></div>` : '';
   return head + duel + tasks + streaks + trend + weekday + area + per;
 }
@@ -693,7 +779,7 @@ darkMQ.addEventListener?.('change', applyMode);
 
 // ---------- Render ----------
 const $app = document.getElementById('app');
-const TABS = [['heute', 'sun', 'Heute'], ['kalender', 'calendar-blank', 'Kalender'], ['aufgaben', 'check-square-offset', 'Aufgaben'], ['statistik', 'chart-bar', 'Statistik'], ['routinen', 'list-checks', 'Routinen'], ['mehr', 'gear-six', 'Mehr']];
+const TABS = [['heute', 'sun', 'Heute'], ['verlauf', 'chart-line-up', 'Verlauf'], ['aufgaben', 'check-square-offset', 'Aufgaben'], ['einkauf', 'shopping-cart', 'Einkauf'], ['routinen', 'list-checks', 'Routinen'], ['mehr', 'gear-six', 'Mehr']];
 const scrollMem = {}; let gridMem = { key: null, left: 0 };
 function render() {
   const sc = $app.querySelector('.sd-scroll'); if (sc) scrollMem[sc.dataset.tab] = sc.scrollTop;
@@ -703,11 +789,11 @@ function render() {
   if (ui.screen === 'error') { $app.innerHTML = `<div class="sd-auth"><div class="sd-err">${esc(ui.authErr)}</div></div>`; return; }
   if (ui.screen === 'login') { $app.innerHTML = loginHtml(); return; }
   if (ui.screen === 'setup') { $app.innerHTML = setupHtml(); return; }
-  const tab = { heute: tabHeute, kalender: ui.calView === 'raster' ? tabRaster : tabKalender, aufgaben: tabAufgaben, statistik: tabStatistik, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
+  const tab = { heute: tabHeute, verlauf: tabVerlauf, aufgaben: tabAufgaben, einkauf: tabEinkauf, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
   const fab = ui.tab === 'aufgaben' ? `<button class="sd-fab sd-tfab" data-a="newTask" aria-label="Aufgabe hinzufügen">${icon('plus')}</button>`
-    : ['heute', 'routinen', 'kalender'].includes(ui.tab) ? `<button class="sd-fab" data-a="newRoutine" aria-label="Routine hinzufügen">${icon('plus')}</button>` : '';
+    : (['heute', 'routinen'].includes(ui.tab) || ui.tab === 'verlauf' && ui.verlauf !== 'statistik') ? `<button class="sd-fab" data-a="newRoutine" aria-label="Routine hinzufügen">${icon('plus')}</button>` : '';
   const badge = dueNow(ui.me).length;
-  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${tab}</main>${fab}<nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${ui.tab === k ? 'on' : ''}" data-a="tab" data-v="${k}">${icon(i, ui.tab === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}`;
+  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${tab}</main>${fab}<nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${ui.tab === k ? 'on' : ''}" data-a="tab" data-v="${k}">${icon(i, ui.tab === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}`;
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
   const ngs = $app.querySelector('.sd-gridscroll'); if (ngs) ngs.scrollLeft = ngs.dataset.key === gridMem.key ? gridMem.left : ngs.scrollWidth;
   if (focusCh) { const el = $app.querySelector(`[data-in="${focusCh}"]`); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } }
@@ -718,7 +804,6 @@ const A = {
   tab: d => { ui.tab = d.v; render(); track('screen_view', { firebase_screen: d.v }); },
   person: d => { ui.person = d.p; ui.duo = false; render(); },
   who: d => { ui.duo = d.v === 'duo'; if (!ui.duo) ui.person = d.v; render(); track('view_change', { view: ui.duo ? 'duo' : 'person' }); },
-  stat: d => { ui.stat = +d.v; render(); track('stats_range', { days: +d.v }); },
   heuteView: d => { ui.heuteView = d.v; render(); track('view_change', { view: d.v }); },
   day: d => { ui.dayOff = +d.o; render(); },
   toggle: d => {
@@ -732,7 +817,7 @@ const A = {
     navigator.vibrate?.(12);
     if (was < 100 && dayStats(p, off).pct === 100) celebrate();
   },
-  calView: d => { ui.calView = d.v; render(); },
+  verlauf: d => { ui.verlauf = d.v; render(); track('view_change', { view: d.v }); },
   taskView: d => { ui.taskView = d.v; render(); },
   newTask: () => { ui.task = { id: null, title: '', note: '', to: ui.me === 'a' ? 'b' : 'a', due: dk(0) }; ui.sheetFresh = true; render(); },
   taskEdit: d => { const t = data.tasks[d.t]; if (!t) return; ui.task = { ...t }; ui.sheetFresh = true; render(); },
@@ -757,15 +842,33 @@ const A = {
     ui.task = null; store.deleteTask(t.id).catch(fail); track('task_delete');
   },
   calMode: d => { ui.cal.mode = d.v; render(); },
-  gridMode: d => { ui.grid.mode = d.v; render(); },
-  calStep: d => { stepRange(ui.cal, +d.v); render(); },
-  gridStep: d => { stepRange(ui.grid, +d.v); render(); },
+  shopQuick: d => { const x = data.shop[d.s]; if (x) addShop(x.title); },
+  shopToggle: d => {
+    const x = data.shop[d.s]; if (!x) return; const done = !x.done;
+    store.saveShop({ ...x, done, doneAt: done ? Date.now() : null, count: Math.max(0, (x.count || 0) + (done ? 1 : -1)) }).catch(fail);
+    if (done) navigator.vibrate?.(12);
+    track(done ? 'shop_check' : 'shop_uncheck');
+  },
+  shopClear: () => { const l = S().filter(x => x.open && x.done); l.forEach(x => store.saveShop({ ...x, open: false, done: false }).catch(fail)); track('shop_clear', { n: l.length }); },
+  shopEdit: d => { const x = data.shop[d.s]; if (!x) return; ui.shopEdit = { ...x, aisle: x.aisle || 'sonst' }; ui.sheetFresh = true; render(); },
+  sAisle: d => { ui.shopEdit.aisle = d.v; render(); },
+  sSave: () => {
+    const d = ui.shopEdit, title = d.title.trim(); if (!title) return;
+    const twin = findShop(title); if (twin && twin.id !== d.id) return alert(`„${twin.title}“ gibt es schon.`);
+    ui.shopEdit = null; store.saveShop({ ...data.shop[d.id], title, qty: (d.qty || '').trim(), aisle: d.aisle }).catch(fail);
+  },
+  sRemove: () => { const x = data.shop[ui.shopEdit?.id]; ui.shopEdit = null; if (x) store.saveShop({ ...x, open: false, done: false }).catch(fail); else render(); },
+  sDelete: () => {
+    const x = data.shop[ui.shopEdit?.id]; if (!x) return;
+    if (!confirm(`„${x.title}“ ganz löschen? Es verschwindet auch aus den Vorschlägen.`)) return;
+    ui.shopEdit = null; store.deleteShop(x.id).catch(fail); track('shop_delete');
+  },
+  calStep: d => { const m = verlaufRange(); stepRange(m, +d.v); ui.cal.anchor = m.anchor; render(); },
   calPreset: d => { Object.assign(ui.cal, { from: -(+d.v - 1), to: 0 }); render(); },
-  gridPreset: d => { Object.assign(ui.grid, { from: -(+d.v - 1), to: 0 }); render(); },
   calDay: d => { Object.assign(ui.cal, { mode: 'tag', anchor: +d.o }); render(); },
   newRoutine: () => { ui.sheet = newDraft(); ui.sheetFresh = true; render(); },
   edit: d => { if (!canEdit(data.routines[d.r])) return; ui.sheet = newDraft(data.routines[d.r]); ui.sheetFresh = true; render(); },
-  closeSheet: () => { if (ui.catSheet && ui.sheet) { ui.catSheet = false; return render(); } ui.sheet = null; ui.catSheet = false; ui.task = null; render(); },
+  closeSheet: () => { if (ui.catSheet && ui.sheet) { ui.catSheet = false; return render(); } ui.sheet = null; ui.catSheet = false; ui.task = null; ui.shopEdit = null; render(); },
   noop: () => {},
   addTpl: d => { const [, title, slot, cat] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.me, cat: tplCat(cat) || guessCat(title), rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); track('routine_create', { slot, repeat: 'daily', who: ui.me, template: true }); },
   dTpl: d => { const [, title, slot, cat] = TPL[+d.v]; Object.assign(ui.sheet, { title, slot, cat: tplCat(cat) || ui.sheet.cat }); render(); },
@@ -826,7 +929,7 @@ const A = {
   },
   me: d => store.setMe(d.v),
   export: () => {
-    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), routines: data.routines, done: data.done, tasks: data.tasks }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), routines: data.routines, done: data.done, tasks: data.tasks, shop: data.shop }, null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `superdaily-${dk(0)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
   authMode: d => { ui.authMode = d.v; ui.authErr = ''; render(); },
@@ -866,6 +969,21 @@ const A = {
   whatsNew: () => { markSeen(); ui.tab = 'mehr'; render(); requestAnimationFrame(() => $app.querySelector('#about')?.scrollIntoView({ block: 'start' })); },
   logout: () => fb && fb.A.signOut(fb.auth)
 };
+// Auf die Einkaufsliste setzen. Steht es schon offen drauf: Hinweis statt Doppel.
+// Bekannte Produkte werden wiederverwendet (Bereich und Zähler bleiben), neue bekommen einen Bereich nach dem Namen.
+function addShop(raw) {
+  const { title, qty } = parseShop(raw); if (!title) return;
+  const ex = findShop(title); ui.shopDraft = '';
+  if (ex && onList(ex)) {
+    ui.shopMsg = `„${ex.title}“ steht schon auf der Liste.`; render();
+    $app.querySelector(`[data-sid="${ex.id}"]`)?.classList.add('pop'); return;
+  }
+  ui.shopMsg = '';
+  const x = ex ? { ...ex, qty: qty || (ex.open ? ex.qty : '') || '', open: true, done: false, doneAt: null, by: ui.me, addedAt: Date.now() }
+    : { id: rid(), title, qty, aisle: guessAisle(title), open: true, done: false, count: 0, by: ui.me, addedAt: Date.now(), doneAt: null };
+  store.saveShop(x).catch(fail);
+  track('shop_add', { known: !!ex });
+}
 // Konfetti, wenn ein Tag komplett abgehakt ist. Liegt außerhalb von #app, damit render() es nicht entfernt.
 function celebrate() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -889,6 +1007,9 @@ document.addEventListener('input', e => {
   const k = e.target.dataset?.in; if (!k) return; const v = e.target.value;
   if (k === 'dTitle') { ui.sheet.title = v; const b = $app.querySelector('[data-a="dSave"]'); if (b) b.disabled = !(v.trim() && (ui.sheet.rep.type !== 'weekdays' || ui.sheet.rep.days.length)); }
   if (k === 'catNew') ui.catDraft = v;
+  if (k === 'shopNew') { ui.shopDraft = v; if (ui.shopMsg) { ui.shopMsg = ''; $app.querySelector('.sd-shop > .sd-hint')?.remove(); } const box = $app.querySelector('.sd-ssug'); if (box) box.innerHTML = shopSuggest(); }
+  if (k === 'sTitle') { ui.shopEdit.title = v; const b = $app.querySelector('[data-a="sSave"]'); if (b) b.disabled = !v.trim(); }
+  if (k === 'sQty') ui.shopEdit.qty = v;
   if (k === 'tTitle') { ui.task.title = v; const b = $app.querySelector('[data-a="tSave"]'); if (b) b.disabled = !v.trim(); }
   if (k === 'tNote') ui.task.note = v;
   if (k === 'setupA') ui.setup.a = v;
@@ -901,8 +1022,6 @@ document.addEventListener('change', async e => {
   if (k === 'tDate') { ui.task.due = v || null; render(); }
   if (k === 'calFrom' && v) { ui.cal.from = toOff(v); render(); }
   if (k === 'calTo' && v) { ui.cal.to = toOff(v); render(); }
-  if (k === 'gridFrom' && v) { ui.grid.from = toOff(v); render(); }
-  if (k === 'gridTo' && v) { ui.grid.to = toOff(v); render(); }
   if (k === 'catName') {
     const name = v.trim().slice(0, 40), id = e.target.dataset.id;
     if (!name || cats().some(c => c.id !== id && c.name.toLowerCase() === name.toLowerCase())) return render();
@@ -916,6 +1035,11 @@ document.addEventListener('change', async e => {
   }
 });
 document.addEventListener('submit', async e => {
+  if (e.target.dataset.form === 'shop') {
+    e.preventDefault(); const el = e.target.querySelector('input'), v = el?.value || '';
+    if (v.trim()) addShop(v);
+    return requestAnimationFrame(() => $app.querySelector('[data-in="shopNew"]')?.focus());
+  }
   if (e.target.dataset.form !== 'auth') return; e.preventDefault();
   const fd = new FormData(e.target), email = fd.get('email').trim(), pw = fd.get('pw');
   ui.busy = true; ui.authErr = ''; render();

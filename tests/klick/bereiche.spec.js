@@ -64,7 +64,7 @@ test('Routine einem Bereich zuordnen, auch über die Abkürzung im Formular', as
 
 test('Statistik zeigt „Nach Bereich“', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
-  await tab(seite, 'Statistik');
+  await tab(seite, 'Verlauf');
   await expect(seite.getByRole('heading', { name: 'Nach Bereich' })).toBeVisible();
   expect(seite.fehler).toEqual([]);
 });

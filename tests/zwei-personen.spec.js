@@ -165,7 +165,7 @@ test('Routinen und Bereiche: fremde Routinen gesperrt, Bereiche und Archiv live 
   await expect(irina.locator('.sd-arch summary')).toContainText('1');
   await expect(irina.getByRole('button', { name: 'Wiederherstellen' })).toHaveCount(0);
 
-  await tab(irina, 'Statistik');
+  await tab(irina, 'Verlauf');
   await expect(irina.locator('.sd-duel')).toContainText('Simon');
   await expect(irina.locator('.sd-duel')).toContainText('Irina');
 
@@ -209,4 +209,41 @@ test('Aufgaben: Simon gibt Irina eine Aufgabe, beide haken ab, ändern und lösc
   await expect(simon.locator('.sd-tab .sd-badge')).toHaveCount(0);
 
   expect([...simon.fehler, ...irina.fehler]).toEqual([]);
+});
+
+test('Einkauf: Irina setzt etwas auf die Liste, Simon hakt im Laden ab – live, auch ohne Netz', async ({ browser, emulator }) => {
+  const { simon, irina } = await haushalt(browser, emulator);
+  const eintrag = (seite, titel) => seite.locator('.sd-sitem', { hasText: titel });
+  const hinzu = async (seite, text) => { await seite.locator('[data-in="shopNew"]').fill(text); await seite.locator('[data-in="shopNew"]').press('Enter'); };
+  await tab(irina, 'Einkauf');
+  await tab(simon, 'Einkauf');
+
+  await hinzu(irina, 'Milch – 2');
+  await expect(eintrag(simon, 'Milch')).toBeVisible();
+  await expect(eintrag(simon, 'Milch')).toContainText('von Irina');
+  await expect(eintrag(simon, 'Milch').locator('.sd-qty')).toHaveText('2');
+
+  // Simon steht im Laden ohne Empfang: abhaken und etwas hinzufügen geht trotzdem
+  await simon.context().setOffline(true);
+  await eintrag(simon, 'Milch').getByRole('button', { name: 'Milch abhaken' }).click();
+  await hinzu(simon, 'Brot');
+  await expect(eintrag(simon, 'Milch')).toHaveClass(/done/);
+  await expect(eintrag(simon, 'Brot')).toBeVisible();
+  await expect(eintrag(irina, 'Brot')).toHaveCount(0);
+  // Wieder Netz: Irina sieht beides
+  await simon.context().setOffline(false);
+  await expect(eintrag(irina, 'Milch')).toHaveClass(/done/, { timeout: 20000 });
+  await expect(eintrag(irina, 'Brot')).toBeVisible({ timeout: 20000 });
+
+  // Doppelt: Simon will auch Brot eintragen
+  await hinzu(simon, 'brot');
+  await expect(simon.getByText('„Brot“ steht schon auf der Liste.')).toBeVisible();
+
+  // Irina räumt auf, bei Simon verschwindet Milch; als Vorschlag bleibt sie
+  await irina.getByRole('button', { name: 'Erledigte löschen' }).click();
+  await expect(eintrag(simon, 'Milch')).toHaveCount(0);
+  await expect(simon.locator('.sd-ssug')).toContainText('Milch');
+
+  // Verbindungsfehler im Funkloch sind gewollt, alles andere nicht
+  expect([...simon.fehler, ...irina.fehler].filter(f => !/ERR_INTERNET_DISCONNECTED/.test(f))).toEqual([]);
 });
