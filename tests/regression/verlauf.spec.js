@@ -4,10 +4,11 @@ import { test, expect, oeffneHandy, tab } from '../hilfen.js';
 
 const heuteKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
-// Kalender „Von – bis“, letzte 30 Tage: Quoten aller vergangenen Tage einer Person (heute ausgenommen)
+// Verlauf → Kalender „Von – bis“, letzte 30 Tage: Quoten aller vergangenen Tage einer Person (heute ausgenommen)
 async function vergangeneQuoten(seite, person) {
-  await tab(seite, 'Kalender');
-  await seite.locator('.sd-dots').getByRole('button', { name: person, exact: true }).click();
+  await tab(seite, 'Verlauf');
+  await seite.getByRole('button', { name: 'Kalender', exact: true }).click();
+  await seite.locator('.sd-who3').getByRole('button', { name: person, exact: true }).click();
   await seite.getByRole('button', { name: 'Von – bis' }).click();
   await seite.getByRole('button', { name: 'Letzte 30 Tage' }).click();
   const labels = await seite.locator('.sd-cal button[aria-label*="%"]').evaluateAll(bs => bs.map(b => b.getAttribute('aria-label')));

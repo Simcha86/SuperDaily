@@ -22,6 +22,16 @@ service cloud.firestore {
         && t.from in ['a', 'b'] && t.to in ['a', 'b', 's'];
     }
 
+    // Einkauf (seit Version 10): Titel vorhanden, Menge und Bereich kurz, hinzugefügt von a oder b
+    function validShop(x) {
+      return x.title is string && x.title.size() > 0 && x.title.size() <= 80
+        && x.qty is string && x.qty.size() <= 30
+        && x.aisle is string && x.aisle.size() <= 20
+        && x.open is bool && x.done is bool
+        && x.count is int && x.count >= 0
+        && x.by in ['a', 'b'];
+    }
+
     // Jede Person sieht nur ihr eigenes Profil (welcher Haushalt)
     match /users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
@@ -66,6 +76,12 @@ service cloud.firestore {
       match /tasks/{tid} {
         allow read, delete: if isMember(hh);
         allow create, update: if isMember(hh) && validTask(request.resource.data);
+      }
+
+      // Einkaufsliste (seit Version 10): beide dürfen alles hinzufügen, abhaken, ändern und löschen.
+      match /shop/{sid} {
+        allow read, delete: if isMember(hh);
+        allow create, update: if isMember(hh) && validShop(request.resource.data);
       }
     }
   }

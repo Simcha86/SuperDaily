@@ -2,6 +2,19 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 10 · 4. November 2026 · [Release Notes](docs/releases/v10/RELEASE-NOTES.md)
+
+**Einkauf**
+- Neuer Tab **Einkauf** in Koralle: eine gemeinsame Einkaufsliste für Simon und Irina, live auf beiden Handys.
+- Eintragen mit Menge („Milch – 2“, „500 g Mehl“). Die App sortiert nach Bereichen im Laden (Obst & Gemüse, Brot, Kühlregal, Tiefkühl, Vorrat, Getränke, Süßes, Drogerie); den Bereich könnt ihr ändern.
+- Im Laden abhaken → „Im Wagen“; „Erledigte löschen“ räumt auf. Steht etwas schon auf der Liste, kommt ein Hinweis statt eines zweiten Eintrags.
+- Vorschläge aus eurem Verlauf: „Häufig gekauft“ und passende Einträge beim Tippen. Funktioniert auch ohne Empfang im Laden.
+
+**Verlauf**
+- **Statistik**, **Kalender** und **Raster** sind ein Tab **Verlauf** (Statistik zuerst) mit einem gemeinsamen Zeitraum: Woche, Monat oder Von–bis mit „Letzte 7/30/90 Tage“. In der Statistik wird „Tag“ zur Woche.
+- Die Statistik wertet jetzt jeden Zeitraum bis 365 Tage aus. „Je Routine“ gibt es nur noch in der Statistik.
+- Leiste unten: Heute · Verlauf · Aufgaben · Einkauf · Routinen · Mehr.
+
 ## Version 9 · 31. Oktober 2026 · [Release Notes](docs/releases/v9/RELEASE-NOTES.md)
 
 **Heute: Simon | Irina | Duo**

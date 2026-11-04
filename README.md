@@ -3,7 +3,8 @@
 Tägliche Routinen für zwei Personen, als Web-App (PWA) fürs Handy. Design: Minze (hell, mit Dunkelmodus), aufgebaut auf dem Nocturne-Designsystem.
 
 - **Heute**: Simon, Irina oder Duo (beide nebeneinander), jeweils als Abhakliste nach Tageszeit oder als Kacheln
-- **Kalender**: Tag, Woche, Monat oder freier Zeitraum mit Tagesquote und Quote je Routine
+- **Verlauf**: Statistik (Simon und Irina im Vergleich), Kalender mit Tagesquote und abhakbares Raster, alle mit einem Zeitraum (Tag, Woche, Monat oder Von–bis)
+- **Einkauf**: gemeinsame Einkaufsliste, nach Bereichen im Laden sortiert, mit Mengen, Vorschlägen und „Im Wagen“
 - **Raster**: Routinen × Tage für den gewählten Zeitraum, jedes Kästchen abhakbar
 - **Routinen**: anlegen, bearbeiten, archivieren, nach Bereichen geordnet. Wiederholung täglich, an Wochentagen, alle X Tage, monatlich oder X-mal pro Woche. Für eine Person, für beide einzeln oder gemeinsam (ein Haken für beide)
 - **Bereiche**: eigene Lebensbereiche (z. B. Sport, Gesundheit, Familie) unter Routinen → Bereiche anlegen, umbenennen, mit Symbol versehen oder entfernen; gilt für beide

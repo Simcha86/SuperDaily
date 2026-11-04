@@ -64,22 +64,25 @@ test('Heute: fällige Aufgaben stehen ganz oben, vor den Routinen', async ({ bro
   await expect(seite.locator('.sd-tab .sd-badge')).toHaveText('2');
 });
 
-test('Kalender: Punkte an Tagen mit Aufgaben, Liste im Monat, Raster als Ansicht', async ({ browser, lokal }) => {
+test('Verlauf → Kalender: Punkte an Tagen mit Aufgaben, Liste im Monat, Raster als Ansicht', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
-  await tab(seite, 'Kalender');
+  await tab(seite, 'Verlauf');
+  await seite.getByRole('button', { name: 'Kalender', exact: true }).click();
+  await expect(seite.locator('.sd-tasks')).toContainText('Aufgaben im Zeitraum');
+  await seite.getByRole('button', { name: 'Monat', exact: true }).click();
   await expect(seite.locator('.sd-cal button.tlate')).toHaveCount(1);
   await expect(seite.locator('.sd-cal button.today')).toHaveClass(/topen/);
   await expect(seite.locator('.sd-tasks')).toContainText('Aufgaben in diesem Monat');
   await seite.getByRole('button', { name: 'Raster', exact: true }).click();
-  await expect(seite.locator('.sd-hdr h1')).toHaveText('Diese Woche');
-  await seite.getByRole('button', { name: 'Kalender', exact: true }).first().click();
+  await expect(seite.locator('.sd-grid')).toBeVisible();
+  await seite.getByRole('button', { name: 'Kalender', exact: true }).click();
   await expect(seite.locator('.sd-cal').first()).toBeVisible();
   expect(seite.fehler).toEqual([]);
 });
 
-test('Statistik: Karte „Aufgaben“ je Person', async ({ browser, lokal }) => {
+test('Verlauf → Statistik: Karte „Aufgaben“ je Person', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
-  await tab(seite, 'Statistik');
+  await tab(seite, 'Verlauf');
   const karte = seite.locator('.sd-tstat');
   await expect(karte.getByRole('heading', { name: 'Aufgaben' })).toBeVisible();
   const zeile = async p => karte.locator('.sd-stgrid > span').evaluateAll((l, p) => { const i = l.findIndex(e => e.classList.contains(p)); return l.slice(i + 1, i + 5).map(e => e.textContent); }, p);

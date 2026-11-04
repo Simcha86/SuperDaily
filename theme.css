@@ -272,3 +272,34 @@ button.sd-dcell:active{transform:scale(.94)}
 .sd-dcells{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .sd-dcells .both{grid-column:1/-1}
 [data-sd="light"] .sd-dsc,[data-sd="light"] .sd-drow:not(.head),[data-sd="light"] .sd-dtile{box-shadow:var(--shadow-sm)}
+
+/* ---------- Version 10: Verlauf (Statistik | Kalender | Raster) und Einkauf ----------
+   Einkauf hat eine eigene Akzent-Rampe (Koralle); alles andere bleibt Minze. */
+[data-sd="light"] :is(.sd-scroll[data-tab="einkauf"],.sd-tab[data-v="einkauf"],.sd-ssheet){
+  --color-accent:#c2412f;--color-accent-100:#5c1a14;--color-accent-200:#8a2a20;--color-accent-300:#c2412f;--color-accent-400:#f0614d;--color-accent-500:#ff7f6b;
+  --color-accent-600:#ffa194;--color-accent-700:#ffc4bb;--color-accent-800:#ffe1dc;--color-accent-900:#fff1ee;
+  --sd-grad:linear-gradient(135deg,#ff7f6b,#f0614d 50%,#c2412f);--sd-pink:#f0614d}
+[data-sd="dark"] :is(.sd-scroll[data-tab="einkauf"],.sd-tab[data-v="einkauf"],.sd-ssheet){
+  --color-accent:#ff7f6b;--color-accent-100:#fff1ee;--color-accent-200:#ffe1dc;--color-accent-300:#ffa194;--color-accent-400:#ff7f6b;--color-accent-500:#f0614d;
+  --color-accent-600:#c2412f;--color-accent-700:#8a2a20;--color-accent-800:#5c1a14;--color-accent-900:#3a110d;
+  --sd-grad:linear-gradient(135deg,#ff7f6b,#f0614d 50%,#c2412f);--sd-pink:#ff7f6b}
+[data-sd="light"] .sd-scroll[data-tab="einkauf"]{background:#fdf6f4}
+[data-sd="dark"] .sd-scroll[data-tab="einkauf"]{background:radial-gradient(120% 50% at 50% -10%,#2e1512 0%,transparent 60%)}
+.sd-shop{display:flex;flex-direction:column;gap:14px}
+.sd-sadd{display:grid;grid-template-columns:minmax(0,1fr) 52px;gap:8px}
+.sd-sadd .sd-btn:not(.ghost):not(.danger){padding:0;min-height:48px;background:var(--sd-grad);border:0;color:#fff}
+.sd-sadd .sd-btn i{font-size:20px}
+.sd-ssug{display:flex;flex-direction:column;gap:8px}
+.sd-ssug:empty{display:none}
+.sd-ssug .sd-chip{color:var(--color-accent-300);border-color:var(--color-accent-800)}
+.sd-ssug .sd-chip i{font-size:13px}
+.sd-shop .sd-catlabel{display:flex;align-items:center;gap:6px}
+.sd-shop .sd-catlabel .sd-mini{margin-left:auto;text-transform:none;letter-spacing:0;min-height:32px;padding:4px 10px}
+.sd-shop .sd-catlabel .ph{color:var(--color-accent-400)}
+.sd-sitem .txt{min-height:52px}
+.sd-qty{max-width:40%;overflow:hidden;text-overflow:ellipsis}
+.sd-sitem.pop{animation:sd-pop .4s var(--sd-ease)}
+/* Sechs Tabs: Beschriftung kleiner, damit „Verlauf“ und „Aufgaben“ nicht abgeschnitten werden */
+.sd-tab span{font-size:10.5px}
+.sd-sitem.sd-titem.done .sd-check{background:var(--sd-grad);border-color:transparent;color:#fff}
+[data-sd="dark"] .sd-sitem.done{background:color-mix(in srgb,var(--color-accent-800) 45%,var(--color-surface))}
