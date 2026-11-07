@@ -12,6 +12,9 @@ Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei j
 **Hinweise**
 - Auf „Heute“ erscheint ein Hinweis wie „2 neue Aufgaben von Irina“ oder „1 neue Routine von Simon“, wenn seit dem letzten Blick etwas dazugekommen ist. Antippen öffnet den passenden Tab, das X schließt den Hinweis.
 
+**Einkauf**
+- Neue Farbe **Ozeanblau** mit farbigem Hintergrund und Balken „Auf der Liste“, damit der Bereich sofort von den anderen zu unterscheiden ist (vorher Koralle).
+
 ## Version 10 · 4. November 2026 · [Release Notes](docs/releases/v10/RELEASE-NOTES.md)
 
 **Einkauf**

@@ -22,7 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
-  { v: 11, date: '2026-11-07', items: ['Routinen für die andere Person vorgeben – mit „vorgegeben von …“', 'Ihr dürft beide alle Routinen bearbeiten und archivieren', 'Hinweis auf „Heute“ bei neuen Aufgaben und Routinen von der anderen Person'] },
+  { v: 11, date: '2026-11-07', items: ['Routinen für die andere Person vorgeben – mit „vorgegeben von …“', 'Ihr dürft beide alle Routinen bearbeiten und archivieren', 'Hinweis auf „Heute“ bei neuen Aufgaben und Routinen von der anderen Person', 'Einkauf in Ozeanblau, deutlicher von den anderen Bereichen zu unterscheiden'] },
   { v: 10, date: '2026-11-04', items: ['Neu: Einkaufsliste für euch beide, sortiert nach Bereichen im Laden, mit Vorschlägen', 'Statistik, Kalender und Raster sind jetzt ein Tab „Verlauf“ mit einem Zeitraum', 'Die Statistik wertet bis zu 365 Tage aus'] },
   { v: 9, date: '2026-10-31', items: ['Heute: Umschalter Simon | Irina | Duo – Duo zeigt euch beide nebeneinander, als Liste oder Kacheln', 'Gemeinsame Routinen tragen die Avatare von euch beiden', 'Besser lesbar: dunklerer Nebentext und größere Tasten'] },
   { v: 8, date: '2026-10-30', items: ['Bei einer Störung des Servers öffnet sich die App weiter mit der gespeicherten Version statt einer Fehlerseite'] },
@@ -621,6 +621,7 @@ function tabEinkauf() {
   const msg = ui.shopMsg ? `<div class="sd-hint">${icon('info')}<span>${esc(ui.shopMsg)}</span></div>` : '';
   return `<div class="sd-hdr"><div><div class="sd-sub">${open.length ? `${open.length} auf der Liste` : 'Alles da'}${cart.length ? ` · ${cart.length} im Wagen` : ''}</div><h1>Einkauf</h1></div></div>
   <div class="sd-shop">
+  <div class="sd-tbanner sd-sbanner"><span>${icon('shopping-cart', 'ph-fill')}Auf der Liste</span><b>${open.length}</b></div>
   <form class="sd-sadd" data-form="shop"><input class="sd-input" data-in="shopNew" value="${esc(ui.shopDraft)}" placeholder="Was fehlt? z. B. Milch – 2" maxlength="80" enterkeyhint="done" autocomplete="off" aria-label="Neuer Eintrag"><button class="sd-btn" type="submit" aria-label="Auf die Liste">${icon('plus')}</button></form>
   ${msg}<div class="sd-ssug">${shopSuggest()}</div>
   ${groups || (cart.length ? '' : `<div class="sd-empty"><span>Die Liste ist leer. Was fehlt?</span></div>`)}${done}

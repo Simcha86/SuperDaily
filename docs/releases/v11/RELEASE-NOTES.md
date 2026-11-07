@@ -7,6 +7,7 @@
 
 ## Geändert
 - Beide dürfen alle Routinen bearbeiten, archivieren und wiederherstellen, auch die der anderen Person. Das Schloss-Symbol unter „Routinen“ entfällt.
+- **Einkauf** hat jetzt die Farbe **Ozeanblau** mit farbigem Hintergrund und einem Balken „Auf der Liste“ oben – deutlich anders als der Rest der App (vorher Koralle).
 - Vergangene Tage bleiben so gewertet, wie sie geplant waren – auch wenn die andere Person eine Routine ändert.
 
 ## Vor dem Update zu tun

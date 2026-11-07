@@ -109,8 +109,15 @@ test('Einkauf auf Handybreite hell und dunkel ohne seitliches Verrutschen', asyn
     await tab(seite, 'Einkauf');
     const breiten = await seite.evaluate(() => { const m = document.querySelector('.sd-scroll'); return [m.scrollWidth, m.clientWidth]; });
     expect(breiten[0]).toBeLessThanOrEqual(breiten[1]);
-    // Plus-Knopf mit weißem Symbol auf Koralle
+    // Plus-Knopf mit weißem Symbol auf Ozeanblau, Balken „Auf der Liste“ mit Anzahl
     expect(await seite.locator('.sd-sadd .sd-btn').evaluate(b => getComputedStyle(b).color)).toBe('rgb(255, 255, 255)');
+    await expect(seite.locator('.sd-sbanner')).toHaveText(/Auf der Liste\s*6/);
+    // Eigene Farbe: Akzent im Einkauf blau (#1d4ed8 hell, #60a5fa dunkel), Hintergrund anders als auf Heute
+    const akzent = await seite.locator('.sd-scroll').evaluate(m => getComputedStyle(m).getPropertyValue('--color-accent').trim());
+    expect(akzent).toBe(farbschema === 'light' ? '#1d4ed8' : '#60a5fa');
+    const hgEinkauf = await seite.evaluate(() => getComputedStyle(document.body).backgroundImage);
+    await tab(seite, 'Heute');
+    expect(await seite.evaluate(() => getComputedStyle(document.body).backgroundImage)).not.toEqual(hgEinkauf);
     expect(seite.fehler).toEqual([]);
   }
 });

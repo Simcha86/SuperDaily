@@ -27,7 +27,7 @@ Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Biblioth
 - Das Design heißt **Minze** (Türkis bis Limette, Schrift Plus Jakarta Sans, hell und dunkel). Simon findet es gut: **nicht verändern**, nur auf seinen Wunsch.
 - Neue Teile aus vorhandenen Bausteinen bauen (`sd-card`, `sd-row`, `sd-item`, `sd-chip`, `sd-opt`, `sd-btn`, `sd-hint`, `sd-mini`, Bottom-Sheet `sd-sheet`) und Farben nur über die Tokens (`--color-accent-…`, `--color-neutral-…`, `--sd-grad`, `--sd-a`/`--sd-b`).
 - Der Bereich **Aufgaben** hat eine eigene Akzentfarbe **Senfgold** (Simons Wunsch): eigene Rampe für `.sd-scroll[data-tab="aufgaben"]`, `.sd-tasks`, `.sd-tfab`, `.sd-tsheet` am Ende von `theme.css`.
-- Der Bereich **Einkauf** (seit Version 10) hat die Akzentfarbe **Koralle** (Simons Wahl aus drei Vorschlägen): eigene Rampe für `.sd-scroll[data-tab="einkauf"]`, `.sd-tab[data-v="einkauf"]`, `.sd-ssheet` am Ende von `theme.css`. Alles andere bleibt Minze.
+- Der Bereich **Einkauf** (seit Version 10) hat die Akzentfarbe **Ozeanblau** (seit Version 11, Simons Wahl; vorher Koralle, war ihm zu wenig unterscheidbar) mit farbigem Hintergrund, Leuchten (`body:has(...)`, `#app:has(...)`) und Balken „Auf der Liste“: eigene Rampe für `.sd-scroll[data-tab="einkauf"]`, `.sd-tab[data-v="einkauf"]`, `.sd-ssheet` am Ende von `theme.css`. Alles andere bleibt Minze.
 - Neue Styles ans Ende von `theme.css`, beide Modi beachten (`[data-sd="light"]` dreht die Farbrampen um: 100 = dunkel, 900 = hell).
 - Symbole aus Phosphor; vor Verwendung prüfen, dass der Name existiert.
 
