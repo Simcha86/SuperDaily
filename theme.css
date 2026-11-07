@@ -303,3 +303,7 @@ button.sd-dcell:active{transform:scale(.94)}
 .sd-tab span{font-size:10.5px}
 .sd-sitem.sd-titem.done .sd-check{background:var(--sd-grad);border-color:transparent;color:#fff}
 [data-sd="dark"] .sd-sitem.done{background:color-mix(in srgb,var(--color-accent-800) 45%,var(--color-surface))}
+
+/* Version 11: Hinweise „Neu von …“ auf Heute */
+.sd-hlink{flex:1;min-width:0;background:none;border:0;padding:4px 0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;min-height:40px}
+.sd-hlink b{font-weight:700;color:var(--color-accent-200)}

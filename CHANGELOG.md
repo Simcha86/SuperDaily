@@ -2,6 +2,16 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 11 · 7. November 2026 · [Release Notes](docs/releases/v11/RELEASE-NOTES.md)
+
+**Routinen vorgeben**
+- Simon kann Irina Routinen vorgeben und umgekehrt: Unter „Für wen“ stehen jetzt für beide alle vier Möglichkeiten.
+- An vorgegebenen Routinen steht **„vorgegeben von Simon“** bzw. **„vorgegeben von Irina“** (auf Heute und unter Routinen). Bei selbst angelegten steht nichts.
+- Beide dürfen alle Routinen bearbeiten, archivieren und wiederherstellen; das Schloss-Symbol entfällt.
+
+**Hinweise**
+- Auf „Heute“ erscheint ein Hinweis wie „2 neue Aufgaben von Irina“ oder „1 neue Routine von Simon“, wenn seit dem letzten Blick etwas dazugekommen ist. Antippen öffnet den passenden Tab, das X schließt den Hinweis.
+
 ## Version 10 · 4. November 2026 · [Release Notes](docs/releases/v10/RELEASE-NOTES.md)
 
 **Einkauf**

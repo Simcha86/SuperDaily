@@ -12,9 +12,9 @@ service cloud.firestore {
     function myRole(hh) {
       return household(hh).roles[request.auth.uid];
     }
-    // Routinen, die man bearbeiten darf: die eigenen, "ab" (beide einzeln) und "s" (gemeinsam)
-    function editable(hh, who) {
-      return who in [myRole(hh), 'ab', 's'];
+    // Routine: für a, b, beide einzeln (ab) oder gemeinsam (s)
+    function validRoutine(r) {
+      return r.who in ['a', 'b', 'ab', 's'];
     }
     // Aufgabe: Titel vorhanden, von a oder b, an a, b oder s (gemeinsam)
     function validTask(t) {
@@ -57,12 +57,15 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'roles']))
       );
 
-      // Routinen: alle Mitglieder sehen alles, bearbeiten nur eigene und gemeinsame
+      // Routinen (seit Version 11): beide dürfen alle Routinen anlegen, auch für die andere Person,
+      // sowie alle bearbeiten, archivieren und löschen. "from" (wer angelegt hat) ist nicht fälschbar:
+      // beim Anlegen nur die eigene Rolle, danach unveränderlich.
       match /routines/{rid} {
-        allow read: if isMember(hh);
-        allow create: if isMember(hh) && editable(hh, request.resource.data.who);
-        allow update: if isMember(hh) && editable(hh, resource.data.who) && editable(hh, request.resource.data.who);
-        allow delete: if isMember(hh) && editable(hh, resource.data.who);
+        allow read, delete: if isMember(hh);
+        allow create: if isMember(hh) && validRoutine(request.resource.data)
+          && (!('from' in request.resource.data) || request.resource.data.from == myRole(hh));
+        allow update: if isMember(hh) && validRoutine(request.resource.data)
+          && request.resource.data.get('from', null) == resource.data.get('from', null);
       }
 
       // Haken: ein Dokument je Person und Tag, Name "<a|b|s>_<JJJJ-MM-TT>".
