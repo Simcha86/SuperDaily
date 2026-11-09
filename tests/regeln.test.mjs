@@ -33,21 +33,27 @@ await t('Bereiche ändern schmuggelt keine Rolle mit', assertFails(updateDoc(doc
 await t('Simon speichert Routine mit Versionen und Bereich', assertSucceeds(setDoc(doc(simon, 'households', H, 'routines', 'v1'), { id: 'v1', title: 'Lesen', who: 'a', cat: 'x1', rep: { type: 'off' }, hist: [{ until: '2026-10-24', rep: { type: 'daily' }, who: 'a' }] })));
 await t('Irina kann ihre Rolle nicht tauschen', assertFails(updateDoc(doc(irina, 'households', H), { 'roles.uidIrina': 'a' })));
 await t('Simon kann Irina nicht entfernen', assertFails(updateDoc(doc(simon, 'households', H), { members: ['uidSimon'] })));
-// Routinen
+// Routinen (seit Version 11): beide dürfen alles, auch für die andere Person; „from“ ist nicht fälschbar
 const R = (db, id) => doc(db, 'households', H, 'routines', id);
-await t('Simon legt eigene Routine an', assertSucceeds(setDoc(R(simon, 'sport'), { id: 'sport', title: 'Sport', who: 'a', slot: 'Morgen' })));
-await t('Simon legt gemeinsame Routine an', assertSucceeds(setDoc(R(simon, 'wasser'), { id: 'wasser', title: 'Wasser', who: 's', slot: 'Morgen' })));
+await t('Simon legt eigene Routine an', assertSucceeds(setDoc(R(simon, 'sport'), { id: 'sport', title: 'Sport', who: 'a', from: 'a', slot: 'Morgen' })));
+await t('Simon legt gemeinsame Routine an', assertSucceeds(setDoc(R(simon, 'wasser'), { id: 'wasser', title: 'Wasser', who: 's', from: 'a', slot: 'Morgen' })));
 await t('Simon legt "beide einzeln" an', assertSucceeds(setDoc(R(simon, 'zahn'), { id: 'zahn', title: 'Zahnseide', who: 'ab', slot: 'Abend' })));
-await t('Simon kann keine Routine für Irina anlegen', assertFails(setDoc(R(simon, 'medi'), { id: 'medi', title: 'Meditation', who: 'b', slot: 'Abend' })));
-await t('Irina legt eigene Routine an', assertSucceeds(setDoc(R(irina, 'medi'), { id: 'medi', title: 'Meditation', who: 'b', slot: 'Abend' })));
+await t('Simon gibt Irina eine Routine vor', assertSucceeds(setDoc(R(simon, 'medi'), { id: 'medi', title: 'Meditation', who: 'b', from: 'a', slot: 'Abend' })));
+await t('Simon kann „vorgegeben von Irina“ nicht fälschen', assertFails(setDoc(R(simon, 'fake'), { id: 'fake', title: 'Fake', who: 'b', from: 'b', slot: 'Abend' })));
+await t('Routine für unbekannte Person abgelehnt', assertFails(setDoc(R(simon, 'fake'), { id: 'fake', title: 'Fake', who: 'x', from: 'a', slot: 'Abend' })));
+await t('Irina legt eigene Routine an', assertSucceeds(setDoc(R(irina, 'lesen'), { id: 'lesen', title: 'Lesen', who: 'b', from: 'b', slot: 'Abend' })));
 await t('Irina sieht Simons Routine', assertSucceeds(getDoc(R(irina, 'sport'))));
-await t('Irina kann Simons Routine nicht ändern', assertFails(setDoc(R(irina, 'sport'), { id: 'sport', title: 'Sport!', who: 'a', slot: 'Morgen' })));
-await t('Irina kann Simons Routine nicht zu ihrer machen', assertFails(setDoc(R(irina, 'sport'), { id: 'sport', title: 'Sport', who: 'b', slot: 'Morgen' })));
-await t('Irina kann Simons Routine nicht löschen', assertFails(deleteDoc(R(irina, 'sport'))));
-await t('Irina ändert gemeinsame Routine', assertSucceeds(setDoc(R(irina, 'wasser'), { id: 'wasser', title: 'Glas Wasser', who: 's', slot: 'Morgen' })));
-await t('Irina kann gemeinsame Routine nicht Simon zuschieben', assertFails(setDoc(R(irina, 'wasser'), { id: 'wasser', title: 'Glas Wasser', who: 'a', slot: 'Morgen' })));
-await t('Simon löscht eigene Routine', assertSucceeds(deleteDoc(R(simon, 'sport'))));
+await t('Irina ändert Simons Routine', assertSucceeds(setDoc(R(irina, 'sport'), { id: 'sport', title: 'Sport!', who: 'a', from: 'a', slot: 'Morgen' })));
+await t('Irina archiviert die vorgegebene Routine', assertSucceeds(setDoc(R(irina, 'medi'), { id: 'medi', title: 'Meditation', who: 'b', from: 'a', slot: 'Abend', rep: { type: 'off' } })));
+await t('Irina kann „vorgegeben von“ nicht ändern', assertFails(setDoc(R(irina, 'medi'), { id: 'medi', title: 'Meditation', who: 'b', from: 'b', slot: 'Abend' })));
+await t('Irina kann „vorgegeben von“ nicht entfernen', assertFails(setDoc(R(irina, 'medi'), { id: 'medi', title: 'Meditation', who: 'b', slot: 'Abend' })));
+await t('Ältere Routine ohne „from“ bleibt bearbeitbar', assertSucceeds(setDoc(R(irina, 'zahn'), { id: 'zahn', title: 'Zahnseide!', who: 'ab', slot: 'Abend' })));
+await t('„from“ kann nicht nachträglich gesetzt werden', assertFails(setDoc(R(irina, 'zahn'), { id: 'zahn', title: 'Zahnseide', who: 'ab', from: 'a', slot: 'Abend' })));
+await t('Irina ändert gemeinsame Routine', assertSucceeds(setDoc(R(irina, 'wasser'), { id: 'wasser', title: 'Glas Wasser', who: 's', from: 'a', slot: 'Morgen' })));
+await t('Irina löscht Simons Routine', assertSucceeds(deleteDoc(R(irina, 'sport'))));
 await t('Fremder sieht keine Routinen', assertFails(getDoc(R(fremd, 'wasser'))));
+await t('Fremder legt keine Routine an', assertFails(setDoc(R(fremd, 'x1'), { id: 'x1', title: 'X', who: 'a', slot: 'Morgen' })));
+await t('Fremder löscht keine Routine', assertFails(deleteDoc(R(fremd, 'wasser'))));
 // Haken
 const D = (db, id) => doc(db, 'households', H, 'days', id);
 await t('Simon hakt eigene ab', assertSucceeds(setDoc(D(simon, 'a_2026-10-25'), { zahn: true }, { merge: true })));

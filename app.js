@@ -22,6 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 11, date: '2026-11-07', items: ['Routinen für die andere Person vorgeben – mit „vorgegeben von …“', 'Ihr dürft beide alle Routinen bearbeiten und archivieren', 'Hinweis auf „Heute“ bei neuen Aufgaben und Routinen von der anderen Person', 'Einkauf in Ozeanblau, deutlicher von den anderen Bereichen zu unterscheiden'] },
   { v: 10, date: '2026-11-04', items: ['Neu: Einkaufsliste für euch beide, sortiert nach Bereichen im Laden, mit Vorschlägen', 'Statistik, Kalender und Raster sind jetzt ein Tab „Verlauf“ mit einem Zeitraum', 'Die Statistik wertet bis zu 365 Tage aus'] },
   { v: 9, date: '2026-10-31', items: ['Heute: Umschalter Simon | Irina | Duo – Duo zeigt euch beide nebeneinander, als Liste oder Kacheln', 'Gemeinsame Routinen tragen die Avatare von euch beiden', 'Besser lesbar: dunklerer Nebentext und größere Tasten'] },
   { v: 8, date: '2026-10-30', items: ['Bei einer Störung des Servers öffnet sich die App weiter mit der gespeicherten Version statt einer Fehlerseite'] },
@@ -65,12 +66,14 @@ const forWho = (who, p) => who === 's' || who === 'ab' || who === p;
 const visible = (r, p) => forWho(r.who, p);
 const everVisible = (r, p) => visible(r, p) || (r.hist || []).some(h => forWho(h.who, p));
 const keyFor = (r, p, off = 0) => (whoAt(r, off) === 's' ? 's' : p) + '|' + r.id;
-// Mit Firebase gehört jedes Konto fest zu einer Person (ui.me). Alle sehen alles und dürfen
-// seit Version 7 auch für die andere Person abhaken; bearbeiten nur die eigenen sowie gemeinsame Routinen.
-// Lokal ist alles erlaubt.
+// Mit Firebase gehört jedes Konto fest zu einer Person (ui.me). Alle sehen alles, dürfen seit Version 7
+// auch für die andere Person abhaken und seit Version 11 alle Routinen anlegen, bearbeiten und archivieren.
+// r.from = wer die Routine angelegt hat; ist sie für die andere Person, steht „vorgegeben von …“ daran.
 const syncMode = () => firebaseConfig ? 'firebase' : 'local';
 const canCheck = () => true;
-const canEdit = r => syncMode() === 'local' || ['ab', 's', ui.me].includes(r.who);
+const canEdit = () => true;
+const givenBy = r => r.from && ['a', 'b'].includes(r.who) && r.from !== r.who ? r.from : null;
+const givenLabel = r => givenBy(r) ? `vorgegeben von ${esc(data.names[givenBy(r)])}` : '';
 const togAttr = (r, p, off) => canCheck(r, p, off) ? `data-a="toggle" data-r="${r.id}" data-o="${off}" data-p="${p}"` : 'aria-disabled="true"';
 const viewOnly = () => syncMode() === 'firebase' && ui.person !== ui.me;
 const isDone = (r, p, off) => !!(data.done[dk(off)] || {})[keyFor(r, p, off)];
@@ -423,7 +426,7 @@ function listView(p, off) {
     const items = st.list.filter(r => r.slot === slot); if (!items.length) return '';
     return `<div class="sd-group"><span class="sd-label">${slot}</span>${items.map(r => {
       const dn = isDone(r, p, off), sk = streak(r, p, off), x = rep(r);
-      let meta = `${esc(catName(r))} · ${repLabel(r)}` + (r.who === 's' ? ' · gemeinsam' : '');
+      let meta = `${esc(catName(r))} · ${repLabel(r)}` + (r.who === 's' ? ' · gemeinsam' : '') + (givenBy(r) ? ' · ' + givenLabel(r) : '');
       if (x.type === 'perweek') meta += ` · ${weekDone(r, p, off, null)}/${x.n} diese Woche`;
       return `<button class="sd-item ${dn ? 'done' : ''} ${canCheck(r, p) ? '' : 'ro'}" ${togAttr(r, p, off)}><span class="sd-check">${icon('check', 'ph-bold')}</span><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></span>${r.who === 's' ? pair() : ''}${sk > 1 ? `<span class="sd-streak">${icon('flame')}${sk}</span>` : ''}</button>`;
     }).join('')}</div>`;
@@ -440,7 +443,7 @@ function tilesView(p, off) {
   else if (!st.t) tiles = empty('An diesem Tag ist nichts geplant.');
   else tiles = `<div class="sd-tiles">${st.list.map(r => {
     const dn = isDone(r, p, off), sk = streak(r, p, off);
-    const meta = [r.who === 's' ? 'Gemeinsam' : '', sk > 1 ? sk + ' Tage in Folge' : '', rep(r).type === 'perweek' ? `${weekDone(r, p, off, null)}/${rep(r).n} diese Woche` : ''].filter(Boolean).join(' · ');
+    const meta = [r.who === 's' ? 'Gemeinsam' : '', givenBy(r) ? 'von ' + esc(data.names[givenBy(r)]) : '', sk > 1 ? sk + ' Tage in Folge' : '', rep(r).type === 'perweek' ? `${weekDone(r, p, off, null)}/${rep(r).n} diese Woche` : ''].filter(Boolean).join(' · ');
     return `<button class="sd-tile ${dn ? 'done' : ''} ${canCheck(r, p) ? '' : 'ro'}" ${togAttr(r, p, off)}><div class="top"><span>${r.slot}</span><span class="sd-check">${icon('check', 'ph-bold')}</span></div><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></button>`;
   }).join('')}</div>`;
   return `<div class="sd-rings">${rings}</div><div class="sd-hdr" style="align-items:baseline"><span style="font-size:15px;font-weight:500">${off === 0 ? 'Heute dran' : 'An diesem Tag'}</span><span class="sd-muted">${st.t - st.n ? (st.t - st.n) + ' offen' : st.t ? 'Alles erledigt' : ''}</span></div>${tiles}`;
@@ -469,7 +472,7 @@ function duoListView(off) {
   const head = `<div class="sd-drow head" aria-hidden="true"><span></span>${PP.map(p => `<span class="${p}">${esc(data.names[p])}</span>`).join('')}</div>`;
   const groups = SLOTS.map(slot => {
     const items = list.filter(r => r.slot === slot); if (!items.length) return '';
-    return `<span class="sd-label">${slot}</span>${items.map(r => `<div class="sd-drow ${whoAt(r, off) === 's' ? 'shared' : ''}"><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${esc(catName(r))} · ${duoWho(r, off)}</span></span>${duoCells(r, off, false)}</div>`).join('')}`;
+    return `<span class="sd-label">${slot}</span>${items.map(r => `<div class="sd-drow ${whoAt(r, off) === 's' ? 'shared' : ''}"><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${esc(catName(r))} · ${duoWho(r, off)}${givenBy(r) ? ' · ' + givenLabel(r) : ''}</span></span>${duoCells(r, off, false)}</div>`).join('')}`;
   }).join('');
   return `${duoScore(off)}<div class="sd-duo">${head}${groups}</div>`;
 }
@@ -524,7 +527,7 @@ function tabHeute() {
   return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div></div>
   ${whoSeg()}
   ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
-  ${strip}${newNote()}${ui.duo ? '' : roNote()}${heuteTasks(ui.duo ? ui.me : p, off)}${body}`;
+  ${strip}${newNote()}${newItemsNote()}${ui.duo ? '' : roNote()}${heuteTasks(ui.duo ? ui.me : p, off)}${body}`;
 }
 // Ganz oben auf „Heute“: fällige und überfällige Aufgaben der Person; an diesem Tag Erledigtes bleibt durchgestrichen stehen.
 // An vergangenen Tagen: die an diesem Tag fälligen Aufgaben.
@@ -550,7 +553,7 @@ function tabVerlauf() {
 }
 function tabRoutinen() {
   const all = active(), arch = R().filter(archived);
-  const row = r => `<button class="sd-row ${canEdit(r) ? '' : 'ro'}" ${canEdit(r) ? `data-a="edit" data-r="${r.id}"` : `aria-disabled="true" title="Nur ${esc(data.names[r.who])} kann diese Routine bearbeiten"`}><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${r.slot} · ${repLabel(r)}</span></span><span class="sd-who ${r.who === 's' ? 's' : ''}">${esc(whoLabel(r))}</span>${icon(canEdit(r) ? 'caret-right' : 'lock-simple')}</button>`;
+  const row = r => `<button class="sd-row ${canEdit(r) ? '' : 'ro'}" ${canEdit(r) ? `data-a="edit" data-r="${r.id}"` : `aria-disabled="true" title="Nur ${esc(data.names[r.who])} kann diese Routine bearbeiten"`}><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${r.slot} · ${repLabel(r)}${givenBy(r) ? ' · ' + givenLabel(r) : ''}</span></span><span class="sd-who ${r.who === 's' ? 's' : ''}">${esc(whoLabel(r))}</span>${icon(canEdit(r) ? 'caret-right' : 'lock-simple')}</button>`;
   const groups = [...cats().map(c => [c.id, c.name, c.icon]), [null, 'Ohne Bereich', 'tag']].map(([id, name, ic]) => {
     const items = all.filter(r => id ? catOf(r) === id : !catById(catOf(r))); if (!items.length) return '';
     return `<div class="sd-group"><span class="sd-label sd-catlabel">${icon(ic)}${esc(name)}<em>${items.length}</em></span>${items.map(row).join('')}</div>`;
@@ -618,6 +621,7 @@ function tabEinkauf() {
   const msg = ui.shopMsg ? `<div class="sd-hint">${icon('info')}<span>${esc(ui.shopMsg)}</span></div>` : '';
   return `<div class="sd-hdr"><div><div class="sd-sub">${open.length ? `${open.length} auf der Liste` : 'Alles da'}${cart.length ? ` · ${cart.length} im Wagen` : ''}</div><h1>Einkauf</h1></div></div>
   <div class="sd-shop">
+  <div class="sd-tbanner sd-sbanner"><span>${icon('shopping-cart', 'ph-fill')}Auf der Liste</span><b>${open.length}</b></div>
   <form class="sd-sadd" data-form="shop"><input class="sd-input" data-in="shopNew" value="${esc(ui.shopDraft)}" placeholder="Was fehlt? z. B. Milch – 2" maxlength="80" enterkeyhint="done" autocomplete="off" aria-label="Neuer Eintrag"><button class="sd-btn" type="submit" aria-label="Auf die Liste">${icon('plus')}</button></form>
   ${msg}<div class="sd-ssug">${shopSuggest()}</div>
   ${groups || (cart.length ? '' : `<div class="sd-empty"><span>Die Liste ist leer. Was fehlt?</span></div>`)}${done}
@@ -646,6 +650,25 @@ function catSheetHtml() {
   <button class="sd-btn ghost block" data-a="${ui.sheet ? 'closeCats' : 'closeSheet'}">${ui.sheet ? 'Zurück zur Routine' : 'Fertig'}</button>
   </div></div>`;
 }
+// Hinweise „Neu von …“ (seit Version 11): neue Aufgaben und vorgegebene Routinen von der anderen Person
+// seit dem letzten Blick. Pro Gerät und Person wird gemerkt, bis wann gesehen; beim ersten Start gilt „jetzt“.
+const SEEN_ITEMS = 'superdaily-seen-items';
+const seenMap = () => { try { return JSON.parse(localStorage.getItem(SEEN_ITEMS) || '{}'); } catch { return null; } };
+function seenAt(kind) {
+  const m = seenMap(); if (!m) return Infinity;
+  const k = ui.me + '|' + kind;
+  if (!m[k]) { m[k] = Date.now(); try { localStorage.setItem(SEEN_ITEMS, JSON.stringify(m)); } catch {} }
+  return m[k];
+}
+function markItems(kind) { const m = seenMap(); if (!m) return; m[ui.me + '|' + kind] = Date.now(); try { localStorage.setItem(SEEN_ITEMS, JSON.stringify(m)); } catch {} }
+// seenAt zuerst aufrufen: so wird „jetzt“ schon beim ersten Anzeigen gemerkt, nicht erst beim ersten neuen Eintrag
+const newTasks = (since = seenAt('task')) => T().filter(t => !t.done && t.from !== ui.me && taskFor(t, ui.me) && (t.createdAt || 0) > since);
+const newRoutines = (since = seenAt('routine')) => active().filter(r => r.who === ui.me && givenBy(r) && (r.createdAt || 0) > since);
+function newItemsNote() {
+  const other = esc(data.names[ui.me === 'a' ? 'b' : 'a']), t = newTasks().length, r = newRoutines().length;
+  const hint = (n, kind, one, many, ic, cls) => n ? `<div class="sd-hint sd-new ${cls}">${icon(ic, 'ph-fill')}<button class="sd-hlink" data-a="openNew" data-v="${kind}"><b>${n} ${n === 1 ? one : many}</b> von ${other}</button><span class="sd-newact"><button class="sd-circ" data-a="seenNew" data-v="${kind}" aria-label="Hinweis schließen">${icon('x')}</button></span></div>` : '';
+  return hint(r, 'routine', 'neue Routine', 'neue Routinen', 'list-checks', '') + hint(t, 'task', 'neue Aufgabe', 'neue Aufgaben', 'check-square-offset', 'sd-tasks');
+}
 const newNote = () => seenVersion < APP_VERSION ? `<div class="sd-hint sd-new">${icon('sparkle', 'ph-fill')}<span><b>Neu in Version ${APP_VERSION}:</b> ${CHANGES.filter(c => c.v > seenVersion).flatMap(c => c.items).slice(0, 3).map(esc).join(' · ')}</span><span class="sd-newact"><button class="sd-mini" data-a="whatsNew">Mehr</button><button class="sd-circ" data-a="seen" aria-label="Hinweis schließen">${icon('x')}</button></span></div>` : '';
 const aboutCard = () => {
   const [cur, ...old] = CHANGES, list = items => `<ul class="sd-changes">${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`;
@@ -656,7 +679,7 @@ function tabMehr() {
   return `<div class="sd-hdr"><div><div class="sd-sub">${fbMode ? 'Synchronisiert' : 'Lokaler Modus'}</div><h1>Einstellungen</h1></div></div>
   <div class="sd-card"><h2>Namen</h2><div class="sd-g2"><label class="sd-field">Person 1<input class="sd-input" value="${esc(data.names.a)}" data-ch="nameA"></label><label class="sd-field">Person 2<input class="sd-input" value="${esc(data.names.b)}" data-ch="nameB"></label></div></div>
   <div class="sd-card"><h2>Darstellung</h2><p>Automatisch folgt der Einstellung deines Handys.</p>${seg([['auto', 'Automatisch'], ['light', 'Hell'], ['dark', 'Dunkel']], modePref(), 'mode')}</div>
-  ${fbMode ? `<div class="sd-card"><h2>Ich bin ${esc(data.names[ui.me])}</h2><p>Dieses Konto gehört fest zu ${esc(data.names[ui.me])}. Du siehst alles von ${esc(data.names[ui.me === 'a' ? 'b' : 'a'])}, abhaken und bearbeiten kannst du nur deine eigenen und die gemeinsamen Routinen.</p></div>`
+  ${fbMode ? `<div class="sd-card"><h2>Ich bin ${esc(data.names[ui.me])}</h2><p>Dieses Konto gehört fest zu ${esc(data.names[ui.me])}. Ihr seht beide alles und dürft alle Routinen, Aufgaben und Einkäufe abhaken und bearbeiten.</p></div>`
       : `<div class="sd-card"><h2>Ich bin</h2><p>Mit dieser Person startet die App auf diesem Gerät.</p>${seg([['a', esc(data.names.a)], ['b', esc(data.names.b)]], ui.me, 'me')}</div>`}
   ${fbMode ? `<div class="sd-card"><h2>Haushalt</h2><p>Mit diesem Code tritt die zweite Person nach der Registrierung bei.</p><span class="sd-code">${esc(hhId)}</span><p>Angemeldet als ${esc(fb.auth.currentUser?.email)}</p><p>Nutzungsstatistik (Google Analytics): ${an ? 'aktiv' : 'aus'}</p><button class="sd-btn ghost" data-a="logout">${icon('sign-out')}Abmelden</button></div>`
       : `<div class="sd-card"><h2>Synchronisierung</h2><p>Die Daten liegen nur auf diesem Gerät. Für den Abgleich zwischen zwei Handys trägst du die Firebase-Konfiguration in firebase-config.js ein (siehe README).</p></div>`}
@@ -801,7 +824,7 @@ function render() {
 
 // ---------- Aktionen ----------
 const A = {
-  tab: d => { ui.tab = d.v; render(); track('screen_view', { firebase_screen: d.v }); },
+  tab: d => { ui.tab = d.v; if (d.v === 'aufgaben') markItems('task'); if (d.v === 'routinen') markItems('routine'); render(); track('screen_view', { firebase_screen: d.v }); },
   person: d => { ui.person = d.p; ui.duo = false; render(); },
   who: d => { ui.duo = d.v === 'duo'; if (!ui.duo) ui.person = d.v; render(); track('view_change', { view: ui.duo ? 'duo' : 'person' }); },
   heuteView: d => { ui.heuteView = d.v; render(); track('view_change', { view: d.v }); },
@@ -870,7 +893,7 @@ const A = {
   edit: d => { if (!canEdit(data.routines[d.r])) return; ui.sheet = newDraft(data.routines[d.r]); ui.sheetFresh = true; render(); },
   closeSheet: () => { if (ui.catSheet && ui.sheet) { ui.catSheet = false; return render(); } ui.sheet = null; ui.catSheet = false; ui.task = null; ui.shopEdit = null; render(); },
   noop: () => {},
-  addTpl: d => { const [, title, slot, cat] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.me, cat: tplCat(cat) || guessCat(title), rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); track('routine_create', { slot, repeat: 'daily', who: ui.me, template: true }); },
+  addTpl: d => { const [, title, slot, cat] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.me, from: ui.me, cat: tplCat(cat) || guessCat(title), rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); track('routine_create', { slot, repeat: 'daily', who: ui.me, template: true }); },
   dTpl: d => { const [, title, slot, cat] = TPL[+d.v]; Object.assign(ui.sheet, { title, slot, cat: tplCat(cat) || ui.sheet.cat }); render(); },
   mode: d => { try { localStorage.setItem(MODE_KEY, d.v); } catch {} applyMode(); render(); },
   dSlot: d => { ui.sheet.slot = d.v; render(); },
@@ -886,6 +909,8 @@ const A = {
     const d = ui.sheet; if (!d.title.trim()) return;
     const old = d.id && data.routines[d.id];
     const r = { id: d.id || rid(), title: d.title.trim(), slot: d.slot, who: d.who, cat: d.cat || guessCat(d.title), rep: d.rep, created: old?.created || dk(0), createdAt: old?.createdAt || Date.now() };
+    // „Vorgegeben von“: beim Anlegen die eigene Person, danach unverändert (ältere Routinen haben kein Feld)
+    const from = old ? old.from : ui.me; if (from) r.from = from;
     // „Alle X Tage“ zählt ab dem Tag, an dem es eingestellt wurde
     if (r.rep.type === 'every' && (!old || rep(old).type !== 'every' || rep(old).n !== r.rep.n)) r.rep = { ...r.rep, from: dk(0) };
     if (old) addVersion(r, old);
@@ -966,6 +991,8 @@ const A = {
     ui.busy = false; ui.setupErr = 'Beitreten fehlgeschlagen. Stimmt der Code? Ein Haushalt hat Platz für zwei Personen; ist er schon voll, geht es nicht.'; render();
   },
   seen: () => { markSeen(); render(); },
+  openNew: d => { markItems(d.v); ui.tab = d.v === 'task' ? 'aufgaben' : 'routinen'; if (d.v === 'task') ui.taskView = 'mine'; render(); track('new_items_open', { kind: d.v }); },
+  seenNew: d => { markItems(d.v); render(); },
   whatsNew: () => { markSeen(); ui.tab = 'mehr'; render(); requestAnimationFrame(() => $app.querySelector('#about')?.scrollIntoView({ block: 'start' })); },
   logout: () => fb && fb.A.signOut(fb.auth)
 };

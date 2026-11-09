@@ -274,17 +274,22 @@ button.sd-dcell:active{transform:scale(.94)}
 [data-sd="light"] .sd-dsc,[data-sd="light"] .sd-drow:not(.head),[data-sd="light"] .sd-dtile{box-shadow:var(--shadow-sm)}
 
 /* ---------- Version 10: Verlauf (Statistik | Kalender | Raster) und Einkauf ----------
-   Einkauf hat eine eigene Akzent-Rampe (Koralle); alles andere bleibt Minze. */
+   Einkauf hat eine eigene Akzent-Rampe (Ozeanblau, seit Version 11; vorher Koralle) mit farbigem
+   Hintergrund und Leuchten, damit der Bereich sofort als eigener erkennbar ist. Alles andere bleibt Minze. */
 [data-sd="light"] :is(.sd-scroll[data-tab="einkauf"],.sd-tab[data-v="einkauf"],.sd-ssheet){
-  --color-accent:#c2412f;--color-accent-100:#5c1a14;--color-accent-200:#8a2a20;--color-accent-300:#c2412f;--color-accent-400:#f0614d;--color-accent-500:#ff7f6b;
-  --color-accent-600:#ffa194;--color-accent-700:#ffc4bb;--color-accent-800:#ffe1dc;--color-accent-900:#fff1ee;
-  --sd-grad:linear-gradient(135deg,#ff7f6b,#f0614d 50%,#c2412f);--sd-pink:#f0614d}
+  --color-accent:#1d4ed8;--color-accent-100:#172554;--color-accent-200:#1e3a8a;--color-accent-300:#1d4ed8;--color-accent-400:#3b82f6;--color-accent-500:#60a5fa;
+  --color-accent-600:#93c5fd;--color-accent-700:#bfdbfe;--color-accent-800:#dbeafe;--color-accent-900:#eff6ff;
+  --sd-grad:linear-gradient(135deg,#60a5fa,#3b82f6 50%,#1d4ed8);--sd-pink:#3b82f6}
 [data-sd="dark"] :is(.sd-scroll[data-tab="einkauf"],.sd-tab[data-v="einkauf"],.sd-ssheet){
-  --color-accent:#ff7f6b;--color-accent-100:#fff1ee;--color-accent-200:#ffe1dc;--color-accent-300:#ffa194;--color-accent-400:#ff7f6b;--color-accent-500:#f0614d;
-  --color-accent-600:#c2412f;--color-accent-700:#8a2a20;--color-accent-800:#5c1a14;--color-accent-900:#3a110d;
-  --sd-grad:linear-gradient(135deg,#ff7f6b,#f0614d 50%,#c2412f);--sd-pink:#ff7f6b}
-[data-sd="light"] .sd-scroll[data-tab="einkauf"]{background:#fdf6f4}
-[data-sd="dark"] .sd-scroll[data-tab="einkauf"]{background:radial-gradient(120% 50% at 50% -10%,#2e1512 0%,transparent 60%)}
+  --color-accent:#60a5fa;--color-accent-100:#eff6ff;--color-accent-200:#dbeafe;--color-accent-300:#bfdbfe;--color-accent-400:#93c5fd;--color-accent-500:#60a5fa;
+  --color-accent-600:#3b82f6;--color-accent-700:#1d4ed8;--color-accent-800:#1e3a8a;--color-accent-900:#172554;
+  --sd-grad:linear-gradient(135deg,#60a5fa,#3b82f6 50%,#1d4ed8);--sd-pink:#3b82f6}
+[data-sd="light"] .sd-scroll[data-tab="einkauf"]{background:linear-gradient(180deg,#dce9ff 0%,#f4f8ff 40%)}
+[data-sd="dark"] .sd-scroll[data-tab="einkauf"]{background:radial-gradient(120% 55% at 50% -10%,#132447 0%,transparent 65%)}
+[data-sd="light"] body:has(.sd-scroll[data-tab="einkauf"]){background:radial-gradient(120% 55% at 50% -10%,#dbeafe 0%,var(--color-bg) 62%) fixed}
+[data-sd="dark"] body:has(.sd-scroll[data-tab="einkauf"]){background:radial-gradient(120% 60% at 50% -10%,#132447 0%,var(--color-bg) 60%) fixed}
+#app:has(.sd-scroll[data-tab="einkauf"])::before{background:#60a5fa}
+[data-sd="dark"] #app:has(.sd-scroll[data-tab="einkauf"])::before,[data-sd="dark"] #app:has(.sd-scroll[data-tab="einkauf"])::after{background:#1e3a8a}
 .sd-shop{display:flex;flex-direction:column;gap:14px}
 .sd-sadd{display:grid;grid-template-columns:minmax(0,1fr) 52px;gap:8px}
 .sd-sadd .sd-btn:not(.ghost):not(.danger){padding:0;min-height:48px;background:var(--sd-grad);border:0;color:#fff}
@@ -303,3 +308,7 @@ button.sd-dcell:active{transform:scale(.94)}
 .sd-tab span{font-size:10.5px}
 .sd-sitem.sd-titem.done .sd-check{background:var(--sd-grad);border-color:transparent;color:#fff}
 [data-sd="dark"] .sd-sitem.done{background:color-mix(in srgb,var(--color-accent-800) 45%,var(--color-surface))}
+
+/* Version 11: Hinweise „Neu von …“ auf Heute */
+.sd-hlink{flex:1;min-width:0;background:none;border:0;padding:4px 0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;min-height:40px}
+.sd-hlink b{font-weight:700;color:var(--color-accent-200)}

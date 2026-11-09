@@ -6,10 +6,10 @@ Die Tests prüfen die App, ohne die echte Firebase-Datenbank anzufassen. Sie lau
 
 | Datei | Inhalt |
 | --- | --- |
-| `regeln.test.mjs` | 70 Prüfungen der Sicherheitsregeln aus `../firestore.rules`: wer darf lesen, anlegen, ändern, abhaken, beitreten |
+| `regeln.test.mjs` | 76 Prüfungen der Sicherheitsregeln aus `../firestore.rules`: wer darf lesen, anlegen, ändern, abhaken, beitreten |
 | `zwei-personen.spec.js` | Simon und Irina auf je einem „Handy“: Haushalt anlegen und beitreten, Rechte in der Oberfläche, Live-Abgleich |
 | `regression/verlauf.spec.js` | Kalender-Quoten vergangener Tage bleiben nach Ändern, Archivieren und Wiederherstellen gleich |
-| `klick/*.spec.js` | Klick-Tests im lokalen Modus: Grundfunktionen, Bereiche, Versionsanzeige, Aufgaben, Duo, Einkauf, Verlauf-Tab |
+| `klick/*.spec.js` | Klick-Tests im lokalen Modus: Grundfunktionen, Bereiche, Versionsanzeige, Aufgaben, Duo, Einkauf, Verlauf-Tab, Vorgeben und Hinweise |
 | `beispieldaten.js` | Beispieldaten: Simon und Irina, fünf Routinen, drei Wochen Verlauf |
 | `hilfen.js` | Test-Server und Hilfen (siehe unten) |
 
