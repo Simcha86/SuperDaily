@@ -28,6 +28,8 @@ Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Biblioth
 - Neue Teile aus vorhandenen Bausteinen bauen (`sd-card`, `sd-row`, `sd-item`, `sd-chip`, `sd-opt`, `sd-btn`, `sd-hint`, `sd-mini`, Bottom-Sheet `sd-sheet`) und Farben nur über die Tokens (`--color-accent-…`, `--color-neutral-…`, `--sd-grad`, `--sd-a`/`--sd-b`).
 - Der Bereich **Aufgaben** hat eine eigene Akzentfarbe **Senfgold** (Simons Wunsch): eigene Rampe für `.sd-scroll[data-tab="aufgaben"]`, `.sd-tasks`, `.sd-tfab`, `.sd-tsheet` am Ende von `theme.css`.
 - Der Bereich **Einkauf** (seit Version 10) hat die Akzentfarbe **Ozeanblau** (seit Version 11, Simons Wahl; vorher Koralle, war ihm zu wenig unterscheidbar) mit farbigem Hintergrund, Leuchten (`body:has(...)`, `#app:has(...)`) und Balken „Auf der Liste“: eigene Rampe für `.sd-scroll[data-tab="einkauf"]`, `.sd-tab[data-v="einkauf"]`, `.sd-ssheet` am Ende von `theme.css`. Alles andere bleibt Minze.
+- Seit Version 12 (Marktreife-Check): Überschriften einfarbig (kein Verlaufstext), im hellen Modus dunkle Schrift auf Verläufen (`--sd-on`), Balken und Knöpfe mit mindestens 4,5 : 1 Kontrast, Tippflächen mindestens 44 px (kleine Kreise mit unsichtbar vergrößerter Trefferfläche). Neue Teile genauso bauen; `tests/klick/barrierefreiheit.spec.js` prüft das.
+- Begriffe: „Gemeinsam“ = ein Haken für beide (`s`), „Jeder für sich“ = beide einzeln (`ab`). Keine echten Namen als Standard; Haushalt anlegen mit „Dein Name“ (Person 1) und „Name der zweiten Person“.
 - Neue Styles ans Ende von `theme.css`, beide Modi beachten (`[data-sd="light"]` dreht die Farbrampen um: 100 = dunkel, 900 = hell).
 - Symbole aus Phosphor; vor Verwendung prüfen, dass der Name existiert.
 
@@ -84,7 +86,7 @@ Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
 3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
 4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen; Simon veröffentlicht sie **vor** dem Merge.
 
-Aktueller Stand: Version 11, `CACHE = 'superdaily-v12'`.
+Aktueller Stand: Version 12, `CACHE = 'superdaily-v13'`.
 
 ## Testen
 

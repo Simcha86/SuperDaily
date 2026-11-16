@@ -31,15 +31,22 @@ async function routineAnlegen(seite, titel, fuer) {
   await expect(seite.locator('.sd-sheet')).toHaveCount(0);
 }
 
+// Haushalt anlegen (seit Version 12): eigener Name und Name der zweiten Person, wer anlegt, ist Person 1.
+async function anlegen(seite, ich = 'Simon', zweite = 'Irina') {
+  await seite.locator('[data-in="setupA"]').fill(ich);
+  await seite.locator('[data-in="setupB"]').fill(zweite);
+  await seite.getByRole('button', { name: 'Haushalt anlegen' }).click();
+}
+
 // Simon legt den Haushalt an, Irina tritt bei; Simon legt drei Routinen an.
 async function haushalt(browser, server) {
   const simon = await oeffneHandy(browser, server);
   await registrieren(simon, neueEmail('simon'));
-  await simon.getByRole('button', { name: 'Anlegen' }).click();
+  await anlegen(simon);
   await tab(simon, 'Mehr');
   const code = (await simon.locator('.sd-code').innerText()).trim();
   await routineAnlegen(simon, 'Sport', 'Simon');
-  await routineAnlegen(simon, 'Zahnseide', 'Beide einzeln');
+  await routineAnlegen(simon, 'Zahnseide', 'Jeder für sich');
   await routineAnlegen(simon, 'Glas Wasser', 'Gemeinsam');
   const irina = await oeffneHandy(browser, server);
   await registrieren(irina, neueEmail('irina'));
@@ -53,7 +60,7 @@ const routineHeute = (seite, titel) => seite.locator('.sd-item', { hasText: tite
 test('Haushalt anlegen und beitreten: freie Person automatisch, dritte Person abgewiesen', async ({ browser, emulator }) => {
   const simon = await oeffneHandy(browser, emulator);
   await registrieren(simon, neueEmail('simon'));
-  await simon.getByRole('button', { name: 'Anlegen' }).click();
+  await anlegen(simon);
   await tab(simon, 'Mehr');
   const code = (await simon.locator('.sd-code').innerText()).trim();
   expect(code).toMatch(/^[A-Z0-9]{6}$/);
@@ -63,9 +70,9 @@ test('Haushalt anlegen und beitreten: freie Person automatisch, dritte Person ab
   await registrieren(irina, neueEmail('irina'));
   const karte = irina.locator('.sd-card', { hasText: 'Mit Code beitreten' });
   await expect(karte.getByRole('button', { name: 'Simon', exact: true })).toHaveCount(0);
-  await expect(karte).toContainText('automatisch die noch freie Person');
+  await expect(karte).toContainText('Du hast einen Code bekommen?');
   await beitreten(irina, 'FALSCH');
-  await expect(irina.getByText(/Beitreten fehlgeschlagen/)).toBeVisible();
+  await expect(irina.getByText(/Beitreten hat nicht geklappt/)).toBeVisible();
   await beitreten(irina, code);
   await expect(irina.locator('.sd-tabs')).toBeVisible();
   await expect(irina.locator('.sd-who3 button.on')).toHaveText('Irina');
@@ -75,17 +82,16 @@ test('Haushalt anlegen und beitreten: freie Person automatisch, dritte Person ab
   const fremd = await oeffneHandy(browser, emulator);
   await registrieren(fremd, neueEmail('fremd'));
   await beitreten(fremd, code);
-  await expect(fremd.getByText(/Beitreten fehlgeschlagen/)).toBeVisible();
+  await expect(fremd.getByText(/Beitreten hat nicht geklappt/)).toBeVisible();
   await expect(fremd.locator('.sd-tabs')).toHaveCount(0);
 
   expect([...simon.fehler, ...irina.fehler]).toEqual([]);
 });
 
-test('Legt Irina den Haushalt an, wird die zweite Person automatisch Simon', async ({ browser, emulator }) => {
+test('Legt Irina den Haushalt an, ist sie Person 1 und Simon tritt als Person 2 bei', async ({ browser, emulator }) => {
   const irina = await oeffneHandy(browser, emulator);
   await registrieren(irina, neueEmail('irina'));
-  await irina.locator('.sd-card', { hasText: 'Neuen Haushalt anlegen' }).getByRole('button', { name: 'Irina', exact: true }).click();
-  await irina.getByRole('button', { name: 'Anlegen' }).click();
+  await anlegen(irina, 'Irina', 'Simon');
   await tab(irina, 'Mehr');
   const code = (await irina.locator('.sd-code').innerText()).trim();
 
@@ -141,7 +147,7 @@ test('Routinen und Bereiche: beide bearbeiten alle Routinen (seit Version 11), B
   await expect(irina.locator('.sd-row .ph-lock-simple')).toHaveCount(0);
   await irina.getByRole('button', { name: 'Routine hinzufügen' }).click();
   const personen = await irina.locator('.sd-sheet [data-a="dWho"]').allInnerTexts();
-  expect(personen).toEqual(['Simon', 'Irina', 'Beide einzeln', 'Gemeinsam']);
+  expect(personen).toEqual(['Simon', 'Irina', 'Jeder für sich', 'Gemeinsam']);
   await irina.locator('.sd-back').click({ position: { x: 20, y: 20 } });
 
   // Irina ändert Simons Routine, Simon sieht es live
@@ -295,4 +301,18 @@ test('Einkauf: Irina setzt etwas auf die Liste, Simon hakt im Laden ab – live,
 
   // Verbindungsfehler im Funkloch sind gewollt, alles andere nicht
   expect([...simon.fehler, ...irina.fehler].filter(f => !/ERR_INTERNET_DISCONNECTED/.test(f))).toEqual([]);
+});
+
+test('Haushalt anlegen: keine vorbelegten Namen, leere Felder werden zu „Person 1“ und „Person 2“', async ({ browser, emulator }) => {
+  const seite = await oeffneHandy(browser, emulator);
+  await registrieren(seite, neueEmail('neu'));
+  await expect(seite.locator('[data-in="setupA"]')).toHaveValue('');
+  await expect(seite.locator('[data-in="setupB"]')).toHaveValue('');
+  await expect(seite.getByLabel('Dein Name')).toHaveAttribute('placeholder', 'z. B. Anna');
+  await expect(seite.getByText('Simon')).toHaveCount(0);
+  await seite.getByRole('button', { name: 'Haushalt anlegen' }).click();
+  await expect(seite.locator('.sd-tabs')).toBeVisible();
+  await tab(seite, 'Heute');
+  await expect(seite.locator('.sd-who3 button')).toHaveText(['Person 1', 'Person 2', 'Duo']);
+  expect(seite.fehler).toEqual([]);
 });

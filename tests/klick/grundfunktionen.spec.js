@@ -13,7 +13,9 @@ test('Erster Start: Vorlage antippen legt eine Routine an', async ({ browser, lo
 
 test('Eigene Routine anlegen und abhaken', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal);
-  await seite.getByRole('button', { name: 'Routine hinzufügen' }).click();
+  // Im Willkommensbildschirm gibt es keinen Plus-Knopf (seit Version 12), sondern „Eigene Routine anlegen“
+  await expect(seite.getByRole('button', { name: 'Routine hinzufügen' })).toHaveCount(0);
+  await seite.getByRole('button', { name: 'Eigene Routine anlegen' }).click();
   await seite.getByPlaceholder('z. B. Zahnseide').fill('Blumen gießen');
   await seite.locator('.sd-sheet').getByRole('button', { name: 'Abend', exact: true }).click();
   await seite.getByRole('button', { name: 'Hinzufügen', exact: true }).click();

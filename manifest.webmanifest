@@ -1,7 +1,7 @@
 {
   "name": "SuperDaily",
   "short_name": "SuperDaily",
-  "description": "Tägliche Routinen für Simon und Irina",
+  "description": "Routinen, Aufgaben und Einkauf für zwei",
   "lang": "de",
   "start_url": "./",
   "scope": "./",

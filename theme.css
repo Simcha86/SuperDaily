@@ -312,3 +312,33 @@ button.sd-dcell:active{transform:scale(.94)}
 /* Version 11: Hinweise „Neu von …“ auf Heute */
 .sd-hlink{flex:1;min-width:0;background:none;border:0;padding:4px 0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;min-height:40px}
 .sd-hlink b{font-weight:700;color:var(--color-accent-200)}
+
+/* ---------- Version 12: Barrierefreiheit und Feinschliff (Marktreife-Check) ---------- */
+/* Lesbare Schrift auf Farbverläufen: im hellen Modus dunkle Schrift auf Minze bis Limette (wie im Dunkelmodus) */
+[data-sd="light"]{--sd-on:#06201c}
+/* Überschriften einfarbig statt Verlauf (Kontrast), Markenname kräftig in Minze */
+[data-sd] .sd-hdr h1,[data-sd] .sd-brand h1{background-image:none;-webkit-background-clip:border-box;background-clip:border-box;color:var(--color-text)}
+[data-sd] .sd-brand h1{color:var(--color-accent-300)}
+[data-sd="dark"] .sd-brand h1{color:var(--color-accent-400)}
+/* Aufgaben: Balken und Plus mit dunkler Schrift auf hellem Gold */
+.sd-tbanner:not(.sd-sbanner){background:linear-gradient(135deg,#fde047,#facc15 55%,#eab308);color:#3b2a00}
+.sd-tfab,.sd-tfab:active{color:#3b2a00}
+[data-sd="light"] .sd-tasks .sd-mini{color:var(--color-accent-200)}
+/* Einkauf: Blau dunkel genug für weiße Schrift */
+.sd-sbanner,.sd-sadd .sd-btn:not(.ghost):not(.danger){background:linear-gradient(135deg,#2563eb,#1d4ed8 55%,#1e40af);color:#fff}
+/* Platzhalter lesbar */
+.sd-input::placeholder{color:var(--color-neutral-500);opacity:1}
+/* Tippflächen: mindestens 44 px. Kleine Kreise behalten ihre Größe, die Trefferfläche wächst unsichtbar */
+.sd-seg button{min-height:44px}
+.sd-titem .sd-check{z-index:1}
+.sd-titem .sd-check::before{content:"";position:absolute;inset:-9px}
+.sd-tasks .sd-catlabel .sd-mini,.sd-shop .sd-catlabel .sd-mini{min-height:40px;position:relative}
+.sd-tasks .sd-catlabel .sd-mini::before,.sd-shop .sd-catlabel .sd-mini::before{content:"";position:absolute;inset:-4px 0}
+/* Plus-Knopf verdeckt nichts: genug Platz unter dem letzten Eintrag */
+.sd-scroll{padding-bottom:calc(env(safe-area-inset-bottom) + 170px)}
+/* Raster: Titelspalte deckt auch den Rand links ab */
+.sd-grid:not(.fit) .sd-sticky{box-shadow:-18px 0 0 var(--color-bg)}
+/* Eingabeblätter: Kopf mit Abbrechen */
+.sd-sheethead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sd-sheethead h2{font-size:20px;margin:0;font-weight:700;outline:none}
+.sd-sheethead .sd-cancel{min-height:40px;padding:6px 14px}

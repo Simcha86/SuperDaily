@@ -81,7 +81,7 @@ test('Archivieren und Wiederherstellen: vergangene Quoten beider Personen bleibe
 test('Abhaken an einem vergangenen Tag nutzt die Einstellung dieses Tages (früher gemeinsam, jetzt beide einzeln)', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
   await routineOeffnen(seite, 'Glas Wasser');
-  await seite.getByRole('button', { name: 'Beide einzeln', exact: true }).click();
+  await seite.getByRole('button', { name: 'Jeder für sich', exact: true }).click();
   await seite.getByRole('button', { name: 'Speichern' }).click();
   expect((await gespeicherteRoutine(seite, 'w')).hist[0].who).toBe('s');
 

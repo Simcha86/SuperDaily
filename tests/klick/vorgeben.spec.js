@@ -16,7 +16,7 @@ test('Simon gibt Irina eine Routine vor: „Für wen“ bietet alle vier, „vor
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
   await tab(seite, 'Routinen');
   await seite.getByRole('button', { name: 'Routine hinzufügen' }).click();
-  await expect(seite.locator('.sd-sheet [data-a="dWho"]')).toHaveText(['Simon', 'Irina', 'Beide einzeln', 'Gemeinsam']);
+  await expect(seite.locator('.sd-sheet [data-a="dWho"]')).toHaveText(['Simon', 'Irina', 'Jeder für sich', 'Gemeinsam']);
   await seite.getByPlaceholder('z. B. Zahnseide').fill('Yoga');
   await seite.locator('.sd-sheet').getByRole('button', { name: 'Irina', exact: true }).click();
   await seite.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
