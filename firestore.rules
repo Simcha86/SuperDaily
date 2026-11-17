@@ -32,7 +32,7 @@ service cloud.firestore {
         && x.by in ['a', 'b'];
     }
 
-    // Ausgaben (seit Version 13): Betrag in Cent, Geschäft (title, seit Version 16 freiwillig = leer erlaubt), Kategorie, eingetragen von a oder b, Datum JJJJ-MM-TT, Notiz optional
+    // Ausgaben (seit Version 13; tax = steuerrelevant seit Version 17): Betrag in Cent, Geschäft (title, seit Version 16 freiwillig = leer erlaubt), Kategorie, eingetragen von a oder b, Datum JJJJ-MM-TT, Notiz optional
     function validExpense(x) {
       return x.title is string && x.title.size() <= 80
         && x.amount is int && x.amount > 0 && x.amount < 100000000
@@ -40,7 +40,8 @@ service cloud.firestore {
         && (!('sub' in x) || (x.sub is string && x.sub.size() <= 20))
         && x.by in ['a', 'b']
         && x.date is string && x.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && (!('note' in x) || (x.note is string && x.note.size() <= 500));
+        && (!('note' in x) || (x.note is string && x.note.size() <= 500))
+        && (!('tax' in x) || x.tax is bool);
     }
 
     // Jede Person sieht nur ihr eigenes Profil (welcher Haushalt)

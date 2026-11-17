@@ -330,6 +330,10 @@ test('Ausgaben: Simon trägt ein, Irina sieht es sofort und kann es ändern', as
   await irina.locator('[data-in="eAmount"]').fill('25');
   await irina.getByRole('button', { name: 'Speichern' }).click();
   await expect(simon.locator('.sd-erow', { hasText: 'Rewe' })).toContainText('25,00');
+  // Version 17: Simon markiert eine Ausgabe als steuerrelevant, Irina sieht das Kennzeichen
+  await simon.locator('[data-in="expNew"]').fill('Apotheke 9,90 #steuer');
+  await simon.locator('[data-in="expNew"]').press('Enter');
+  await expect(irina.locator('.sd-erow', { hasText: 'Apotheke' })).toContainText('steuerrelevant');
   // Version 15: Irina benennt eine Unterkategorie in der Verwaltung um, Simon sieht es sofort (Regeln erlauben ecats)
   await irina.locator('.sd-tabs').getByRole('button', { name: 'Verwaltung' }).click();
   await irina.locator('.sd-vrow').filter({ hasText: /^Ausgaben-Kategorien/ }).click();

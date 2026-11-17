@@ -418,3 +418,9 @@ button.sd-dcell:active{transform:scale(.94)}
 .sd-ekadd .sd-input{flex:1;min-width:0}
 .sd-ekarch{display:flex;align-items:center;gap:8px}
 .sd-ekarch .txt{flex:1;min-width:0}
+/* Version 17: Kennzeichen „steuerrelevant“ bei Ausgaben */
+.sd-etax{display:flex;margin-top:-2px}
+.sd-taxchip{min-height:44px}
+.sd-etaxbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.sd-etaxsum{font-size:13.5px;font-weight:600;color:var(--color-neutral-200)}
+.sd-etaxmark{display:inline-flex;align-items:center;gap:3px;font-weight:600;color:var(--color-accent-300)}

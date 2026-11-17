@@ -2,6 +2,12 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 17 · 17. November 2026 · [Release Notes](docs/releases/v17/RELEASE-NOTES.md)
+
+- **Ausgaben: Kennzeichen „steuerrelevant“** beim Eintragen und Bearbeiten, auch per „#steuer“ im Satz; Kennzeichen in der Liste.
+- **Filter „Nur steuerrelevant“** mit Summe für Monat und Jahr.
+- Firebase-Regeln: optionales Feld `tax` (ja/nein) an der Ausgabe.
+
 ## Version 16 · 17. November 2026 · [Release Notes](docs/releases/v16/RELEASE-NOTES.md)
 
 - **Ausgaben:** Das Geschäft ist freiwillig. Betrag, Kategorie und Unterkategorie genügen; ohne Geschäft zeigt die Liste die Unterkategorie als Namen.
