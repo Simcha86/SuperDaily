@@ -22,6 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 13, date: '2026-11-17', items: ['Neu: Ausgaben – tragt mit einem Satz ein, wofür und wie viel, mit Monatsüberblick nach Kategorie', 'Unten nur noch vier Bereiche: Heute, Einkauf, Ausgaben, Verwaltung', 'Routinen, alle Aufgaben, Verlauf und Einstellungen findet ihr unter Verwaltung; Verlauf auch oben auf Heute'] },
   { v: 12, date: '2026-11-16', items: ['Besser lesbar: kräftigere Knöpfe und Überschriften, größere Tippflächen', 'Eingaben mit „Abbrechen“, der Plus-Knopf verdeckt nichts mehr', 'Verständlichere Texte: „Gemeinsam“ und „Jeder für sich“, klare Fehlermeldungen', 'Besser mit Vorlesefunktion: „erledigt“ und „ausgewählt“ werden angesagt'] },
   { v: 11, date: '2026-11-07', items: ['Routinen für die andere Person vorgeben – mit „vorgegeben von …“', 'Ihr dürft beide alle Routinen bearbeiten und archivieren', 'Hinweis auf „Heute“ bei neuen Aufgaben und Routinen von der anderen Person', 'Einkauf in Ozeanblau, deutlicher von den anderen Bereichen zu unterscheiden'] },
   { v: 10, date: '2026-11-04', items: ['Neu: Einkaufsliste für euch beide, sortiert nach Bereichen im Laden, mit Vorschlägen', 'Statistik, Kalender und Raster sind jetzt ein Tab „Verlauf“ mit einem Zeitraum', 'Die Statistik wertet bis zu 365 Tage aus'] },
@@ -43,10 +44,10 @@ try { const v = +localStorage.getItem(SEEN); seenVersion = v || APP_VERSION; if 
 const markSeen = () => { seenVersion = APP_VERSION; try { localStorage.setItem(SEEN, APP_VERSION); } catch {} };
 
 // ---------- Daten ----------
-const data = { names: { a: 'Person 1', b: 'Person 2' }, routines: {}, done: {}, cats: null, tasks: {}, shop: {} };
+const data = { names: { a: 'Person 1', b: 'Person 2' }, routines: {}, done: {}, cats: null, tasks: {}, shop: {}, exp: {} };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
-  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '',
+  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '', back: null, expMonth: 0, expDraft: '', expMsg: '', expEdit: null,
   // Verlauf (seit Version 10): ein Zeitraum für Statistik, Kalender und Raster; Start: letzte 30 Tage
   cal: { mode: 'zeitraum', anchor: 0, from: -29, to: 0 },
   sheet: null, catSheet: false, authMode: 'login', authErr: '', setupErr: '', busy: false,
@@ -202,6 +203,39 @@ function parseShop(raw) {
   return out(t);
 }
 
+// ---------- Ausgaben (seit Version 13) ----------
+// { id, title, amount (Cent, ganze Zahl), cat, by: 'a'|'b', date: 'JJJJ-MM-TT', createdAt }. Nur Überblick, kein Ausgleich.
+const EXP_CATS = [['essen', 'Lebensmittel', 'shopping-cart'], ['haushalt', 'Haushalt & Drogerie', 'broom'], ['wohnen', 'Wohnen & Energie', 'house-line'],
+  ['mobil', 'Mobilität', 'car'], ['freizeit', 'Freizeit & Essen gehen', 'fork-knife'], ['gesundheit', 'Gesundheit', 'first-aid'],
+  ['kleidung', 'Kleidung', 't-shirt'], ['kinder', 'Kinder', 'baby'], ['geschenke', 'Geschenke', 'gift'], ['sonst', 'Sonstiges', 'dots-three-circle']];
+const EXP_WORDS = [
+  ['wohnen', 'miete ^strom ^gas nebenkosten internet handy telefon ^gez rundfunk wasserrechnung heizung versicherung'],
+  ['mobil', 'tank benzin diesel ^bahn ^db ticket ^bus parken parkhaus werkstatt ^tüv ^auto ^taxi ^uber flug'],
+  ['gesundheit', 'apotheke ^arzt zahnarzt medikament brille physio'],
+  ['kinder', 'kita schule spielzeug ^kind windel babysitter'],
+  ['geschenke', 'geschenk geburtstag blumen'],
+  ['kleidung', 'kleidung schuhe ^jacke ^hose ^h&m zara ^c&a'],
+  ['freizeit', 'restaurant ^café ^cafe kino konzert ausflug urlaub hotel pizza ^döner lieferando bar ^eis museum schwimmbad netflix spotify streaming'],
+  ['haushalt', 'drogerie ^dm ^rossmann ikea baumarkt putz waschmittel möbel'],
+  ['essen', 'rewe edeka aldi lidl netto penny kaufland supermarkt bäcker metzger markt lebensmittel einkauf wocheneinkauf']];
+const EXP_RE = EXP_WORDS.map(([id, w]) => [id, new RegExp(w.split(' ').map(x => x[0] === '^' ? `(?:^|[\\s-])${x.slice(1).replace(/[&]/g, '\\$&')}` : x).join('|'), 'i')]);
+const guessExpCat = t => EXP_RE.find(([, re]) => re.test(t))?.[0] || 'sonst';
+const expCat = id => EXP_CATS.find(c => c[0] === id) || EXP_CATS[EXP_CATS.length - 1];
+const X = () => Object.values(data.exp || {});
+const euro = c => (c / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+// „Rewe 23,80“, „23,80 € Tanken“, „Kino 18“ → { title, amount (Cent) }. Bevorzugt Zahlen mit Komma-Stellen.
+function parseExp(raw) {
+  const t = String(raw || '').trim().replace(/\s+/g, ' ');
+  const nums = [...t.matchAll(/(\d{1,6})(?:[.,](\d{1,2}))?\s*(?:€|eur(?:o)?)?/gi)];
+  if (!nums.length) return { title: t, amount: 0 };
+  const m = nums.filter(n => n[2]).pop() || nums[nums.length - 1];
+  const amount = +m[1] * 100 + (m[2] ? +m[2].padEnd(2, '0') : 0);
+  const title = (t.slice(0, m.index) + ' ' + t.slice(m.index + m[0].length)).replace(/\s+/g, ' ').replace(/^[-–:,\s]+|[-–:,\s]+$/g, '');
+  return { title: title ? title.charAt(0).toUpperCase() + title.slice(1) : '', amount };
+}
+const monthStart = k => { const d = dateAt(0); d.setDate(1); d.setMonth(d.getMonth() + k); return d; };
+const monthKey = k => { const d = monthStart(k); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
+
 // ---------- Speicher ----------
 const LS = 'superdaily-v1';
 let fb = null, hhId = null, unsubs = [];
@@ -258,16 +292,27 @@ const store = {
     if (this.mode === 'local') return this.saveLocal();
     const { F, db } = fb; await F.deleteDoc(F.doc(db, 'households', hhId, 'shop', id));
   },
+  async saveExp(x) {
+    data.exp = { ...data.exp, [x.id]: x }; render();
+    if (this.mode === 'local') return this.saveLocal();
+    const { F, db } = fb; await F.setDoc(F.doc(db, 'households', hhId, 'expenses', x.id), x);
+  },
+  async deleteExp(id) {
+    const n = { ...data.exp }; delete n[id]; data.exp = n; render();
+    if (this.mode === 'local') return this.saveLocal();
+    const { F, db } = fb; await F.deleteDoc(F.doc(db, 'households', hhId, 'expenses', id));
+  },
   setMe(p) { ui.me = p; ui.person = p; render(); this.saveLocal(); },
   async importAll(obj) {
     if (!obj || typeof obj !== 'object' || !obj.routines) throw new Error('Ungültige Datei');
-    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats, tasks: obj.tasks || {}, shop: obj.shop || {} }); this.saveLocal(); return render(); }
+    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats, tasks: obj.tasks || {}, shop: obj.shop || {}, exp: obj.exp || {} }); this.saveLocal(); return render(); }
     // Mit Firebase nur übernehmen, was dieses Konto schreiben darf; der Rest bleibt für die andere Person.
     const { F, db } = fb, own = [ui.me, 's'];
     const routines = Object.values(obj.routines).filter(canEdit), skipped = Object.keys(obj.routines).length - routines.length;
     const writes = routines.map(r => [F.doc(db, 'households', hhId, 'routines', r.id), r, false]);
     Object.values(obj.tasks || {}).forEach(t => writes.push([F.doc(db, 'households', hhId, 'tasks', t.id), t, false]));
     Object.values(obj.shop || {}).forEach(x => writes.push([F.doc(db, 'households', hhId, 'shop', x.id), x, false]));
+    Object.values(obj.exp || {}).forEach(x => writes.push([F.doc(db, 'households', hhId, 'expenses', x.id), x, false]));
     const days = {};
     for (const [d, v] of Object.entries(obj.done || {})) for (const k of Object.keys(v || {})) {
       const [p, rid] = k.split('|'); if (!own.includes(p)) continue;
@@ -285,7 +330,7 @@ const store = {
 };
 
 function initLocal() {
-  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; data.tasks = s.tasks || {}; data.shop = s.shop || {}; ui.me = ui.person = s.me || 'a'; } } catch {}
+  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; data.tasks = s.tasks || {}; data.shop = s.shop || {}; data.exp = s.exp || {}; ui.me = ui.person = s.me || 'a'; } } catch {}
   ui.screen = 'app'; render();
 }
 
@@ -340,6 +385,9 @@ function attach(u) {
   }));
   unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'tasks'), qs => {
     const t = {}; qs.forEach(d => { t[d.id] = d.data(); }); data.tasks = t; render();
+  }));
+  unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'expenses'), qs => {
+    const x = {}; qs.forEach(d => { x[d.id] = d.data(); }); data.exp = x; render();
   }));
   unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'shop'), qs => {
     const x = {}; qs.forEach(d => { x[d.id] = d.data(); }); data.shop = x; render();
@@ -525,7 +573,7 @@ function tabHeute() {
   const strip = `<div class="sd-strip">${days.map(o => `<button class="${o === off ? 'on' : ''}" aria-pressed="${o === off}" aria-label="${dateAt(o).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}, ${ui.duo ? duoPct(o) : dayStats(p, o).pct} Prozent" data-a="day" data-o="${o}"><small>${WD[dateAt(o).getDay()]}</small><b>${dateAt(o).getDate()}</b><i class="bar"><i style="width:${ui.duo ? duoPct(o) : dayStats(p, o).pct}%"></i></i></button>`).join('')}</div>`;
   const body = ui.duo ? (ui.heuteView === 'liste' ? duoListView(off) : duoTilesView(off))
     : ui.heuteView === 'liste' ? `${R().length ? hero(st, off) : ''}${listView(p, off)}` : tilesView(p, off);
-  return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div></div>
+  return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div><button class="sd-btn ghost sm" data-a="tab" data-v="verlauf">${icon('chart-line-up')}Verlauf</button></div>
   ${whoSeg()}
   ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
   ${strip}${newNote()}${newItemsNote()}${ui.duo ? '' : roNote()}${heuteTasks(ui.duo ? ui.me : p, off)}${body}`;
@@ -534,8 +582,11 @@ function tabHeute() {
 // An vergangenen Tagen: die an diesem Tag fälligen Aufgaben.
 function heuteTasks(p, off) {
   const list = off === 0 ? sortTasks(T().filter(t => taskFor(t, p) && t.due && dueOff(t) <= 0 && (!t.done || t.doneAt === dk(0)))) : sortTasks(tasksDueOn(p, off));
-  if (!list.length) return '';
-  return `<div class="sd-group sd-tasks"><span role="heading" aria-level="2" class="sd-label sd-catlabel">${icon('check-square-offset')}Aufgaben<button class="sd-mini" data-a="tab" data-v="aufgaben">Alle</button></span>${list.map(taskItem).join('')}</div>`;
+  // Seit Version 13 steht der Aufgaben-Block immer auf „Heute“: mit „Neu“ zum Vergeben und „Alle“ für die ganze Liste
+  const later = openTasks(p).filter(t => !t.due || dueOff(t) > 0).length;
+  const none = off === 0 ? `<div class="sd-tnone">${later ? `Heute nichts fällig · ${later} später` : 'Heute nichts fällig'}</div>` : '';
+  if (!list.length && off !== 0) return '';
+  return `<div class="sd-group sd-tasks"><span role="heading" aria-level="2" class="sd-label sd-catlabel">${icon('check-square-offset')}Aufgaben<button class="sd-mini" data-a="newTask" aria-label="Aufgabe hinzufügen">${icon('plus')}Neu</button><button class="sd-mini" data-a="tab" data-v="aufgaben">Alle</button></span>${list.length ? list.map(taskItem).join('') : none}</div>`;
 }
 // Verlauf (seit Version 10): Statistik, Kalender und Raster mit einem gemeinsamen Zeitraum.
 // Die Statistik kennt keinen Tag: steht der Zeitraum auf „Tag“, zeigt sie die Woche dieses Tages.
@@ -561,7 +612,7 @@ function tabRoutinen() {
   }).join('');
   const archived_ = arch.length ? `<details class="sd-arch"><summary>${icon('archive')}Archiviert<em>${arch.length}</em></summary><p>Archivierte Routinen erscheinen nicht mehr, ihre vergangenen Tage zählen aber weiter in Kalender und Statistik.</p>${arch.map(r => `<div class="sd-row ro"><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${esc(catName(r))} · ${esc(whoLabel(r))}</span></span>${canEdit(r) ? `<button class="sd-mini" data-a="restore" data-r="${r.id}">${icon('arrow-counter-clockwise')}Wiederherstellen</button><button class="sd-mini danger" data-a="purge" data-r="${r.id}" aria-label="Endgültig löschen">${icon('trash')}</button>` : icon('lock-simple')}</div>`).join('')}</details>` : '';
   const body = !all.length && !arch.length ? empty('Noch keine Routinen.', true) : (all.length ? groups : empty('Alle Routinen sind archiviert.', true)) + archived_;
-  return `<div class="sd-hdr"><div><div class="sd-sub">${all.length} ${all.length === 1 ? 'Routine' : 'Routinen'}</div><h1>Routinen</h1></div><button class="sd-btn ghost sm" data-a="openCats">${icon('folders')}Bereiche</button></div>${body}`;
+  return `<div class="sd-hdr"><div><div class="sd-sub">${all.length} ${all.length === 1 ? 'Routine' : 'Routinen'}</div><h1>Routinen</h1></div><button class="sd-btn ghost sm" data-a="openCats">${icon('folders')}Bereiche</button></div><button class="sd-btn block sd-bigadd" data-a="newRoutine">${icon('plus', 'ph-bold')}Routine hinzufügen</button>${body}`;
 }
 function taskItem(t) {
   const o = dueOff(t), late = !t.done && o !== null && o < 0;
@@ -583,6 +634,7 @@ function tabAufgaben() {
   const sub = `${open.length} offen${late ? ` · ${late} überfällig` : ''}`;
   return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>Aufgaben</h1></div></div>
   <div class="sd-tbanner"><span>${icon('sun-horizon', 'ph-fill')}Fällig für dich</span><b>${today}</b></div>
+  <button class="sd-btn block sd-bigadd sd-tbig" data-a="newTask">${icon('plus', 'ph-bold')}Aufgabe hinzufügen</button>
   ${seg([['mine', 'Für mich'], ['from', 'Vergeben'], ['all', 'Alle'], ['done', 'Erledigt']], v, 'taskView')}
   ${body || `<div class="sd-empty"><span>${none}</span></div>`}`;
 }
@@ -638,6 +690,57 @@ function shopSheetHtml() {
   ${d.open ? `<button class="sd-btn ghost block" data-a="sRemove">${icon('minus-circle')}Von der Liste nehmen</button>` : ''}
   <button class="sd-btn danger block" data-a="sDelete">${icon('trash')}Ganz löschen (auch aus den Vorschlägen)</button>
   </div></div>`;
+}
+// ---------- Ausgaben: Ansicht ----------
+function tabAusgaben() {
+  const k = ui.expMonth, mk = monthKey(k), d0 = monthStart(k);
+  const list = X().filter(x => (x.date || '').startsWith(mk)).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  const total = list.reduce((s, x) => s + x.amount, 0);
+  const month = d0.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  const prev = X().filter(x => (x.date || '').startsWith(monthKey(k - 1))).reduce((s, x) => s + x.amount, 0);
+  const byCat = EXP_CATS.map(([id, name, ic]) => ({ id, name, ic, sum: list.filter(x => (x.cat || 'sonst') === id).reduce((s, x) => s + x.amount, 0) })).filter(c => c.sum).sort((a, b) => b.sum - a.sum);
+  const cats = byCat.length ? `<div class="sd-card sd-ecats"><h2>Nach Kategorie</h2>${byCat.map(c => `<div class="sd-rate"><div class="row"><span>${icon(c.ic)} ${c.name}</span><span>${euro(c.sum)} · ${Math.round(c.sum / total * 100)} %</span></div><div class="sd-track"><div style="width:${Math.max(2, Math.round(c.sum / byCat[0].sum * 100))}%"></div></div></div>`).join('')}</div>` : '';
+  const days = [...new Set(list.map(x => x.date))];
+  const dayLabel = key => { const o = offOfKey(key); return o === 0 ? 'Heute' : o === -1 ? 'Gestern' : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }); };
+  const item = x => `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}"><span class="txt"><span class="t">${esc(x.title)}</span><span class="m">${expCat(x.cat)[1]}${x.by && x.by !== ui.me ? ` · von ${esc(data.names[x.by])}` : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b></button>`;
+  const groups = days.map(dd => `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label">${dayLabel(dd)}</span>${list.filter(x => x.date === dd).map(item).join('')}</div>`).join('');
+  const msg = ui.expMsg ? `<div class="sd-hint" role="status">${icon('info')}<span>${esc(ui.expMsg)}</span></div>` : '';
+  const nav = `<div class="sd-nav"><button class="sd-circ" data-a="expMonth" data-v="-1" aria-label="Voriger Monat">${icon('caret-left')}</button><span>${month}</span><button class="sd-circ" data-a="expMonth" data-v="1" ${k < 0 ? '' : 'disabled'} aria-label="Nächster Monat">${icon('caret-right')}</button></div>`;
+  const prevName = monthStart(k - 1).toLocaleDateString('de-DE', { month: 'long' });
+  const diff = prev && total !== prev ? ` · ${euro(Math.abs(total - prev))} ${total > prev ? 'mehr' : 'weniger'} als im ${prevName}` : '';
+  return `<div class="sd-hdr"><div><div class="sd-sub">${list.length} ${list.length === 1 ? 'Eintrag' : 'Einträge'}${diff}</div><h1>Ausgaben</h1></div></div>
+  <div class="sd-exp">
+  <form class="sd-sadd sd-eadd" data-form="exp"><input class="sd-input" data-in="expNew" value="${esc(ui.expDraft)}" placeholder="z. B. Rewe 23,80" maxlength="90" enterkeyhint="done" autocomplete="off" inputmode="text" aria-label="Neue Ausgabe"><button class="sd-btn" type="submit" aria-label="Ausgabe hinzufügen">${icon('plus', 'ph-bold')}</button></form>
+  ${msg}
+  ${nav}
+  <div class="sd-tbanner sd-ebanner"><span>${icon('wallet', 'ph-fill')}Ausgegeben</span><b>${euro(total)}</b></div>
+  ${cats}${groups || `<div class="sd-empty"><span>${k === 0 ? 'Noch keine Ausgaben in diesem Monat. Trag oben ein, wofür und wie viel, zum Beispiel „Rewe 23,80“.' : 'In diesem Monat wurde nichts eingetragen.'}</span></div>`}
+  </div>`;
+}
+function expSheetHtml() {
+  const d = ui.expEdit, enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
+  const val = (d.amount / 100).toFixed(2).replace('.', ',');
+  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-esheet" data-a="noop" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="grip"></div><div class="sd-sheethead"><h2 id="sheet-title" tabindex="-1">Ausgabe bearbeiten</h2><button class="sd-mini sd-cancel" data-a="closeSheet">Abbrechen</button></div>
+  <div class="sd-g2"><label class="sd-field">Wofür<input class="sd-input" value="${esc(d.title)}" data-in="eTitle" maxlength="80"></label><label class="sd-field">Betrag in €<input class="sd-input" value="${val}" data-in="eAmount" inputmode="decimal" maxlength="10"></label></div>
+  <div class="sd-field">Kategorie<div class="sd-chips">${EXP_CATS.map(([id, name, ic]) => `<button class="sd-chip ${d.cat === id ? 'on' : ''}" aria-pressed="${d.cat === id}" data-a="eCat" data-v="${id}">${icon(ic)}${name}</button>`).join('')}</div></div>
+  <label class="sd-field">Datum<input class="sd-input" type="date" value="${d.date}" max="${dk(0)}" data-ch="eDate"></label>
+  <button class="sd-btn block" data-a="eSave">Speichern</button>
+  <button class="sd-btn danger block" data-a="eDelete">${icon('trash')}Ausgabe löschen</button>
+  </div></div>`;
+}
+// ---------- Verwaltung (seit Version 13): Stammdaten und Einstellungen hinter einem Tab ----------
+function tabVerwaltung() {
+  const row = (v, ic, t, m, a = 'tab') => `<button class="sd-row sd-vrow" data-a="${a}" data-v="${v}"><span class="sd-vico">${icon(ic)}</span><span class="txt"><span class="t">${t}</span><span class="m">${m}</span></span>${icon('caret-right')}</button>`;
+  const open = openTasks().length;
+  return `<div class="sd-hdr"><div><div class="sd-sub">Routinen, Aufgaben und Einstellungen</div><h1>Verwaltung</h1></div></div>
+  <div class="sd-group">
+  ${row('routinen', 'list-checks', 'Routinen', `${active().length} aktiv · anlegen, ändern, archivieren`)}
+  ${row('', 'folders', 'Bereiche', `${cats().length} Bereiche für Routinen`, 'openCats')}
+  ${row('aufgaben', 'check-square-offset', 'Alle Aufgaben', `${open} offen · vergeben, erledigt`)}
+  ${row('verlauf', 'chart-line-up', 'Verlauf und Statistik', 'Kalender, Raster, Quoten')}
+  ${row('mehr', 'gear-six', 'Einstellungen', 'Namen, Darstellung, Haushalt, Daten, Version')}
+  </div>`;
 }
 const CAT_ICONS = ['heartbeat', 'barbell', 'house-line', 'users-three', 'broom', 'dots-three-circle', 'tag', 'briefcase', 'book-open', 'leaf', 'moon', 'sun', 'heart', 'brain', 'paint-brush', 'music-notes', 'baby', 'dog', 'currency-eur', 'fork-knife', 'drop', 'graduation-cap'];
 function catSheetHtml() {
@@ -804,7 +907,11 @@ darkMQ.addEventListener?.('change', applyMode);
 
 // ---------- Render ----------
 const $app = document.getElementById('app');
-const TABS = [['heute', 'sun', 'Heute'], ['verlauf', 'chart-line-up', 'Verlauf'], ['aufgaben', 'check-square-offset', 'Aufgaben'], ['einkauf', 'shopping-cart', 'Einkauf'], ['routinen', 'list-checks', 'Routinen'], ['mehr', 'gear-six', 'Mehr']];
+// Seit Version 13: vier Bereiche unten; Verlauf, Aufgaben (alle), Routinen und Einstellungen sind Unterseiten mit „Zurück“.
+const TABS = [['heute', 'sun', 'Heute'], ['einkauf', 'shopping-cart', 'Einkauf'], ['ausgaben', 'wallet', 'Ausgaben'], ['verwaltung', 'sliders-horizontal', 'Verwaltung']];
+const SUB_PARENT = { verlauf: 'heute', aufgaben: 'heute', routinen: 'verwaltung', mehr: 'verwaltung' };
+const tabLabel = k => TABS.find(t => t[0] === k)?.[2] || '';
+const parentTab = () => SUB_PARENT[ui.tab] ? (ui.back || SUB_PARENT[ui.tab]) : ui.tab;
 const scrollMem = {}; let gridMem = { key: null, left: 0 };
 function render() {
   const sc = $app.querySelector('.sd-scroll'); if (sc) scrollMem[sc.dataset.tab] = sc.scrollTop;
@@ -814,11 +921,10 @@ function render() {
   if (ui.screen === 'error') { $app.innerHTML = `<div class="sd-auth"><div class="sd-err">${esc(ui.authErr)}</div></div>`; return; }
   if (ui.screen === 'login') { $app.innerHTML = loginHtml(); return; }
   if (ui.screen === 'setup') { $app.innerHTML = setupHtml(); return; }
-  const tab = { heute: tabHeute, verlauf: tabVerlauf, aufgaben: tabAufgaben, einkauf: tabEinkauf, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
-  const fab = ui.tab === 'aufgaben' ? `<button class="sd-fab sd-tfab" data-a="newTask" aria-label="Aufgabe hinzufügen">${icon('plus')}</button>`
-    : (ui.tab === 'heute' && active().length || ui.tab === 'routinen' || ui.tab === 'verlauf' && ui.verlauf !== 'statistik') ? `<button class="sd-fab" data-a="newRoutine" aria-label="Routine hinzufügen">${icon('plus')}</button>` : '';
+  const page = { heute: tabHeute, verlauf: tabVerlauf, aufgaben: tabAufgaben, einkauf: tabEinkauf, ausgaben: tabAusgaben, verwaltung: tabVerwaltung, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
+  const cur = parentTab(), backLink = SUB_PARENT[ui.tab] ? `<button class="sd-backlink" data-a="back">${icon('caret-left', 'ph-bold')}${tabLabel(cur)}</button>` : '';
   const badge = dueNow(ui.me).length;
-  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${tab}</main>${fab}<nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${ui.tab === k ? 'on' : ''}" ${ui.tab === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, ui.tab === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}`;
+  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${backLink}${page}</main><nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, cur === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'heute' && badge ? `<em class="sd-badge" aria-label="${badge} Aufgaben fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}${ui.expEdit ? expSheetHtml() : ''}`;
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
   const ngs = $app.querySelector('.sd-gridscroll'); if (ngs) ngs.scrollLeft = ngs.dataset.key === gridMem.key ? gridMem.left : ngs.scrollWidth;
   if (focusCh) { const el = $app.querySelector(`[data-in="${focusCh}"]`); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } }
@@ -830,7 +936,21 @@ function render() {
 
 // ---------- Aktionen ----------
 const A = {
-  tab: d => { ui.tab = d.v; if (d.v === 'aufgaben') markItems('task'); if (d.v === 'routinen') markItems('routine'); render(); track('screen_view', { firebase_screen: d.v }); },
+  tab: d => { if (SUB_PARENT[d.v]) ui.back = TABS.some(t => t[0] === ui.tab) ? ui.tab : parentTab(); else ui.back = null; ui.tab = d.v; if (d.v === 'aufgaben') markItems('task'); if (d.v === 'routinen') markItems('routine'); render(); track('screen_view', { firebase_screen: d.v }); },
+  back: () => { ui.tab = parentTab(); ui.back = null; render(); },
+  expMonth: d => { ui.expMonth = Math.min(0, ui.expMonth + +d.v); render(); },
+  expEdit: d => { const x = data.exp[d.x]; if (!x) return; ui.expEdit = { ...x }; ui.sheetFresh = true; render(); },
+  eCat: d => { ui.expEdit.cat = d.v; render(); },
+  eSave: () => {
+    const d = ui.expEdit, title = (d.title || '').trim(), amount = Math.round(parseFloat(String(d.amountText ?? (d.amount / 100)).replace(',', '.')) * 100);
+    if (!title || !(amount > 0)) return alert('Bitte gib an, wofür und einen Betrag größer als 0.');
+    ui.expEdit = null; store.saveExp({ ...data.exp[d.id], title, amount, cat: d.cat, date: d.date }).catch(fail);
+  },
+  eDelete: () => {
+    const x = data.exp[ui.expEdit?.id]; if (!x) return;
+    if (!confirm(`Ausgabe „${x.title}“ (${euro(x.amount)}) löschen?`)) return;
+    ui.expEdit = null; store.deleteExp(x.id).catch(fail); track('expense_delete');
+  },
   person: d => { ui.person = d.p; ui.duo = false; render(); },
   who: d => { ui.duo = d.v === 'duo'; if (!ui.duo) ui.person = d.v; render(); track('view_change', { view: ui.duo ? 'duo' : 'person' }); },
   heuteView: d => { ui.heuteView = d.v; render(); track('view_change', { view: d.v }); },
@@ -897,7 +1017,7 @@ const A = {
   calDay: d => { Object.assign(ui.cal, { mode: 'tag', anchor: +d.o }); render(); },
   newRoutine: () => { ui.sheet = newDraft(); ui.sheetFresh = true; render(); },
   edit: d => { if (!canEdit(data.routines[d.r])) return; ui.sheet = newDraft(data.routines[d.r]); ui.sheetFresh = true; render(); },
-  closeSheet: () => { if (ui.catSheet && ui.sheet) { ui.catSheet = false; return render(); } ui.sheet = null; ui.catSheet = false; ui.task = null; ui.shopEdit = null; render(); },
+  closeSheet: () => { if (ui.catSheet && ui.sheet) { ui.catSheet = false; return render(); } ui.sheet = null; ui.catSheet = false; ui.task = null; ui.shopEdit = null; ui.expEdit = null; render(); },
   noop: () => {},
   addTpl: d => { const [, title, slot, cat] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.me, from: ui.me, cat: tplCat(cat) || guessCat(title), rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); track('routine_create', { slot, repeat: 'daily', who: ui.me, template: true }); },
   dTpl: d => { const [, title, slot, cat] = TPL[+d.v]; Object.assign(ui.sheet, { title, slot, cat: tplCat(cat) || ui.sheet.cat }); render(); },
@@ -960,7 +1080,7 @@ const A = {
   },
   me: d => store.setMe(d.v),
   export: () => {
-    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), routines: data.routines, done: data.done, tasks: data.tasks, shop: data.shop }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), routines: data.routines, done: data.done, tasks: data.tasks, shop: data.shop, exp: data.exp }, null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `superdaily-${dk(0)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
   authMode: d => { ui.authMode = d.v; ui.authErr = ''; render(); },
@@ -1017,6 +1137,15 @@ function addShop(raw) {
   store.saveShop(x).catch(fail);
   track('shop_add', { known: !!ex });
 }
+// Ausgabe eintragen: „Rewe 23,80“ → Betrag, Titel, Kategorie aus dem Text, heutiges Datum
+function addExp(raw) {
+  const { title, amount } = parseExp(raw);
+  if (!(amount > 0)) { ui.expDraft = raw; ui.expMsg = 'Bitte gib auch einen Betrag an, zum Beispiel „Rewe 23,80“.'; return render(); }
+  const t = title || 'Ausgabe', cat = guessExpCat(t);
+  ui.expDraft = ''; ui.expMsg = ''; ui.expMonth = 0;
+  store.saveExp({ id: rid(), title: t, amount, cat, by: ui.me, date: dk(0), createdAt: Date.now() }).catch(fail);
+  track('expense_add', { cat });
+}
 // Konfetti, wenn ein Tag komplett abgehakt ist. Liegt außerhalb von #app, damit render() es nicht entfernt.
 function celebrate() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -1047,6 +1176,9 @@ document.addEventListener('input', e => {
   if (k === 'shopNew') { ui.shopDraft = v; if (ui.shopMsg) { ui.shopMsg = ''; $app.querySelector('.sd-shop > .sd-hint')?.remove(); } const box = $app.querySelector('.sd-ssug'); if (box) box.innerHTML = shopSuggest(); }
   if (k === 'sTitle') { ui.shopEdit.title = v; const b = $app.querySelector('[data-a="sSave"]'); if (b) b.disabled = !v.trim(); }
   if (k === 'sQty') ui.shopEdit.qty = v;
+  if (k === 'expNew') { ui.expDraft = v; if (ui.expMsg) { ui.expMsg = ''; $app.querySelector('.sd-exp > .sd-hint')?.remove(); } }
+  if (k === 'eTitle') ui.expEdit.title = v;
+  if (k === 'eAmount') ui.expEdit.amountText = v;
   if (k === 'tTitle') { ui.task.title = v; const b = $app.querySelector('[data-a="tSave"]'); if (b) b.disabled = !v.trim(); }
   if (k === 'tNote') ui.task.note = v;
   if (k === 'setupA') ui.setup.a = v;
@@ -1057,6 +1189,7 @@ document.addEventListener('change', async e => {
   const k = e.target.dataset?.ch; if (!k) return; const v = e.target.value;
   const toOff = v => clamp(offOfKey(v));
   if (k === 'tDate') { ui.task.due = v || null; render(); }
+  if (k === 'eDate' && v && ui.expEdit) { ui.expEdit.date = v; }
   if (k === 'calFrom' && v) { ui.cal.from = toOff(v); render(); }
   if (k === 'calTo' && v) { ui.cal.to = toOff(v); render(); }
   if (k === 'catName') {
@@ -1072,6 +1205,11 @@ document.addEventListener('change', async e => {
   }
 });
 document.addEventListener('submit', async e => {
+  if (e.target.dataset.form === 'exp') {
+    e.preventDefault(); const v = e.target.querySelector('input')?.value || '';
+    if (v.trim()) addExp(v);
+    return requestAnimationFrame(() => $app.querySelector('[data-in="expNew"]')?.focus());
+  }
   if (e.target.dataset.form === 'shop') {
     e.preventDefault(); const el = e.target.querySelector('input'), v = el?.value || '';
     if (v.trim()) addShop(v);

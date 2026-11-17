@@ -26,7 +26,7 @@ test('Vorlesen: Routinen melden „erledigt“, Umschalter und Tabs melden „au
   await expect(seite.locator('.sd-who3').getByRole('button', { name: 'Simon' })).toHaveAttribute('aria-pressed', 'true');
   await expect(seite.locator('.sd-who3').getByRole('button', { name: 'Irina' })).toHaveAttribute('aria-pressed', 'false');
   await expect(seite.locator('.sd-strip button[aria-pressed="true"]')).toHaveCount(1);
-  await expect(seite.locator('.sd-tabs [aria-current="page"]')).toHaveText('Heute');
+  await expect(seite.locator('.sd-tabs [aria-current="page"]')).toContainText('Heute');
   // Abschnitte sind Überschriften
   await expect(seite.getByRole('heading', { name: 'Morgen', level: 2 })).toBeVisible();
   expect(seite.fehler).toEqual([]);
@@ -68,17 +68,18 @@ test('Kontrast: Hauptknopf, Balken in Gold und Blau, Überschrift mindestens 4,5
   }
 });
 
-test('Tippflächen und Plus-Knopf: Abhak-Kreis reagiert auf 44 px, letzter Eintrag nicht verdeckt', async ({ browser, lokal }) => {
+test('Tippflächen: Abhak-Kreis reagiert auf 44 px, letzter Eintrag nicht von der Leiste verdeckt', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
   await tab(seite, 'Aufgaben');
   // Tipp 18 px neben die Mitte des 26-px-Kreises trifft trotzdem den Kreis
   const treffer = await seite.locator('.sd-titem .sd-check').first().evaluate(el => { const r = el.getBoundingClientRect(), cx = r.x + r.width / 2, cy = r.y + r.height / 2; return [[cx - 18, cy], [cx, cy - 18], [cx, cy + 18]].map(([x, y]) => document.elementFromPoint(x, y)?.closest('.sd-check') === el); });
   expect(treffer).toEqual([true, true, true]);
   for (const sel of ['.sd-seg button']) { const h = await seite.locator(sel).first().evaluate(e => e.getBoundingClientRect().height); expect(h).toBeGreaterThanOrEqual(44); }
-  // Ganz nach unten scrollen: der letzte Eintrag endet über dem Plus-Knopf
+  // Seit Version 13 gibt es keinen schwebenden Plus-Knopf mehr; ganz unten endet der letzte Eintrag über der Leiste
+  await expect(seite.locator('.sd-fab')).toHaveCount(0);
   await seite.locator('.sd-scroll').evaluate(m => { m.scrollTop = m.scrollHeight; });
-  const [unten, fabOben] = await seite.evaluate(() => [[...document.querySelectorAll('.sd-titem')].pop().getBoundingClientRect().bottom, document.querySelector('.sd-fab').getBoundingClientRect().top]);
-  expect(unten).toBeLessThan(fabOben);
+  const [unten, leisteOben] = await seite.evaluate(() => [[...document.querySelectorAll('.sd-titem')].pop().getBoundingClientRect().bottom, document.querySelector('.sd-tabs').getBoundingClientRect().top]);
+  expect(unten).toBeLessThan(leisteOben);
   expect(seite.fehler).toEqual([]);
 });
 

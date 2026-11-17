@@ -30,7 +30,7 @@ test('Eigene Routine anlegen und abhaken', async ({ browser, lokal }) => {
 
 test('Alle Bildschirme öffnen ohne Fehler', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
-  for (const [name, ueberschrift] of [['Verlauf', 'Verlauf'], ['Aufgaben', 'Aufgaben'], ['Einkauf', 'Einkauf'], ['Routinen', 'Routinen'], ['Mehr', 'Einstellungen'], ['Heute', 'Heute']]) {
+  for (const [name, ueberschrift] of [['Verlauf', 'Verlauf'], ['Aufgaben', 'Aufgaben'], ['Einkauf', 'Einkauf'], ['Ausgaben', 'Ausgaben'], ['Verwaltung', 'Verwaltung'], ['Routinen', 'Routinen'], ['Mehr', 'Einstellungen'], ['Heute', 'Heute']]) {
     await tab(seite, name);
     await expect(seite.locator('.sd-hdr h1')).toHaveText(ueberschrift);
   }
@@ -51,7 +51,7 @@ test('Vorleseprogramme: Symbole sind ausgeblendet, Knöpfe heißen nur wie ihr T
   const seite = await oeffneHandy(browser, lokal);
   await expect(seite.getByRole('button', { name: 'Eigene Routine anlegen', exact: true })).toBeVisible();
   await seite.getByRole('button', { name: 'Vitamine nehmen' }).click();
-  for (const name of ['Heute', 'Verlauf', 'Aufgaben', 'Einkauf', 'Routinen', 'Mehr']) {
+  for (const name of ['Heute', 'Einkauf', 'Ausgaben', 'Verwaltung']) {
     await expect(seite.locator('.sd-tabs').getByRole('button', { name, exact: true })).toHaveCount(1);
   }
   await tab(seite, 'Routinen');

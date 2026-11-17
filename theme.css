@@ -321,7 +321,7 @@ button.sd-dcell:active{transform:scale(.94)}
 [data-sd] .sd-brand h1{color:var(--color-accent-300)}
 [data-sd="dark"] .sd-brand h1{color:var(--color-accent-400)}
 /* Aufgaben: Balken und Plus mit dunkler Schrift auf hellem Gold */
-.sd-tbanner:not(.sd-sbanner){background:linear-gradient(135deg,#fde047,#facc15 55%,#eab308);color:#3b2a00}
+.sd-tbanner:not(.sd-sbanner):not(.sd-ebanner){background:linear-gradient(135deg,#fde047,#facc15 55%,#eab308);color:#3b2a00}
 .sd-tfab,.sd-tfab:active{color:#3b2a00}
 [data-sd="light"] .sd-tasks .sd-mini{color:var(--color-accent-200)}
 /* Einkauf: Blau dunkel genug für weiße Schrift */
@@ -342,3 +342,43 @@ button.sd-dcell:active{transform:scale(.94)}
 .sd-sheethead{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .sd-sheethead h2{font-size:20px;margin:0;font-weight:700;outline:none}
 .sd-sheethead .sd-cancel{min-height:40px;padding:6px 14px}
+
+/* ---------- Version 13: vier Bereiche, Unterseiten, Ausgaben (Violett) ---------- */
+.sd-tabs{grid-template-columns:repeat(4,1fr)}
+.sd-tab span{font-size:11.5px}
+.sd-backlink{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;min-height:44px;margin:-10px 0 -12px -8px;padding:0 10px 0 4px;border:0;border-radius:12px;background:transparent;color:var(--color-accent-300);font:600 15px var(--font-body);cursor:pointer}
+.sd-backlink i{font-size:18px}
+.sd-bigadd{min-height:56px;font-size:16px;gap:10px}
+.sd-bigadd i{font-size:22px}
+.sd-tbig{background:linear-gradient(135deg,#fde047,#facc15 55%,#eab308)!important;color:#3b2a00!important}
+.sd-tnone{font-size:14px;color:var(--color-neutral-500);padding:4px 2px}
+.sd-tasks .sd-catlabel .sd-mini + .sd-mini{margin-left:6px}
+.sd-vrow{min-height:68px;gap:14px}
+.sd-vico{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--color-accent-900);color:var(--color-accent-300);font-size:20px}
+.sd-vrow > i:last-child{color:var(--color-neutral-500)}
+/* Ausgaben: eigene Rampe Violett */
+[data-sd="light"] :is(.sd-scroll[data-tab="ausgaben"],.sd-tab[data-v="ausgaben"],.sd-esheet){
+  --color-accent:#6d28d9;--color-accent-100:#2e1065;--color-accent-200:#4c1d95;--color-accent-300:#6d28d9;--color-accent-400:#8b5cf6;--color-accent-500:#a78bfa;
+  --color-accent-600:#c4b5fd;--color-accent-700:#ddd6fe;--color-accent-800:#ede9fe;--color-accent-900:#f5f3ff;
+  --sd-grad:linear-gradient(135deg,#7c3aed,#6d28d9 55%,#5b21b6);--sd-pink:#8b5cf6}
+[data-sd="dark"] :is(.sd-scroll[data-tab="ausgaben"],.sd-tab[data-v="ausgaben"],.sd-esheet){
+  --color-accent:#a78bfa;--color-accent-100:#f5f3ff;--color-accent-200:#ede9fe;--color-accent-300:#ddd6fe;--color-accent-400:#c4b5fd;--color-accent-500:#a78bfa;
+  --color-accent-600:#8b5cf6;--color-accent-700:#6d28d9;--color-accent-800:#4c1d95;--color-accent-900:#2e1065;
+  --sd-grad:linear-gradient(135deg,#7c3aed,#6d28d9 55%,#5b21b6);--sd-pink:#a78bfa}
+[data-sd="light"] .sd-scroll[data-tab="ausgaben"]{background:linear-gradient(180deg,#ece4ff 0%,#f8f5ff 40%)}
+[data-sd="dark"] .sd-scroll[data-tab="ausgaben"]{background:radial-gradient(120% 55% at 50% -10%,#24134a 0%,transparent 65%)}
+[data-sd="light"] body:has(.sd-scroll[data-tab="ausgaben"]){background:radial-gradient(120% 55% at 50% -10%,#ede9fe 0%,var(--color-bg) 62%) fixed}
+[data-sd="dark"] body:has(.sd-scroll[data-tab="ausgaben"]){background:radial-gradient(120% 60% at 50% -10%,#24134a 0%,var(--color-bg) 60%) fixed}
+#app:has(.sd-scroll[data-tab="ausgaben"])::before{background:#a78bfa}
+[data-sd="dark"] #app:has(.sd-scroll[data-tab="ausgaben"])::before,[data-sd="dark"] #app:has(.sd-scroll[data-tab="ausgaben"])::after{background:#4c1d95}
+.sd-exp{display:flex;flex-direction:column;gap:14px}
+.sd-ebanner,.sd-eadd .sd-btn:not(.ghost):not(.danger){background:linear-gradient(135deg,#7c3aed,#6d28d9 55%,#5b21b6);color:#fff}
+.sd-ebanner b{font-variant-numeric:tabular-nums}
+.sd-ecats{display:flex;flex-direction:column;gap:12px}
+.sd-ecats .sd-rate .row span:first-child{display:inline-flex;align-items:center;gap:6px}
+.sd-ecats .sd-track > div{background:var(--sd-grad)}
+.sd-erow{min-height:60px}
+.sd-eamt{flex:none;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.sd-eadd .sd-btn i,.sd-sadd .sd-btn i{font-size:24px}
+.sd-sadd .sd-input{min-height:52px;font-size:16px}
+.sd-sadd{grid-template-columns:minmax(0,1fr) 56px}

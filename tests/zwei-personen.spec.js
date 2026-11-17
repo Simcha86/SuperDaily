@@ -206,7 +206,7 @@ test('Vorgeben: Irina gibt Simon eine Routine und eine Aufgabe – Simon sieht �
 
   // Antippen öffnet den Tab, danach ist der Hinweis weg – auch nach Neuladen
   await simon.getByRole('button', { name: '1 neue Aufgabe von Irina' }).click();
-  await expect(simon.locator('.sd-tab.on')).toContainText('Aufgaben');
+  await expect(simon.locator('.sd-hdr h1')).toHaveText('Aufgaben');
   await expect(simon.locator('.sd-titem', { hasText: 'Reifen wechseln' })).toBeVisible();
   await tab(simon, 'Heute');
   await expect(simon.getByRole('button', { name: /neue Aufgabe/ })).toHaveCount(0);
@@ -315,4 +315,20 @@ test('Haushalt anlegen: keine vorbelegten Namen, leere Felder werden zu „Perso
   await tab(seite, 'Heute');
   await expect(seite.locator('.sd-who3 button')).toHaveText(['Person 1', 'Person 2', 'Duo']);
   expect(seite.fehler).toEqual([]);
+});
+
+test('Ausgaben: Simon trägt ein, Irina sieht es sofort und kann es ändern', async ({ browser, emulator }) => {
+  const { simon, irina } = await haushalt(browser, emulator);
+  await tab(simon, 'Ausgaben'); await tab(irina, 'Ausgaben');
+  await simon.locator('[data-in="expNew"]').fill('Rewe 23,80');
+  await simon.locator('[data-in="expNew"]').press('Enter');
+  const zeile = irina.locator('.sd-erow', { hasText: 'Rewe' });
+  await expect(zeile).toContainText('23,80');
+  await expect(zeile).toContainText('Lebensmittel · von Simon');
+  await expect(irina.locator('.sd-ebanner')).toContainText('23,80');
+  await zeile.click();
+  await irina.locator('[data-in="eAmount"]').fill('25');
+  await irina.getByRole('button', { name: 'Speichern' }).click();
+  await expect(simon.locator('.sd-erow', { hasText: 'Rewe' })).toContainText('25,00');
+  expect([...simon.fehler, ...irina.fehler]).toEqual([]);
 });

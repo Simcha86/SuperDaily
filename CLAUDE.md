@@ -27,6 +27,7 @@ Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Biblioth
 - Das Design heißt **Minze** (Türkis bis Limette, Schrift Plus Jakarta Sans, hell und dunkel). Simon findet es gut: **nicht verändern**, nur auf seinen Wunsch.
 - Neue Teile aus vorhandenen Bausteinen bauen (`sd-card`, `sd-row`, `sd-item`, `sd-chip`, `sd-opt`, `sd-btn`, `sd-hint`, `sd-mini`, Bottom-Sheet `sd-sheet`) und Farben nur über die Tokens (`--color-accent-…`, `--color-neutral-…`, `--sd-grad`, `--sd-a`/`--sd-b`).
 - Der Bereich **Aufgaben** hat eine eigene Akzentfarbe **Senfgold** (Simons Wunsch): eigene Rampe für `.sd-scroll[data-tab="aufgaben"]`, `.sd-tasks`, `.sd-tfab`, `.sd-tsheet` am Ende von `theme.css`.
+- Der Bereich **Ausgaben** (seit Version 13) hat die Akzentfarbe **Violett**: eigene Rampe für `.sd-scroll[data-tab="ausgaben"]`, `.sd-tab[data-v="ausgaben"]`, `.sd-esheet`, Balken `.sd-ebanner`.
 - Der Bereich **Einkauf** (seit Version 10) hat die Akzentfarbe **Ozeanblau** (seit Version 11, Simons Wahl; vorher Koralle, war ihm zu wenig unterscheidbar) mit farbigem Hintergrund, Leuchten (`body:has(...)`, `#app:has(...)`) und Balken „Auf der Liste“: eigene Rampe für `.sd-scroll[data-tab="einkauf"]`, `.sd-tab[data-v="einkauf"]`, `.sd-ssheet` am Ende von `theme.css`. Alles andere bleibt Minze.
 - Seit Version 12 (Marktreife-Check): Überschriften einfarbig (kein Verlaufstext), im hellen Modus dunkle Schrift auf Verläufen (`--sd-on`), Balken und Knöpfe mit mindestens 4,5 : 1 Kontrast, Tippflächen mindestens 44 px (kleine Kreise mit unsichtbar vergrößerter Trefferfläche). Neue Teile genauso bauen; `tests/klick/barrierefreiheit.spec.js` prüft das.
 - Begriffe: „Gemeinsam“ = ein Haken für beide (`s`), „Jeder für sich“ = beide einzeln (`ab`). Keine echten Namen als Standard; Haushalt anlegen mit „Dein Name“ (Person 1) und „Name der zweiten Person“.
@@ -40,6 +41,7 @@ Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Biblioth
 - **Alle sehen alles.** Abhaken dürfen beide bei allen Routinen, auch für die andere Person (seit Version 7). Seit Version 11 dürfen beide auch alle Routinen anlegen (auch für die andere Person), bearbeiten, archivieren und löschen. Feld `from` = wer angelegt hat; ist die Routine für die andere Person, zeigt die App „vorgegeben von …“ (`givenBy`). Die Regeln erlauben `from` beim Anlegen nur als eigene Rolle (`myRole`) und danach unverändert; ältere Routinen haben kein `from`.
 - **Aufgaben** (seit Version 7): beide dürfen alle Aufgaben vergeben, abhaken, ändern und löschen. Aufgabe `to`: `a`, `b` oder `s` (gemeinsam), `from`: wer sie vergeben hat.
 - **Einkauf** (seit Version 10): beide dürfen alles hinzufügen, abhaken, ändern und löschen.
+- **Ausgaben** (seit Version 13): beide dürfen alles eintragen, ändern und löschen. Nur Überblick, kein Ausgleich zwischen den Personen.
 - Rechte immer zweifach umsetzen: in der App (Bedienung ausblenden) **und** in `firestore.rules` (durchsetzen).
 - „Heute“ hat seit Version 9 den Umschalter Simon | Irina | Duo (`whoSeg`, `ui.duo`); Duo zeigt beide nebeneinander (`duoListView`, `duoTilesView`). Abhak-Knöpfe tragen `data-p` für die Person; `A.toggle` nimmt sonst `ui.person`.
 - Hinweise „Neu von …“ auf Heute (seit Version 11): neue Aufgaben und vorgegebene Routinen der anderen Person seit dem letzten Blick; pro Gerät und Person in `localStorage` (`superdaily-seen-items`), beim ersten Start „jetzt“.
@@ -54,16 +56,19 @@ households/{code}/routines/{id}          Routine (inkl. hist, cat, from)
 households/{code}/days/{a|b|s}_{Datum}   { routineId: true }
 households/{code}/tasks/{id}             Aufgabe { title, note, from, to, due, done, doneAt, doneBy, createdAt }
 households/{code}/shop/{id}              Einkauf { title, qty, aisle, open, done, count, by, addedAt, doneAt }
+households/{code}/expenses/{id}          Ausgabe { title, amount (Cent, ganze Zahl), cat, by, date, createdAt }
 ```
 
 - Neue Felder im Haushalt-Dokument müssen in `firestore.rules` bei `affectedKeys().hasOnly([...])` freigegeben werden, sonst schlägt das Speichern fehl.
 - Firestore-Regeln können keine Listen oder Maps durchlaufen. Deshalb liegen Routinen und Haken als eigene Dokumente, damit pro Dokument geprüft werden kann.
 - Haken-Dokumente heißen `<Rolle>_<Datum>`; die Regeln prüfen das Präfix.
+- Ausgaben: Betrag immer in Cent als ganze Zahl (Regeln prüfen `is int`). Eingabe als ein Satz („Rewe 23,80“) über `parseExp`, Kategorie über `EXP_CATS`/`EXP_WORDS`.
 - Einkauf: ein Dokument je Produkt (gleicher Name = gleiches Dokument). `open` = steht auf der Liste, `done` = im Wagen, `count` = wie oft gekauft (für Vorschläge). „Erledigte löschen“ setzt `open: false`, das Dokument bleibt; nur „Ganz löschen“ entfernt es. Bereiche (`aisle`) und Erkennung nach Wortteilen: `AISLES`, `AISLE_WORDS` in `app.js`.
 
 ## Verlauf und Statistik
 
-- Tab **Verlauf** (seit Version 10) mit Umschalter Statistik | Kalender | Raster (`ui.verlauf`, Statistik zuerst) und einem gemeinsamen Zeitraum `ui.cal`; in der Statistik wird „Tag“ zur Woche (`verlaufRange`). Leiste: Heute · Verlauf · Aufgaben · Einkauf · Routinen · Mehr.
+- **Navigation seit Version 13:** Leiste unten mit vier Bereichen `TABS` = Heute · Einkauf · Ausgaben · Verwaltung. Unterseiten (`SUB_PARENT`): Verlauf und Aufgaben gehören zu Heute, Routinen und Einstellungen (`mehr`) zur Verwaltung; sie zeigen oben „Zurück“ (`ui.back`). Kein schwebender Plus-Knopf mehr, sondern große Knöpfe oben (`.sd-bigadd`). In Tests öffnet `tab(seite, 'Routinen'|'Aufgaben'|'Verlauf'|'Mehr')` die Unterseite über die Verwaltung.
+- **Verlauf** (seit Version 10) mit Umschalter Statistik | Kalender | Raster (`ui.verlauf`, Statistik zuerst) und einem gemeinsamen Zeitraum `ui.cal`; in der Statistik wird „Tag“ zur Woche (`verlaufRange`).
 
 - **Vergangenheit bleibt richtig:** Ändert sich Wiederholung oder Person einer Routine, wird die alte Einstellung in `hist` mit `until` = gestern gespeichert (`addVersion`). Berechnungen fragen pro Tag `repAt`/`whoAt`. Nie die aktuelle Einstellung rückwirkend anwenden.
 - **Archivieren statt Löschen:** `rep.type = 'off'`; endgültiges Löschen nur über das Archiv.
@@ -86,7 +91,7 @@ Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
 3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
 4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen; Simon veröffentlicht sie **vor** dem Merge.
 
-Aktueller Stand: Version 12, `CACHE = 'superdaily-v13'`.
+Aktueller Stand: Version 13, `CACHE = 'superdaily-v14'`.
 
 ## Testen
 

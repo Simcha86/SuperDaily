@@ -3,9 +3,9 @@ import { test, expect, oeffneHandy, tab } from '../hilfen.js';
 
 const ansicht = seite => seite.locator('.sd-seg').first();
 
-test('Leiste: Heute · Verlauf · Aufgaben · Einkauf · Routinen · Mehr', async ({ browser, lokal }) => {
+test('Leiste: Heute · Einkauf · Ausgaben · Verwaltung (seit Version 13)', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
-  await expect(seite.locator('.sd-tabs .sd-tab span')).toHaveText(['Heute', 'Verlauf', 'Aufgaben', 'Einkauf', 'Routinen', 'Mehr']);
+  await expect(seite.locator('.sd-tabs .sd-tab span')).toHaveText(['Heute', 'Einkauf', 'Ausgaben', 'Verwaltung']);
   // Beschriftungen passen ohne Abschneiden
   const abgeschnitten = await seite.locator('.sd-tabs .sd-tab span').evaluateAll(l => l.filter(s => s.scrollWidth > s.clientWidth).map(s => s.textContent));
   expect(abgeschnitten).toEqual([]);
