@@ -4,9 +4,11 @@ Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei j
 
 ## Version 15 · 17. November 2026 · [Release Notes](docs/releases/v15/RELEASE-NOTES.md)
 
-- **Ausgaben:** Kategorie schon beim Eintragen wählen – die App markiert ihren Vorschlag, ein Tipp ändert ihn.
-- **Ausgaben:** Stift an jedem Eintrag; Antippen öffnet Ändern und Löschen. Nach dem Eintragen zeigt die App, was gespeichert wurde.
+- **Ausgaben mit Kategorie und Unterkategorie** (beides Pflicht), beim Eintragen wählbar; die App schlägt beides vor.
+- **Ausgaben-Kategorien selbst pflegen** unter Verwaltung → Ausgaben-Kategorien: anlegen, umbenennen, Symbol, archivieren (benutzte) oder löschen (unbenutzte), zurückholen.
+- **Ausgaben:** Stift an jedem Eintrag; Antippen öffnet Ändern und Löschen. Monatsüberblick zeigt nach Antippen die Unterkategorien.
 - **Zurück-Taste am Handy** schließt erst Fenster und Unterseiten und führt zu „Heute“, statt die App sofort zu verlassen.
+- Firebase-Regeln geändert (`ecats` im Haushalt, `sub` an der Ausgabe); Veröffentlichung automatisch beim Merge.
 
 ## Version 14 · 17. November 2026 · [Release Notes](docs/releases/v14/RELEASE-NOTES.md)
 

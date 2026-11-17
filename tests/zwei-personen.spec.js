@@ -324,11 +324,17 @@ test('Ausgaben: Simon trägt ein, Irina sieht es sofort und kann es ändern', as
   await simon.locator('[data-in="expNew"]').press('Enter');
   const zeile = irina.locator('.sd-erow', { hasText: 'Rewe' });
   await expect(zeile).toContainText('23,80');
-  await expect(zeile).toContainText('Lebensmittel · Simon');
+  await expect(zeile).toContainText('Lebensmittel › Supermarkt · Simon');
   await expect(irina.locator('.sd-ebanner')).toContainText('23,80');
   await zeile.click();
   await irina.locator('[data-in="eAmount"]').fill('25');
   await irina.getByRole('button', { name: 'Speichern' }).click();
   await expect(simon.locator('.sd-erow', { hasText: 'Rewe' })).toContainText('25,00');
+  // Version 15: Irina benennt eine Unterkategorie in der Verwaltung um, Simon sieht es sofort (Regeln erlauben ecats)
+  await irina.locator('.sd-tabs').getByRole('button', { name: 'Verwaltung' }).click();
+  await irina.locator('.sd-vrow').filter({ hasText: /^Ausgaben-Kategorien/ }).click();
+  const feld = irina.getByLabel('Name der Unterkategorie Supermarkt');
+  await feld.fill('Discounter'); await feld.blur();
+  await expect(simon.locator('.sd-erow', { hasText: 'Rewe' })).toContainText('Lebensmittel › Discounter');
   expect([...simon.fehler, ...irina.fehler]).toEqual([]);
 });

@@ -115,6 +115,13 @@ await t('Fremder sieht keine Ausgaben', assertFails(getDoc(AU(fremd, 'x1'))));
 await t('Fremder trägt nichts ein', assertFails(setDoc(AU(fremd, 'x9'), { ...rewe, id: 'x9' })));
 await t('Ausgabe mit Notiz', assertSucceeds(setDoc(AU(irina, 'x1'), { ...rewe, note: 'Wocheneinkauf' })));
 await t('Notiz über 500 Zeichen abgelehnt', assertFails(setDoc(AU(irina, 'x1'), { ...rewe, note: 'x'.repeat(501) })));
+// Zwei Ebenen (Version 15): Unterkategorie und Kategorien-Liste im Haushalt
+await t('Ausgabe mit Unterkategorie', assertSucceeds(setDoc(AU(simon, 'x3'), { ...rewe, id: 'x3', sub: 'supermarkt' })));
+await t('Unterkategorie zu lang abgelehnt', assertFails(setDoc(AU(simon, 'x4'), { ...rewe, id: 'x4', sub: 'x'.repeat(21) })));
+await t('Irina pflegt Ausgaben-Kategorien', assertSucceeds(updateDoc(doc(irina, 'households', H), { ecats: [{ id: 'essen', name: 'Essen', icon: 'tag', subs: [{ id: 's1', name: 'Markt' }] }] })));
+await t('Ausgaben-Kategorien müssen eine Liste sein', assertFails(updateDoc(doc(irina, 'households', H), { ecats: 'kaputt' })));
+await t('Fremder ändert keine Ausgaben-Kategorien', assertFails(updateDoc(doc(fremd, 'households', H), { ecats: [] })));
+await t('Ausgaben-Kategorien schmuggeln keine Rolle mit', assertFails(updateDoc(doc(irina, 'households', H), { ecats: [], 'roles.uidIrina': 'a' })));
 await t('Irina löscht die Ausgabe', assertSucceeds(deleteDoc(AU(irina, 'x1'))));
 console.log(`\n${pass} bestanden, ${failN} fehlgeschlagen`);
 await env.cleanup(); process.exit(failN ? 1 : 0);

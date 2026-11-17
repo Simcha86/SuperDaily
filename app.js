@@ -22,7 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
-  { v: 15, date: '2026-11-17', items: ['Ausgaben: Kategorie schon beim Eintragen wählen – die App schlägt eine vor, ein Tipp ändert sie', 'Ausgaben ändern oder löschen: Stift an jedem Eintrag, Antippen öffnet das Bearbeiten', 'Nach dem Eintragen zeigt die App, was gespeichert wurde', 'Zurück-Taste am Handy: schließt erst Fenster und Unterseiten, führt dann zu „Heute“ – die App bleibt offen'] },
+  { v: 15, date: '2026-11-17', items: ['Ausgaben mit Kategorie und Unterkategorie, z. B. Tanken & Auto › Tanken – beim Eintragen wählen, die App schlägt vor', 'Ausgaben-Kategorien selbst pflegen: Verwaltung → Ausgaben-Kategorien (anlegen, umbenennen, archivieren)', 'Ausgaben ändern oder löschen: Stift an jedem Eintrag', 'Zurück-Taste am Handy: schließt erst Fenster und Unterseiten, führt dann zu „Heute“ – die App bleibt offen'] },
   { v: 14, date: '2026-11-17', items: ['Aufgaben haben unten einen eigenen Bereich, in Senfgold', 'Die Zahl der fälligen Aufgaben steht jetzt am Bereich „Aufgaben“', 'Auf „Heute“ bleiben die wichtigsten Aufgaben oben, mit „Neu“ und „Alle“'] },
   { v: 13, date: '2026-11-17', items: ['Neu: Ausgaben – Geschäft und Betrag in einem Satz („Rewe 23,80“), Monatssumme, Tagessummen und Kategorien wie in SuperFinance', 'Unten nur noch vier Bereiche: Heute, Einkauf, Ausgaben, Verwaltung', 'Routinen, alle Aufgaben, Verlauf und Einstellungen findet ihr unter Verwaltung; Verlauf auch oben auf Heute'] },
   { v: 12, date: '2026-11-16', items: ['Besser lesbar: kräftigere Knöpfe und Überschriften, größere Tippflächen', 'Eingaben mit „Abbrechen“, der Plus-Knopf verdeckt nichts mehr', 'Verständlichere Texte: „Gemeinsam“ und „Jeder für sich“, klare Fehlermeldungen', 'Besser mit Vorlesefunktion: „erledigt“ und „ausgewählt“ werden angesagt'] },
@@ -46,10 +46,10 @@ try { const v = +localStorage.getItem(SEEN); seenVersion = v || APP_VERSION; if 
 const markSeen = () => { seenVersion = APP_VERSION; try { localStorage.setItem(SEEN, APP_VERSION); } catch {} };
 
 // ---------- Daten ----------
-const data = { names: { a: 'Person 1', b: 'Person 2' }, routines: {}, done: {}, cats: null, tasks: {}, shop: {}, exp: {} };
+const data = { names: { a: 'Person 1', b: 'Person 2' }, routines: {}, done: {}, cats: null, ecats: null, tasks: {}, shop: {}, exp: {} };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
-  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '', back: null, expMonth: 0, expDraft: '', expMsg: '', expEdit: null, expCat: null, expDraftCat: null,
+  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '', back: null, expMonth: 0, expDraft: '', expMsg: '', expEdit: null, expCat: null, expDraftCat: null, expDraftSub: null, ecDraft: '', esDraft: {},
   // Verlauf (seit Version 10): ein Zeitraum für Statistik, Kalender und Raster; Start: letzte 30 Tage
   cal: { mode: 'zeitraum', anchor: 0, from: -29, to: 0 },
   sheet: null, catSheet: false, authMode: 'login', authErr: '', setupErr: '', busy: false,
@@ -207,29 +207,53 @@ function parseShop(raw) {
 
 // ---------- Ausgaben (seit Version 13) ----------
 // { id, title, amount (Cent, ganze Zahl), cat, by: 'a'|'b', date: 'JJJJ-MM-TT', createdAt }. Nur Überblick, kein Ausgleich.
-// Kategorien wie die Startliste von SuperFinance (Simons Ausgabenbuch); Geschäft = Titel.
-const EXP_CATS = [['essen', 'Lebensmittel', 'shopping-cart'], ['drogerie', 'Drogerie', 'spray-bottle'], ['haushalt', 'Haushalt', 'broom'],
-  ['auto', 'Tanken & Auto', 'car'], ['kleidung', 'Kleidung', 't-shirt'], ['gesundheit', 'Gesundheit', 'first-aid'],
-  ['restaurant', 'Restaurant & Café', 'fork-knife'], ['freizeit', 'Freizeit', 'confetti'], ['geschenke', 'Geschenke', 'gift'],
-  ['garten', 'Haus & Garten', 'plant'], ['sonst', 'Sonstiges', 'dots-three-circle']];
+// Kategorien (seit Version 15) mit zwei Ebenen: Hauptkategorie und Unterkategorie, beide Pflicht beim Eintragen.
+// Startliste wie SuperFinance (Hauptkategorien) mit Vorschlägen für Unterkategorien; in der Verwaltung änderbar (data.ecats).
+// Benutzte Kategorien werden archiviert (off: true), unbenutzte ganz gelöscht. Ausgaben speichern cat (Haupt-ID) und sub (Unter-ID).
+const EXP_START = [
+  ['essen', 'Lebensmittel', 'shopping-cart', 'supermarkt:Supermarkt baecker:Bäckerei metzger:Metzgerei getraenke:Getränke'],
+  ['drogerie', 'Drogerie', 'spray-bottle', 'pflege:Körperpflege kosmetik:Kosmetik baby:Baby_&_Kind'],
+  ['haushalt', 'Haushalt', 'broom', 'putzen:Putz-_&_Waschmittel einrichtung:Einrichtung elektro:Elektronik'],
+  ['auto', 'Tanken & Auto', 'car', 'tanken:Tanken werkstatt:Werkstatt_&_TÜV parken:Parken_&_Maut waschen:Waschen_&_Pflege'],
+  ['kleidung', 'Kleidung', 't-shirt', 'kleidung:Kleidung schuhe:Schuhe'],
+  ['gesundheit', 'Gesundheit', 'first-aid', 'apotheke:Apotheke arzt:Arzt_&_Zahnarzt brille:Brille_&_Optiker'],
+  ['restaurant', 'Restaurant & Café', 'fork-knife', 'restaurant:Restaurant cafe:Café imbiss:Imbiss_&_Lieferdienst'],
+  ['freizeit', 'Freizeit', 'confetti', 'kultur:Kino_&_Kultur sport:Sport_&_Bad ausflug:Ausflüge'],
+  ['geschenke', 'Geschenke', 'gift', 'geburtstag:Geburtstag feste:Feiertage blumen:Blumen'],
+  ['garten', 'Haus & Garten', 'plant', 'baumarkt:Baumarkt garten:Garten moebel:Möbel'],
+  ['sonst', 'Sonstiges', 'dots-three-circle', 'sonst:Sonstiges']
+].map(([id, name, icon, subs]) => ({ id, name, icon, subs: subs.split(' ').map(x => { const [sid, n] = x.split(':'); return { id: sid, name: n.replace(/_/g, ' ') }; }) }));
+const EXP_ICONS = ['shopping-cart', 'spray-bottle', 'broom', 'car', 't-shirt', 'first-aid', 'fork-knife', 'confetti', 'gift', 'plant', 'dots-three-circle', 'tag', 'house', 'baby', 'paw-print', 'airplane', 'graduation-cap', 'heartbeat', 'barbell', 'book-open', 'phone', 'wifi-high', 'lightning', 'bank', 'piggy-bank', 'briefcase', 'bicycle', 'bus', 'coffee', 'game-controller', 'film-strip', 'pill', 'scissors', 'wrench', 'television'];
+// Wortteile → Haupt|Unter. Reihenfolge zählt: der erste Treffer gilt.
 const EXP_WORDS = [
-  ['auto', 'tank ^aral ^shell ^esso benzin diesel werkstatt ^tüv ^auto parken parkhaus waschanlage reifen'],
-  ['gesundheit', 'apotheke ^arzt zahnarzt medikament brille physio optiker'],
-  ['drogerie', 'drogerie ^dm ^rossmann ^müller kosmetik'],
-  ['restaurant', 'restaurant ^café ^cafe pizza ^döner lieferando ^bar ^bistro imbiss mcdonald burger sushi'],
-  ['freizeit', 'kino konzert ausflug museum schwimmbad ^zoo theater freizeitpark ^eintritt'],
-  ['geschenke', 'geschenk geburtstag blumen'],
-  ['kleidung', 'kleidung schuhe ^jacke ^hose ^h&m zara ^c&a ^primark'],
-  ['garten', 'baumarkt ^obi hornbach bauhaus garten pflanze ^erde werkzeug möbel ikea'],
-  ['haushalt', 'haushalt putz waschmittel ^tchibo ^kik geschirr'],
-  ['essen', 'rewe edeka aldi lidl netto penny kaufland supermarkt bäcker metzger markt lebensmittel einkauf wocheneinkauf']];
+  ['auto|tanken', 'tank ^aral ^shell ^esso benzin diesel ^jet ^total'], ['auto|werkstatt', 'werkstatt ^tüv reifen ^atu ^auto'], ['auto|parken', 'parken parkhaus maut'], ['auto|waschen', 'waschanlage'],
+  ['gesundheit|apotheke', 'apotheke medikament'], ['gesundheit|arzt', '^arzt zahnarzt physio'], ['gesundheit|brille', 'brille optiker ^fielmann'],
+  ['drogerie|kosmetik', 'kosmetik ^douglas'], ['drogerie|pflege', 'drogerie ^dm ^rossmann ^müller'],
+  ['restaurant|imbiss', '^döner lieferando imbiss mcdonald burger pizza'], ['restaurant|cafe', '^café ^cafe ^starbucks'], ['restaurant|restaurant', 'restaurant ^bar ^bistro sushi'],
+  ['freizeit|kultur', 'kino konzert museum theater'], ['freizeit|sport', 'schwimmbad ^sport ^fitness'], ['freizeit|ausflug', 'ausflug ^zoo freizeitpark ^eintritt'],
+  ['geschenke|blumen', 'blumen'], ['geschenke|geburtstag', 'geschenk geburtstag'],
+  ['kleidung|schuhe', 'schuhe ^deichmann'], ['kleidung|kleidung', 'kleidung ^jacke ^hose ^h&m zara ^c&a ^primark'],
+  ['garten|moebel', 'möbel ikea'], ['garten|baumarkt', 'baumarkt ^obi hornbach bauhaus werkzeug'], ['garten|garten', 'garten pflanze ^erde'],
+  ['haushalt|putzen', 'putz waschmittel'], ['haushalt|elektro', '^saturn mediamarkt elektro'], ['haushalt|einrichtung', 'haushalt ^tchibo ^kik geschirr'],
+  ['essen|baecker', 'bäcker ^backwerk'], ['essen|metzger', 'metzger'], ['essen|getraenke', 'getränke'],
+  ['essen|supermarkt', 'rewe edeka aldi lidl netto penny kaufland supermarkt markt lebensmittel einkauf wocheneinkauf']];
 const EXP_RE = EXP_WORDS.map(([id, w]) => [id, new RegExp(w.split(' ').map(x => x[0] === '^' ? `(?:^|[\\s-])${x.slice(1).replace(/[&]/g, '\\$&')}` : x).join('|'), 'i')]);
-const guessExpCat = t => EXP_RE.find(([, re]) => re.test(t))?.[0] || 'sonst';
+const ecats = () => data.ecats || EXP_START;
+const ecat = id => ecats().find(c => c.id === id) || { id, name: id === 'sonst' ? 'Sonstiges' : 'Ohne Kategorie', icon: 'tag', subs: [] };
+const esub = (cid, sid) => ecat(cid).subs.find(x => x.id === sid);
+const liveCats = () => ecats().filter(c => !c.off);
+const liveSubs = cid => ecat(cid).subs.filter(x => !x.off);
+// Nur wählbare Paare vorschlagen: archivierte oder gelöschte Kategorien fallen weg
+const okPair = (cat, sub) => { const c = ecats().find(x => x.id === cat); if (!c || c.off) return null; const u = c.subs.find(x => x.id === sub && !x.off); const live = c.subs.filter(x => !x.off); return { cat, sub: u ? sub : live.length === 1 ? live[0].id : null }; };
+const guessExp = t => { const hit = EXP_RE.find(([, re]) => re.test(t)); const [c, u] = (hit?.[0] || 'sonst|sonst').split('|'); return okPair(c, u) || okPair('sonst', 'sonst') || { cat: liveCats()[0]?.id, sub: null }; };
 // Wie in SuperFinance: bekanntes Geschäft → die zuletzt dafür gewählte Kategorie
 const lastForShop = t => X().filter(x => norm(x.title) === norm(t)).sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))[0];
-const suggestExpCat = t => lastForShop(t)?.cat || guessExpCat(t);
+const suggestExp = t => { const l = lastForShop(t); return (l && okPair(l.cat, l.sub)) || guessExp(t); };
+const suggestExpCat = t => suggestExp(t).cat;
 const knownShops = () => [...new Map(X().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(x => [norm(x.title), x.title])).values()];
-const expCat = id => EXP_CATS.find(c => c[0] === id) || EXP_CATS[EXP_CATS.length - 1];
+const expCat = id => { const c = ecat(id); return [c.id, c.name, c.icon]; };
+const expLabel = x => { const u = esub(x.cat, x.sub); return ecat(x.cat).name + (u ? ' › ' + u.name : ''); };
+const expUsed = (cid, sid) => X().some(x => x.cat === cid && (sid == null || x.sub === sid));
 const X = () => Object.values(data.exp || {});
 const euro = c => (c / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 // „Rewe 23,80“, „23,80 € Tanken“, „Kino 18“ → { title, amount (Cent) }. Bevorzugt Zahlen mit Komma-Stellen.
@@ -281,6 +305,11 @@ const store = {
     if (this.mode === 'local') return this.saveLocal();
     const { F, db } = fb; await F.updateDoc(F.doc(db, 'households', hhId), { cats: list });
   },
+  async setEcats(list) {
+    data.ecats = list; render();
+    if (this.mode === 'local') return this.saveLocal();
+    const { F, db } = fb; await F.updateDoc(F.doc(db, 'households', hhId), { ecats: list });
+  },
   async saveTask(t) {
     data.tasks = { ...data.tasks, [t.id]: t }; render();
     if (this.mode === 'local') return this.saveLocal();
@@ -314,7 +343,7 @@ const store = {
   setMe(p) { ui.me = p; ui.person = p; render(); this.saveLocal(); },
   async importAll(obj) {
     if (!obj || typeof obj !== 'object' || !obj.routines) throw new Error('Ungültige Datei');
-    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats, tasks: obj.tasks || {}, shop: obj.shop || {}, exp: obj.exp || {} }); this.saveLocal(); return render(); }
+    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats, ecats: obj.ecats || data.ecats, tasks: obj.tasks || {}, shop: obj.shop || {}, exp: obj.exp || {} }); this.saveLocal(); return render(); }
     // Mit Firebase nur übernehmen, was dieses Konto schreiben darf; der Rest bleibt für die andere Person.
     const { F, db } = fb, own = [ui.me, 's'];
     const routines = Object.values(obj.routines).filter(canEdit), skipped = Object.keys(obj.routines).length - routines.length;
@@ -328,7 +357,7 @@ const store = {
       (days[`${p}_${d}`] ||= {})[rid] = true;
     }
     Object.entries(days).forEach(([id, v]) => writes.push([F.doc(db, 'households', hhId, 'days', id), v, true]));
-    if (obj.names || obj.cats) await F.updateDoc(F.doc(db, 'households', hhId), { ...(obj.names && { names: obj.names }), ...(obj.cats && { cats: obj.cats }) });
+    if (obj.names || obj.cats || obj.ecats) await F.updateDoc(F.doc(db, 'households', hhId), { ...(obj.names && { names: obj.names }), ...(obj.cats && { cats: obj.cats }), ...(obj.ecats && { ecats: obj.ecats }) });
     for (let i = 0; i < writes.length; i += 400) {
       const batch = F.writeBatch(db);
       writes.slice(i, i + 400).forEach(([ref, v, merge]) => batch.set(ref, v, { merge }));
@@ -339,7 +368,7 @@ const store = {
 };
 
 function initLocal() {
-  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; data.tasks = s.tasks || {}; data.shop = s.shop || {}; data.exp = s.exp || {}; ui.me = ui.person = s.me || 'a'; } } catch {}
+  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; data.ecats = s.ecats || null; data.tasks = s.tasks || {}; data.shop = s.shop || {}; data.exp = s.exp || {}; ui.me = ui.person = s.me || 'a'; } } catch {}
   ui.screen = 'app'; render();
 }
 
@@ -387,7 +416,7 @@ function attach(u) {
   unsubs.push(F.onSnapshot(F.doc(db, 'households', hhId), s => {
     const d = s.data() || {}, role = d.roles?.[fb.auth.currentUser.uid];
     if (role && role !== ui.me) ui.me = ui.person = role;
-    data.names = d.names || data.names; data.cats = d.cats || null; ui.screen = 'app'; render();
+    data.names = d.names || data.names; data.cats = d.cats || null; data.ecats = d.ecats || null; ui.screen = 'app'; render();
   }, err => { console.error(err); ui.screen = 'setup'; ui.setupErr = 'Kein Zugriff auf den Haushalt. Code prüfen oder neu beitreten.'; render(); }));
   unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'routines'), qs => {
     const r = {}; qs.forEach(d => { r[d.id] = d.data(); }); data.routines = r; render();
@@ -708,29 +737,39 @@ function expSuggest() {
   return hits.length ? `<div class="sd-chips">${hits.map(t => `<button class="sd-chip" data-a="expShop" data-v="${esc(t)}">${icon(expCat(lastForShop(t)?.cat)[2])}${esc(t)}</button>`).join('')}</div>` : '';
 }
 // Seit Version 15: Kategorie schon beim Eintragen wählen. Ohne Wahl gilt der Vorschlag (bekanntes Geschäft oder Wortteile).
+// Gewählte Kategorie in der seitlich wischbaren Leiste sichtbar machen (ohne die Seite zu verschieben)
+function showPicked() { $app.querySelectorAll('.sd-ecpick').forEach(row => { const on = row.querySelector('.sd-chip.on'); row.scrollLeft = on ? Math.max(0, on.offsetLeft - 8) : 0; }); }
+function expPickState() {
+  const t = parseExp(ui.expDraft || '').title, auto = t ? suggestExp(knownShops().find(k => norm(k) === norm(t)) || t) : null;
+  if (ui.expDraftCat) return { cat: ui.expDraftCat, sub: ui.expDraftSub, how: 'gewählt' };
+  return auto ? { ...auto, how: 'Vorschlag' } : { cat: null, sub: null, how: 'wird erkannt' };
+}
 function expCatPick() {
-  const t = parseExp(ui.expDraft || '').title, auto = t ? suggestExpCat(knownShops().find(k => norm(k) === norm(t)) || t) : null, cur = ui.expDraftCat || auto;
-  const hint = ui.expDraftCat ? 'gewählt' : auto ? 'Vorschlag' : 'wird erkannt';
-  return `<span class="sd-ecplabel">Kategorie <small>${hint}</small></span><div class="sd-ecpick">${EXP_CATS.map(([id, name, ic]) => `<button type="button" class="sd-chip ${cur === id ? 'on' : ''}" aria-pressed="${cur === id}" data-a="expPick" data-v="${id}">${icon(ic)}${name}</button>`).join('')}</div>`;
+  const st = expPickState();
+  const subs = st.cat ? liveSubs(st.cat) : [];
+  return `<span class="sd-ecplabel">Kategorie <small>${st.how}</small></span><div class="sd-ecpick">${liveCats().map(c => `<button type="button" class="sd-chip ${st.cat === c.id ? 'on' : ''}" aria-pressed="${st.cat === c.id}" data-a="expPick" data-v="${c.id}">${icon(c.icon)}${esc(c.name)}</button>`).join('')}</div>
+  ${st.cat ? `<span class="sd-ecplabel">Unterkategorie von ${esc(ecat(st.cat).name)}${st.sub ? '' : ' <small class="sd-need">bitte wählen</small>'}</span><div class="sd-ecpick sd-esubpick" role="group" aria-label="Unterkategorie">${subs.map(u => `<button type="button" class="sd-chip ${st.sub === u.id ? 'on' : ''}" aria-pressed="${st.sub === u.id}" data-a="expPickSub" data-v="${u.id}">${esc(u.name)}</button>`).join('')}</div>` : ''}`;
 }
 function tabAusgaben() {
   const k = ui.expMonth, mk = monthKey(k), d0 = monthStart(k), fc = ui.expCat;
   const all = X().filter(x => (x.date || '').startsWith(mk));
-  const list = all.filter(x => !fc || (x.cat || 'sonst') === fc).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  const list = all.filter(x => !fc || x.cat === fc).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
   const sum = l => l.reduce((s, x) => s + x.amount, 0), total = sum(list), allTotal = sum(all);
   const mName = d0.toLocaleDateString('de-DE', { month: 'long' }), month = d0.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
   const prev = sum(X().filter(x => (x.date || '').startsWith(monthKey(k - 1))));
-  const byCat = EXP_CATS.map(([id, name, ic]) => ({ id, name, ic, sum: sum(all.filter(x => (x.cat || 'sonst') === id)) })).filter(c => c.sum).sort((a, b) => b.sum - a.sum);
-  const cats = byCat.length ? `<div class="sd-card sd-ecats"><h2>Nach Kategorie</h2><p class="sd-muted">Antippen zeigt nur diese Kategorie.</p>${byCat.map(c => `<button class="sd-rate sd-ecat ${fc === c.id ? 'on' : ''}" aria-pressed="${fc === c.id}" data-a="expFilter" data-v="${c.id}"><div class="row"><span>${icon(c.ic)} ${c.name}</span><span>${euro(c.sum)} · ${Math.round(c.sum / allTotal * 100)} %</span></div><div class="sd-track"><div style="width:${Math.max(2, Math.round(c.sum / byCat[0].sum * 100))}%"></div></div></button>`).join('')}</div>` : '';
+  const byCat = fc
+    ? [...new Set(list.map(x => x.sub || ''))].map(sid => ({ id: fc, name: esub(fc, sid)?.name || 'Ohne Unterkategorie', ic: ecat(fc).icon, sum: sum(list.filter(x => (x.sub || '') === sid)) })).sort((a, b) => b.sum - a.sum)
+    : [...new Set(all.map(x => x.cat))].map(id => ({ id, name: ecat(id).name, ic: ecat(id).icon, sum: sum(all.filter(x => x.cat === id)) })).sort((a, b) => b.sum - a.sum);
+  const cats = byCat.length ? `<div class="sd-card sd-ecats"><h2>${fc ? `${esc(ecat(fc).name)} nach Unterkategorie` : 'Nach Kategorie'}</h2><p class="sd-muted">${fc ? 'Antippen zeigt wieder alle Kategorien.' : 'Antippen zeigt nur diese Kategorie und ihre Unterkategorien.'}</p>${byCat.map(c => `<button class="sd-rate sd-ecat" aria-pressed="false" data-a="expFilter" data-v="${c.id}"><div class="row"><span>${icon(c.ic)} ${esc(c.name)}</span><span>${euro(c.sum)} · ${Math.round(c.sum / (fc ? total : allTotal) * 100)} %</span></div><div class="sd-track"><div style="width:${Math.max(2, Math.round(c.sum / byCat[0].sum * 100))}%"></div></div></button>`).join('')}</div>` : '';
   const days = [...new Set(list.map(x => x.date))];
   const dayLabel = key => { const o = offOfKey(key); return o === 0 ? 'Heute' : o === -1 ? 'Gestern' : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }); };
-  const item = x => { const c = expCat(x.cat); return `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}" aria-label="${esc(x.title)}, ${euro(x.amount)}, ${c[1]} – ändern oder löschen"><span class="sd-vico" aria-hidden="true">${icon(c[2])}</span><span class="txt"><span class="t">${esc(x.title)}</span><span class="m">${c[1]}${x.by ? ` · ${esc(data.names[x.by])}` : ''}${x.note ? ' · ' + icon('note') : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b>${icon('pencil-simple', 'ph sd-eedit')}</button>`; };
+  const item = x => { const c = expCat(x.cat); return `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}" aria-label="${esc(x.title)}, ${euro(x.amount)}, ${esc(expLabel(x))} – ändern oder löschen"><span class="sd-vico" aria-hidden="true">${icon(c[2])}</span><span class="txt"><span class="t">${esc(x.title)}</span><span class="m">${esc(expLabel(x))}${x.by ? ` · ${esc(data.names[x.by])}` : ''}${x.note ? ' · ' + icon('note') : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b>${icon('pencil-simple', 'ph sd-eedit')}</button>`; };
   const groups = days.map(dd => { const l = list.filter(x => x.date === dd); return `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label sd-eday"><span>${dayLabel(dd)}</span><span>${euro(sum(l))}</span></span>${l.map(item).join('')}</div>`; }).join('');
   const msg = ui.expMsg ? `<div class="sd-hint" role="status">${icon('info')}<span>${esc(ui.expMsg)}</span></div>` : '';
   const nav = `<div class="sd-nav"><button class="sd-circ" data-a="expMonth" data-v="-1" aria-label="Voriger Monat">${icon('caret-left')}</button><span>${month}</span><button class="sd-circ" data-a="expMonth" data-v="1" ${k < 0 ? '' : 'disabled'} aria-label="Nächster Monat">${icon('caret-right')}</button></div>`;
   const prevName = monthStart(k - 1).toLocaleDateString('de-DE', { month: 'long' });
   const diff = !fc && prev && total !== prev ? ` · ${euro(Math.abs(total - prev))} ${total > prev ? 'mehr' : 'weniger'} als im ${prevName}` : '';
-  const filt = fc ? `<div class="sd-hint">${icon(expCat(fc)[2])}<span>Nur <b>${expCat(fc)[1]}</b></span><button class="sd-mini" data-a="expFilter" data-v="${fc}">Alle zeigen</button></div>` : '';
+  const filt = fc ? `<div class="sd-hint">${icon(expCat(fc)[2])}<span>Nur <b>${esc(expCat(fc)[1])}</b></span><button class="sd-mini" data-a="expFilter" data-v="${fc}">Alle zeigen</button></div>` : '';
   return `<div class="sd-hdr"><div><div class="sd-sub">${list.length} ${list.length === 1 ? 'Ausgabe' : 'Ausgaben'}${diff}</div><h1>Ausgaben</h1></div></div>
   <div class="sd-exp">
   <form class="sd-sadd sd-eadd" data-form="exp"><input class="sd-input" data-in="expNew" value="${esc(ui.expDraft)}" placeholder="z. B. Rewe 23,80" maxlength="90" enterkeyhint="done" autocomplete="off" aria-label="Neue Ausgabe: Geschäft und Betrag"><button class="sd-btn" type="submit" aria-label="Ausgabe hinzufügen">${icon('plus', 'ph-bold')}</button></form>
@@ -748,7 +787,8 @@ function expSheetHtml() {
   return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-esheet" data-a="noop" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
   <div class="grip"></div><div class="sd-sheethead"><h2 id="sheet-title" tabindex="-1">Ausgabe bearbeiten</h2><button class="sd-mini sd-cancel" data-a="closeSheet">Abbrechen</button></div>
   <div class="sd-g2"><label class="sd-field">Betrag in €<input class="sd-input sd-eamtin" value="${val}" data-in="eAmount" inputmode="decimal" maxlength="10"></label><label class="sd-field">Geschäft<input class="sd-input" value="${esc(d.title)}" data-in="eTitle" maxlength="80"></label></div>
-  <div class="sd-field">Kategorie<div class="sd-chips">${EXP_CATS.map(([id, name, ic]) => `<button class="sd-chip ${d.cat === id ? 'on' : ''}" aria-pressed="${d.cat === id}" data-a="eCat" data-v="${id}">${icon(ic)}${name}</button>`).join('')}</div></div>
+  <div class="sd-field">Kategorie<div class="sd-chips">${ecats().filter(c => !c.off || c.id === d.cat).map(c => `<button class="sd-chip ${d.cat === c.id ? 'on' : ''}" aria-pressed="${d.cat === c.id}" data-a="eCat" data-v="${c.id}">${icon(c.icon)}${esc(c.name)}${c.off ? ' (archiviert)' : ''}</button>`).join('')}</div></div>
+  <div class="sd-field">Unterkategorie${d.sub ? '' : ' <small class="sd-need">bitte wählen</small>'}<div class="sd-chips" role="group" aria-label="Unterkategorie">${ecat(d.cat).subs.filter(u => !u.off || u.id === d.sub).map(u => `<button class="sd-chip ${d.sub === u.id ? 'on' : ''}" aria-pressed="${d.sub === u.id}" data-a="eSub" data-v="${u.id}">${esc(u.name)}${u.off ? ' (archiviert)' : ''}</button>`).join('')}</div></div>
   <label class="sd-field">Datum<input class="sd-input" type="date" value="${d.date}" data-ch="eDate"></label>
   <label class="sd-field">Notiz (optional)<textarea class="sd-input" rows="2" maxlength="500" data-in="eNote">${esc(d.note || '')}</textarea></label>
   <p class="sd-muted sd-tnote">Erfasst von ${esc(data.names[d.by] || '–')}</p>
@@ -759,13 +799,28 @@ function expSheetHtml() {
 // ---------- Verwaltung (seit Version 13): Stammdaten und Einstellungen hinter einem Tab ----------
 function tabVerwaltung() {
   const row = (v, ic, t, m, a = 'tab') => `<button class="sd-row sd-vrow" data-a="${a}" data-v="${v}"><span class="sd-vico">${icon(ic)}</span><span class="txt"><span class="t">${t}</span><span class="m">${m}</span></span>${icon('caret-right')}</button>`;
-  return `<div class="sd-hdr"><div><div class="sd-sub">Routinen und Einstellungen</div><h1>Verwaltung</h1></div></div>
+  return `<div class="sd-hdr"><div><div class="sd-sub">Routinen, Kategorien und Einstellungen</div><h1>Verwaltung</h1></div></div>
   <div class="sd-group">
   ${row('routinen', 'list-checks', 'Routinen', `${active().length} aktiv · anlegen, ändern, archivieren`)}
   ${row('', 'folders', 'Bereiche', `${cats().length} Bereiche für Routinen`, 'openCats')}
+  ${row('ekat', 'tree-structure', 'Ausgaben-Kategorien', `${liveCats().length} Kategorien · Unterkategorien, archivieren`)}
   ${row('verlauf', 'chart-line-up', 'Verlauf und Statistik', 'Kalender, Raster, Quoten')}
   ${row('mehr', 'gear-six', 'Einstellungen', 'Namen, Darstellung, Haushalt, Daten, Version')}
   </div>`;
+}
+// Ausgaben-Kategorien pflegen (seit Version 15): zwei Ebenen, umbenennen, Symbol, anlegen, archivieren, löschen.
+function tabEkat() {
+  const nUse = (cid, sid) => X().filter(x => x.cat === cid && (sid == null || x.sub === sid)).length;
+  const offBtn = (a, c, u, label) => { const used = nUse(c.id, u?.id) > 0; return `<button class="sd-circ" data-a="${a}" data-c="${c.id}" ${u ? `data-s="${u.id}"` : ''} aria-label="${esc(label)} ${used ? 'archivieren' : 'löschen'}">${icon(used ? 'archive' : 'trash')}</button>`; };
+  const card = c => `<div class="sd-card sd-ekcard"><div class="sd-catrow"><button class="sd-caticon" data-a="ecIcon" data-c="${c.id}" aria-label="Symbol von ${esc(c.name)} wechseln">${icon(c.icon)}</button><input class="sd-input sd-ekmain" value="${esc(c.name)}" maxlength="30" data-ch="ecName" data-c="${c.id}" aria-label="Name der Kategorie ${esc(c.name)}"><span class="sd-catn" title="Ausgaben">${nUse(c.id)}</span>${offBtn('ecOff', c, null, 'Kategorie ' + c.name)}</div>
+    <div class="sd-eksubs" role="group" aria-label="Unterkategorien von ${esc(c.name)}">${c.subs.filter(u => !u.off).map(u => `<div class="sd-catrow sd-eksub"><span class="sd-ekdot" aria-hidden="true">${icon('arrow-elbow-down-right')}</span><input class="sd-input" value="${esc(u.name)}" maxlength="30" data-ch="esName" data-c="${c.id}" data-s="${u.id}" aria-label="Name der Unterkategorie ${esc(u.name)}"><span class="sd-catn">${nUse(c.id, u.id)}</span>${offBtn('esOff', c, u, 'Unterkategorie ' + u.name)}</div>`).join('')}
+    <div class="sd-catadd sd-eksub"><input class="sd-input" placeholder="Neue Unterkategorie" maxlength="30" data-in="esNew" data-c="${c.id}" value="${esc(ui.esDraft[c.id] || '')}" aria-label="Neue Unterkategorie für ${esc(c.name)}"><button class="sd-btn ghost" data-a="esAdd" data-c="${c.id}" aria-label="Unterkategorie zu ${esc(c.name)} hinzufügen">${icon('plus')}</button></div></div></div>`;
+  const arch = [...ecats().filter(c => c.off).map(c => ({ c, label: c.name, a: 'ecOn' })), ...ecats().filter(c => !c.off).flatMap(c => c.subs.filter(u => u.off).map(u => ({ c, u, label: `${c.name} › ${u.name}`, a: 'esOn' })))];
+  return `<div class="sd-hdr"><div><div class="sd-sub">Für Ausgaben · gilt für euch beide</div><h1>Ausgaben-Kategorien</h1></div></div>
+  <p class="sd-muted sd-tnote">Jede Ausgabe bekommt eine Kategorie und eine Unterkategorie. Namen direkt ändern, Symbol antippen zum Wechseln. Benutzte Kategorien werden archiviert: alte Ausgaben behalten sie, für neue sind sie nicht mehr wählbar.</p>
+  <div class="sd-catadd sd-ekadd"><input class="sd-input" placeholder="Neue Kategorie, z. B. Haustier" maxlength="30" data-in="ecNew" value="${esc(ui.ecDraft)}" aria-label="Neue Kategorie"><button class="sd-btn" data-a="ecAdd">${icon('plus')}Anlegen</button></div>
+  ${liveCats().map(card).join('')}
+  ${arch.length ? `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label">Archiviert</span>${arch.map(x => `<div class="sd-row sd-ekarch"><span class="txt"><span class="t">${esc(x.label)}</span><span class="m">${nUse(x.c.id, x.u?.id)} Ausgaben</span></span><button class="sd-mini" data-a="${x.a}" data-c="${x.c.id}" ${x.u ? `data-s="${x.u.id}"` : ''}>${icon('arrow-counter-clockwise')}Zurückholen</button></div>`).join('')}</div>` : ''}`;
 }
 const CAT_ICONS = ['heartbeat', 'barbell', 'house-line', 'users-three', 'broom', 'dots-three-circle', 'tag', 'briefcase', 'book-open', 'leaf', 'moon', 'sun', 'heart', 'brain', 'paint-brush', 'music-notes', 'baby', 'dog', 'currency-eur', 'fork-knife', 'drop', 'graduation-cap'];
 function catSheetHtml() {
@@ -934,7 +989,7 @@ darkMQ.addEventListener?.('change', applyMode);
 const $app = document.getElementById('app');
 // Seit Version 14: fünf Bereiche unten (Aufgaben eigener Bereich); Verlauf, Routinen und Einstellungen sind Unterseiten mit „Zurück“.
 const TABS = [['heute', 'sun', 'Heute'], ['aufgaben', 'check-square-offset', 'Aufgaben'], ['einkauf', 'shopping-cart', 'Einkauf'], ['ausgaben', 'wallet', 'Ausgaben'], ['verwaltung', 'sliders-horizontal', 'Verwaltung']];
-const SUB_PARENT = { verlauf: 'heute', routinen: 'verwaltung', mehr: 'verwaltung' };
+const SUB_PARENT = { verlauf: 'heute', ekat: 'verwaltung', routinen: 'verwaltung', mehr: 'verwaltung' };
 const tabLabel = k => TABS.find(t => t[0] === k)?.[2] || '';
 const parentTab = () => SUB_PARENT[ui.tab] ? (ui.back || SUB_PARENT[ui.tab]) : ui.tab;
 const scrollMem = {}; let gridMem = { key: null, left: 0 };
@@ -963,11 +1018,12 @@ function render() {
   if (ui.screen === 'error') { $app.innerHTML = `<div class="sd-auth"><div class="sd-err">${esc(ui.authErr)}</div></div>`; return; }
   if (ui.screen === 'login') { $app.innerHTML = loginHtml(); return; }
   if (ui.screen === 'setup') { $app.innerHTML = setupHtml(); return; }
-  const page = { heute: tabHeute, verlauf: tabVerlauf, aufgaben: tabAufgaben, einkauf: tabEinkauf, ausgaben: tabAusgaben, verwaltung: tabVerwaltung, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
+  const page = { heute: tabHeute, verlauf: tabVerlauf, aufgaben: tabAufgaben, einkauf: tabEinkauf, ausgaben: tabAusgaben, verwaltung: tabVerwaltung, ekat: tabEkat, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
   const cur = parentTab(), backLink = SUB_PARENT[ui.tab] ? `<button class="sd-backlink" data-a="back">${icon('caret-left', 'ph-bold')}${tabLabel(cur)}</button>` : '';
   const badge = dueNow(ui.me).length;
   $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${backLink}${page}</main><nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, cur === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} Aufgaben fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}${ui.expEdit ? expSheetHtml() : ''}`;
   syncHistory();
+  if (ui.tab === 'ausgaben') showPicked();
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
   const ngs = $app.querySelector('.sd-gridscroll'); if (ngs) ngs.scrollLeft = ngs.dataset.key === gridMem.key ? gridMem.left : ngs.scrollWidth;
   if (focusCh) { const el = $app.querySelector(`[data-in="${focusCh}"]`); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } }
@@ -984,14 +1040,47 @@ const A = {
   expMonth: d => { ui.expMonth = Math.min(0, ui.expMonth + +d.v); render(); },
   expFilter: d => { ui.expCat = ui.expCat === d.v ? null : d.v; render(); },
   expShop: d => { ui.expDraft = d.v + ' '; render(); requestAnimationFrame(() => { const el = $app.querySelector('[data-in="expNew"]'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }); },
-  expPick: d => { ui.expDraftCat = ui.expDraftCat === d.v ? null : d.v; const box = $app.querySelector('.sd-ecp'); if (box) box.innerHTML = expCatPick(); },
+  expPick: d => {
+    const st = expPickState();
+    if (ui.expDraftCat === d.v) { ui.expDraftCat = ui.expDraftSub = null; }
+    else { const l = liveSubs(d.v); ui.expDraftCat = d.v; ui.expDraftSub = st.cat === d.v && st.sub ? st.sub : l.length === 1 ? l[0].id : null; }
+    const box = $app.querySelector('.sd-ecp'); if (box) { box.innerHTML = expCatPick(); showPicked(); }
+  },
+  expPickSub: d => { const st = expPickState(); ui.expDraftCat = st.cat; ui.expDraftSub = d.v; const box = $app.querySelector('.sd-ecp'); if (box) { box.innerHTML = expCatPick(); showPicked(); } },
+  ecIcon: d => store.setEcats(ecats().map(c => c.id === d.c ? { ...c, icon: EXP_ICONS[(EXP_ICONS.indexOf(c.icon) + 1) % EXP_ICONS.length] } : c)).catch(fail),
+  ecAdd: () => {
+    const name = (ui.ecDraft || '').trim().slice(0, 30); if (!name) return;
+    if (liveCats().some(c => c.name.toLowerCase() === name.toLowerCase())) return alert(`Die Kategorie „${name}“ gibt es schon.`);
+    ui.ecDraft = ''; store.setEcats([...ecats(), { id: rid(), name, icon: 'tag', subs: [{ id: rid(), name: 'Allgemein' }] }]).catch(fail); track('expense_category_create');
+  },
+  esAdd: d => {
+    const name = (ui.esDraft[d.c] || '').trim().slice(0, 30); if (!name) return;
+    if (liveSubs(d.c).some(u => u.name.toLowerCase() === name.toLowerCase())) return alert(`Die Unterkategorie „${name}“ gibt es schon.`);
+    ui.esDraft = { ...ui.esDraft, [d.c]: '' }; store.setEcats(ecats().map(c => c.id === d.c ? { ...c, subs: [...c.subs, { id: rid(), name }] } : c)).catch(fail);
+  },
+  ecOff: d => {
+    const c = ecat(d.c), used = expUsed(c.id);
+    if (liveCats().length <= 1) return alert('Mindestens eine Kategorie muss bleiben.');
+    if (!confirm(used ? `Kategorie „${c.name}“ archivieren? Alte Ausgaben behalten sie, für neue ist sie nicht mehr wählbar.` : `Kategorie „${c.name}“ löschen?`)) return;
+    store.setEcats(used ? ecats().map(x => x.id === c.id ? { ...x, off: true } : x) : ecats().filter(x => x.id !== c.id)).catch(fail);
+  },
+  esOff: d => {
+    const c = ecat(d.c), u = esub(d.c, d.s), used = expUsed(d.c, d.s); if (!u) return;
+    if (liveSubs(d.c).length <= 1) return alert(`„${c.name}“ braucht mindestens eine Unterkategorie. Lege erst eine neue an oder archiviere die ganze Kategorie.`);
+    if (!confirm(used ? `Unterkategorie „${u.name}“ archivieren? Alte Ausgaben behalten sie, für neue ist sie nicht mehr wählbar.` : `Unterkategorie „${u.name}“ löschen?`)) return;
+    store.setEcats(ecats().map(x => x.id !== c.id ? x : { ...x, subs: used ? x.subs.map(y => y.id === u.id ? { ...y, off: true } : y) : x.subs.filter(y => y.id !== u.id) })).catch(fail);
+  },
+  ecOn: d => store.setEcats(ecats().map(x => { if (x.id !== d.c) return x; const { off, ...rest } = x; return rest; })).catch(fail),
+  esOn: d => store.setEcats(ecats().map(x => x.id !== d.c ? x : { ...x, subs: x.subs.map(y => { if (y.id !== d.s) return y; const { off, ...rest } = y; return rest; }) })).catch(fail),
   expEdit: d => { const x = data.exp[d.x]; if (!x) return; ui.expEdit = { ...x }; ui.sheetFresh = true; render(); },
-  eCat: d => { ui.expEdit.cat = d.v; render(); },
+  eCat: d => { if (ui.expEdit.cat !== d.v) { const l = liveSubs(d.v); ui.expEdit.cat = d.v; ui.expEdit.sub = l.length === 1 ? l[0].id : null; } render(); },
+  eSub: d => { ui.expEdit.sub = d.v; render(); },
   eSave: () => {
     const d = ui.expEdit, title = (d.title || '').trim(), amount = Math.round(parseFloat(String(d.amountText ?? (d.amount / 100)).replace(',', '.')) * 100);
     if (!title) return alert('Bitte ein Geschäft eingeben.');
     if (!(amount > 0) || amount >= 1e8) return alert('Bitte einen Betrag größer als 0 eingeben.');
-    const x = { ...data.exp[d.id], title, amount, cat: d.cat, date: d.date, updatedAt: Date.now() }, note = (d.note || '').trim();
+    if (!d.sub || !esub(d.cat, d.sub)) return alert('Bitte eine Unterkategorie wählen.');
+    const x = { ...data.exp[d.id], title, amount, cat: d.cat, sub: d.sub, date: d.date, updatedAt: Date.now() }, note = (d.note || '').trim();
     if (note) x.note = note.slice(0, 500); else delete x.note;
     ui.expEdit = null; store.saveExp(x).catch(fail);
   },
@@ -1129,7 +1218,7 @@ const A = {
   },
   me: d => store.setMe(d.v),
   export: () => {
-    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), routines: data.routines, done: data.done, tasks: data.tasks, shop: data.shop, exp: data.exp }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), ecats: ecats(), routines: data.routines, done: data.done, tasks: data.tasks, shop: data.shop, exp: data.exp }, null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `superdaily-${dk(0)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
   authMode: d => { ui.authMode = d.v; ui.authErr = ''; render(); },
@@ -1191,9 +1280,11 @@ function addExp(raw) {
   const { title, amount } = parseExp(raw);
   if (!(amount > 0)) { ui.expDraft = raw; ui.expMsg = 'Bitte auch den Betrag angeben, zum Beispiel „Rewe 23,80“.'; return render(); }
   if (!title) { ui.expDraft = raw; ui.expMsg = 'Bitte auch das Geschäft angeben, zum Beispiel „Rewe 23,80“.'; return render(); }
-  const t = knownShops().find(k => norm(k) === norm(title)) || title, cat = ui.expDraftCat || suggestExpCat(t);
-  ui.expDraft = ''; ui.expDraftCat = null; ui.expMsg = `Gespeichert: ${t} ${euro(amount)} · ${expCat(cat)[1]}. Antippen in der Liste zum Ändern oder Löschen.`; ui.expMonth = 0;
-  store.saveExp({ id: rid(), title: t, amount, cat, by: ui.me, date: dk(0), createdAt: Date.now() }).catch(fail);
+  const t = knownShops().find(k => norm(k) === norm(title)) || title, st = expPickState(), cat = st.cat, sub = st.sub;
+  if (!cat || !sub) { ui.expDraft = raw; ui.expMsg = `Bitte noch die Unterkategorie${cat ? ' von „' + ecat(cat).name + '“' : ''} wählen.`; return render(); }
+  const x = { id: rid(), title: t, amount, cat, sub, by: ui.me, date: dk(0), createdAt: Date.now() };
+  ui.expDraft = ''; ui.expDraftCat = ui.expDraftSub = null; ui.expMsg = `Gespeichert: ${t} ${euro(amount)} · ${expLabel(x)}. Antippen in der Liste zum Ändern oder Löschen.`; ui.expMonth = 0;
+  store.saveExp(x).catch(fail);
   track('expense_add', { cat });
 }
 // Konfetti, wenn ein Tag komplett abgehakt ist. Liegt außerhalb von #app, damit render() es nicht entfernt.
@@ -1223,10 +1314,12 @@ document.addEventListener('input', e => {
   const k = e.target.dataset?.in; if (!k) return; const v = e.target.value;
   if (k === 'dTitle') { ui.sheet.title = v; const b = $app.querySelector('[data-a="dSave"]'); if (b) b.disabled = !(v.trim() && (ui.sheet.rep.type !== 'weekdays' || ui.sheet.rep.days.length)); }
   if (k === 'catNew') ui.catDraft = v;
+  if (k === 'ecNew') ui.ecDraft = v;
+  if (k === 'esNew') ui.esDraft = { ...ui.esDraft, [e.target.dataset.c]: v };
   if (k === 'shopNew') { ui.shopDraft = v; if (ui.shopMsg) { ui.shopMsg = ''; $app.querySelector('.sd-shop > .sd-hint')?.remove(); } const box = $app.querySelector('.sd-ssug'); if (box) box.innerHTML = shopSuggest(); }
   if (k === 'sTitle') { ui.shopEdit.title = v; const b = $app.querySelector('[data-a="sSave"]'); if (b) b.disabled = !v.trim(); }
   if (k === 'sQty') ui.shopEdit.qty = v;
-  if (k === 'expNew') { ui.expDraft = v; if (ui.expMsg) { ui.expMsg = ''; $app.querySelector('.sd-exp > .sd-hint[role="status"]')?.remove(); } const box = $app.querySelector('.sd-esug'); if (box) box.innerHTML = expSuggest(); const cp = $app.querySelector('.sd-ecp'); if (cp && !ui.expDraftCat) cp.innerHTML = expCatPick(); }
+  if (k === 'expNew') { ui.expDraft = v; if (ui.expMsg) { ui.expMsg = ''; $app.querySelector('.sd-exp > .sd-hint[role="status"]')?.remove(); } const box = $app.querySelector('.sd-esug'); if (box) box.innerHTML = expSuggest(); const cp = $app.querySelector('.sd-ecp'); if (cp && !ui.expDraftCat) { cp.innerHTML = expCatPick(); showPicked(); } }
   if (k === 'eNote') ui.expEdit.note = v;
   if (k === 'eTitle') ui.expEdit.title = v;
   if (k === 'eAmount') ui.expEdit.amountText = v;
@@ -1243,6 +1336,12 @@ document.addEventListener('change', async e => {
   if (k === 'eDate' && v && ui.expEdit) { ui.expEdit.date = v; }
   if (k === 'calFrom' && v) { ui.cal.from = toOff(v); render(); }
   if (k === 'calTo' && v) { ui.cal.to = toOff(v); render(); }
+  if (k === 'ecName' || k === 'esName') {
+    const name = v.trim().slice(0, 30), { c: cid, s: sid } = e.target.dataset;
+    if (!name) return render();
+    if (k === 'ecName') { if (liveCats().some(c => c.id !== cid && c.name.toLowerCase() === name.toLowerCase())) { alert(`Die Kategorie „${name}“ gibt es schon.`); return render(); } store.setEcats(ecats().map(c => c.id === cid ? { ...c, name } : c)).catch(fail); }
+    else { if (liveSubs(cid).some(u => u.id !== sid && u.name.toLowerCase() === name.toLowerCase())) { alert(`Die Unterkategorie „${name}“ gibt es schon.`); return render(); } store.setEcats(ecats().map(c => c.id !== cid ? c : { ...c, subs: c.subs.map(u => u.id === sid ? { ...u, name } : u) })).catch(fail); }
+  }
   if (k === 'catName') {
     const name = v.trim().slice(0, 40), id = e.target.dataset.id;
     if (!name || cats().some(c => c.id !== id && c.name.toLowerCase() === name.toLowerCase())) return render();
