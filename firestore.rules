@@ -32,9 +32,9 @@ service cloud.firestore {
         && x.by in ['a', 'b'];
     }
 
-    // Ausgaben (seit Version 13): Betrag in Cent, Geschäft (title), Kategorie, eingetragen von a oder b, Datum JJJJ-MM-TT, Notiz optional
+    // Ausgaben (seit Version 13): Betrag in Cent, Geschäft (title, seit Version 16 freiwillig = leer erlaubt), Kategorie, eingetragen von a oder b, Datum JJJJ-MM-TT, Notiz optional
     function validExpense(x) {
-      return x.title is string && x.title.size() > 0 && x.title.size() <= 80
+      return x.title is string && x.title.size() <= 80
         && x.amount is int && x.amount > 0 && x.amount < 100000000
         && x.cat is string && x.cat.size() <= 20
         && (!('sub' in x) || (x.sub is string && x.sub.size() <= 20))

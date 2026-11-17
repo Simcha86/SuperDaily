@@ -2,6 +2,11 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 16 · 17. November 2026 · [Release Notes](docs/releases/v16/RELEASE-NOTES.md)
+
+- **Ausgaben:** Das Geschäft ist freiwillig. Betrag, Kategorie und Unterkategorie genügen; ohne Geschäft zeigt die Liste die Unterkategorie als Namen.
+- Firebase-Regeln: leeres Geschäft erlaubt (Veröffentlichung automatisch beim Merge).
+
 ## Version 15 · 17. November 2026 · [Release Notes](docs/releases/v15/RELEASE-NOTES.md)
 
 - **Ausgaben mit Kategorie und Unterkategorie** (beides Pflicht), beim Eintragen wählbar; die App schlägt beides vor.
