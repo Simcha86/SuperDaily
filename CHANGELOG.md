@@ -2,6 +2,37 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 13 · 17. November 2026 · [Release Notes](docs/releases/v13/RELEASE-NOTES.md)
+
+**Neue Aufteilung**
+- Unten gibt es nur noch vier Bereiche: **Heute** (Routinen abhaken und Aufgaben), **Einkauf**, **Ausgaben** und **Verwaltung**.
+- **Heute:** Aufgaben stehen immer oben, mit „Neu“ zum Vergeben und „Alle“ für die ganze Liste. Der Knopf „Verlauf“ oben öffnet Statistik, Kalender und Raster.
+- **Verwaltung:** Routinen (mit großem „Routine hinzufügen“), Bereiche, alle Aufgaben, Verlauf und Statistik sowie Einstellungen. Jede Unterseite hat oben „Zurück“.
+- Große Knöpfe zum Anlegen oben im Bereich statt schwebendem Plus.
+
+**Ausgaben (neu, Violett)**
+- Mit einem Satz eintragen: „Rewe 23,80“, „45 € Tanken“. Betrag, Geschäft und Kategorie erkennt die App; beim Tippen erscheinen bekannte Geschäfte als Vorschlag.
+- Wie in SuperFinance: gleiche Kategorien-Liste, ein bekanntes Geschäft bekommt die zuletzt gewählte Kategorie, optionale Notiz, „erfasst von“.
+- Monatsüberblick: „Ausgegeben im …“, Vergleich zum Vormonat, Balken nach Kategorie (antippen filtert) und die Einträge nach Tagen mit Tagessumme. Keine Aufteilung zwischen den Personen. Beide sehen und ändern alles, live auf beiden Handys.
+
+## Version 12 · 16. November 2026 · [Release Notes](docs/releases/v12/RELEASE-NOTES.md)
+
+Schnelle Verbesserungen aus dem Marktreife-Check.
+
+**Lesbarkeit und Bedienung**
+- Hauptknöpfe mit dunkler Schrift, Überschriften einfarbig, Balken „Fällig für dich“ und „Auf der Liste“ mit genug Kontrast.
+- Größere Tippflächen: Abhak-Kreise bei Aufgaben und Einkauf, Umschalter, „Alle“, „Erledigte löschen“, Raster-Kästchen.
+- Der Plus-Knopf verdeckt keine Einträge mehr; im Willkommensbildschirm entfällt er.
+- Eingabeblätter mit „Abbrechen“ und Beschriftung über dem Titelfeld; Escape schließt sie.
+
+**Texte**
+- Einheitlich „Gemeinsam“ (ein Haken für beide) und „Jeder für sich“; „erledigt“ statt „Erledigungen“/„erfüllt“.
+- Verständliche Fehlermeldungen statt technischer Meldungen; keine Entwicklerhinweise mehr unter „Mehr“.
+- Haushalt anlegen ohne vorbelegte Namen („Dein Name“, „Name der zweiten Person“); wer anlegt, ist Person 1.
+
+**Vorlesefunktion**
+- „Erledigt“ und „ausgewählt“ werden angesagt, Abschnitte sind Überschriften, Eingabeblätter sind Dialoge mit Fokus.
+
 ## Version 11 · 7. November 2026 · [Release Notes](docs/releases/v11/RELEASE-NOTES.md)
 
 **Routinen vorgeben**

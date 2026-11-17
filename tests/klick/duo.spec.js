@@ -5,7 +5,7 @@ import { test, expect, oeffneHandy, tab } from '../hilfen.js';
 const gespeichert = seite => seite.evaluate(() => JSON.parse(localStorage.getItem('superdaily-v1')).done);
 const zeile = (seite, titel) => seite.locator('.sd-drow', { hasText: titel });
 
-test('Duo als Liste: beide nebeneinander, Felder abhakbar, gemeinsam ein Feld „Beide“', async ({ browser, lokal }) => {
+test('Duo als Liste: beide nebeneinander, Felder abhakbar, gemeinsam ein Feld „Gemeinsam“', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
   const umschalter = seite.locator('.sd-who3');
   await expect(umschalter.locator('button.on')).toHaveText('Simon');
@@ -20,7 +20,7 @@ test('Duo als Liste: beide nebeneinander, Felder abhakbar, gemeinsam ein Feld �
   await expect(seite.locator('.sd-dsc')).toHaveCount(2);
   await expect(seite.locator('.sd-dsc').first()).toContainText('2 von 4');
 
-  // Gemeinsam: ein Feld „Beide“, schon erledigt
+  // Gemeinsam: ein Feld „Gemeinsam“, schon erledigt
   const wasser = zeile(seite, 'Glas Wasser');
   await expect(wasser.locator('.sd-dcell')).toHaveCount(1);
   await expect(wasser.getByRole('button', { name: /gemeinsam: erledigt/ })).toBeVisible();

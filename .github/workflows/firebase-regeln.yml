@@ -1,0 +1,74 @@
+# Veröffentlicht firestore.rules nach jedem Merge auf main in Firebase (Issue #14).
+# Erst laufen die Regel-Tests; nur wenn sie grün sind, werden die Regeln veröffentlicht.
+# Anmeldung ohne Schlüssel (Workload Identity Federation): Google vertraut nur Abläufen
+# aus Simcha86/SuperDaily auf main. Das Konto github-firebase-rules darf nur Firebase-Regeln
+# verwalten, nicht auf Daten zugreifen.
+name: Firebase-Regeln veröffentlichen
+
+on:
+  push:
+    branches: [main]
+    paths: [firestore.rules]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: firebase-regeln
+  cancel-in-progress: false
+
+env:
+  PROJEKT: superdaily-c7408
+
+jobs:
+  veroeffentlichen:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Regel-Tests
+        working-directory: tests
+        run: |
+          npm ci --ignore-scripts
+          npm run test:regeln
+
+      - name: Bei Google anmelden (ohne Schlüssel)
+        id: google
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/856651858097/locations/global/workloadIdentityPools/github/providers/superdaily
+          service_account: github-firebase-rules@superdaily-c7408.iam.gserviceaccount.com
+          token_format: access_token
+
+      - name: Regeln veröffentlichen und prüfen
+        env:
+          TOKEN: ${{ steps.google.outputs.access_token }}
+        run: |
+          set -euo pipefail
+          API="https://firebaserules.googleapis.com/v1/projects/$PROJEKT"
+          jq -n --rawfile c firestore.rules '{source:{files:[{name:"firestore.rules",content:$c}]}}' > ruleset.json
+          RS=$(curl -fsS -X POST "$API/rulesets" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d @ruleset.json | jq -r .name)
+          echo "Neue Regeln: $RS"
+          jq -n --arg n "projects/$PROJEKT/releases/cloud.firestore" --arg r "$RS" '{release:{name:$n,rulesetName:$r}}' > release.json
+          curl -fsS -X PATCH "$API/releases/cloud.firestore" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d @release.json > /dev/null
+          LIVE=$(curl -fsS "$API/releases/cloud.firestore" -H "Authorization: Bearer $TOKEN" | jq -r .rulesetName)
+          curl -fsS "https://firebaserules.googleapis.com/v1/$LIVE" -H "Authorization: Bearer $TOKEN" | jq -r '.source.files[0].content' > live.rules
+          if diff -q <(printf '%s' "$(cat live.rules)") <(printf '%s' "$(cat firestore.rules)"); then
+            echo "### Firebase-Regeln veröffentlicht ✅" >> "$GITHUB_STEP_SUMMARY"
+            echo "Aktiv: \`$LIVE\`" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Die aktiven Regeln stimmen nicht mit firestore.rules überein."
+            exit 1
+          fi

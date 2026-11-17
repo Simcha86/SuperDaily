@@ -100,5 +100,21 @@ await t('Fremder setzt nichts auf die Liste', assertFails(setDoc(EK(fremd, 'e9')
 await t('Fremder löscht nichts von der Liste', assertFails(deleteDoc(EK(fremd, 'e1'))));
 await t('Ohne Anmeldung keine Einkaufsliste', assertFails(getDoc(EK(anon, 'e1'))));
 await t('Simon löscht Milch ganz', assertSucceeds(deleteDoc(EK(simon, 'e1'))));
+// Ausgaben (Version 13)
+const AU = (db, id) => doc(db, 'households', H, 'expenses', id);
+const rewe = { id: 'x1', title: 'Rewe', amount: 2380, cat: 'essen', by: 'a', date: '2026-11-17', createdAt: 1 };
+await t('Simon trägt eine Ausgabe ein', assertSucceeds(setDoc(AU(simon, 'x1'), rewe)));
+await t('Irina sieht die Ausgabe', assertSucceeds(getDoc(AU(irina, 'x1'))));
+await t('Irina ändert Betrag und Kategorie', assertSucceeds(setDoc(AU(irina, 'x1'), { ...rewe, amount: 2500, cat: 'haushalt' })));
+await t('Ausgabe ohne Titel abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', title: '' })));
+await t('Ausgabe mit Betrag 0 abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', amount: 0 })));
+await t('Ausgabe mit Kommabetrag statt Cent abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', amount: 23.8 })));
+await t('Ausgabe mit falschem Datum abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', date: '17.11.2026' })));
+await t('Ausgabe von unbekannter Person abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', by: 'x' })));
+await t('Fremder sieht keine Ausgaben', assertFails(getDoc(AU(fremd, 'x1'))));
+await t('Fremder trägt nichts ein', assertFails(setDoc(AU(fremd, 'x9'), { ...rewe, id: 'x9' })));
+await t('Ausgabe mit Notiz', assertSucceeds(setDoc(AU(irina, 'x1'), { ...rewe, note: 'Wocheneinkauf' })));
+await t('Notiz über 500 Zeichen abgelehnt', assertFails(setDoc(AU(irina, 'x1'), { ...rewe, note: 'x'.repeat(501) })));
+await t('Irina löscht die Ausgabe', assertSucceeds(deleteDoc(AU(irina, 'x1'))));
 console.log(`\n${pass} bestanden, ${failN} fehlgeschlagen`);
 await env.cleanup(); process.exit(failN ? 1 : 0);

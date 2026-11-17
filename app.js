@@ -22,6 +22,8 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 13, date: '2026-11-17', items: ['Neu: Ausgaben – Geschäft und Betrag in einem Satz („Rewe 23,80“), Monatssumme, Tagessummen und Kategorien wie in SuperFinance', 'Unten nur noch vier Bereiche: Heute, Einkauf, Ausgaben, Verwaltung', 'Routinen, alle Aufgaben, Verlauf und Einstellungen findet ihr unter Verwaltung; Verlauf auch oben auf Heute'] },
+  { v: 12, date: '2026-11-16', items: ['Besser lesbar: kräftigere Knöpfe und Überschriften, größere Tippflächen', 'Eingaben mit „Abbrechen“, der Plus-Knopf verdeckt nichts mehr', 'Verständlichere Texte: „Gemeinsam“ und „Jeder für sich“, klare Fehlermeldungen', 'Besser mit Vorlesefunktion: „erledigt“ und „ausgewählt“ werden angesagt'] },
   { v: 11, date: '2026-11-07', items: ['Routinen für die andere Person vorgeben – mit „vorgegeben von …“', 'Ihr dürft beide alle Routinen bearbeiten und archivieren', 'Hinweis auf „Heute“ bei neuen Aufgaben und Routinen von der anderen Person', 'Einkauf in Ozeanblau, deutlicher von den anderen Bereichen zu unterscheiden'] },
   { v: 10, date: '2026-11-04', items: ['Neu: Einkaufsliste für euch beide, sortiert nach Bereichen im Laden, mit Vorschlägen', 'Statistik, Kalender und Raster sind jetzt ein Tab „Verlauf“ mit einem Zeitraum', 'Die Statistik wertet bis zu 365 Tage aus'] },
   { v: 9, date: '2026-10-31', items: ['Heute: Umschalter Simon | Irina | Duo – Duo zeigt euch beide nebeneinander, als Liste oder Kacheln', 'Gemeinsame Routinen tragen die Avatare von euch beiden', 'Besser lesbar: dunklerer Nebentext und größere Tasten'] },
@@ -42,14 +44,14 @@ try { const v = +localStorage.getItem(SEEN); seenVersion = v || APP_VERSION; if 
 const markSeen = () => { seenVersion = APP_VERSION; try { localStorage.setItem(SEEN, APP_VERSION); } catch {} };
 
 // ---------- Daten ----------
-const data = { names: { a: 'Simon', b: 'Irina' }, routines: {}, done: {}, cats: null, tasks: {}, shop: {} };
+const data = { names: { a: 'Person 1', b: 'Person 2' }, routines: {}, done: {}, cats: null, tasks: {}, shop: {}, exp: {} };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
-  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '',
+  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '', back: null, expMonth: 0, expDraft: '', expMsg: '', expEdit: null, expCat: null,
   // Verlauf (seit Version 10): ein Zeitraum für Statistik, Kalender und Raster; Start: letzte 30 Tage
   cal: { mode: 'zeitraum', anchor: 0, from: -29, to: 0 },
   sheet: null, catSheet: false, authMode: 'login', authErr: '', setupErr: '', busy: false,
-  setup: { me: 'a', a: 'Simon', b: 'Irina', code: '' }
+  setup: { me: 'a', a: '', b: '', code: '' }
 };
 
 const R = () => Object.values(data.routines).sort((x, y) => SLOTS.indexOf(x.slot) - SLOTS.indexOf(y.slot) || (x.createdAt || 0) - (y.createdAt || 0));
@@ -148,7 +150,7 @@ const catOf = r => r.cat || guessCat(r.title || '');
 const catById = id => cats().find(c => c.id === id);
 const catName = r => catById(catOf(r))?.name || 'Ohne Bereich';
 const catIcon = id => catById(id)?.icon || 'tag';
-const whoLabel = r => r.who === 's' ? 'Gemeinsam' : r.who === 'ab' ? 'Beide' : data.names[r.who];
+const whoLabel = r => r.who === 's' ? 'Gemeinsam' : r.who === 'ab' ? 'Jeder für sich' : data.names[r.who];
 
 // ---------- Aufgaben ----------
 // Einmalige Aufgaben: { id, title, note, from: 'a'|'b', to: 'a'|'b'|'s', due: 'JJJJ-MM-TT'|null, done, doneAt, doneBy, createdAt }.
@@ -160,11 +162,11 @@ const openTasks = p => T().filter(t => !t.done && (!p || taskFor(t, p)));
 const dueNow = p => openTasks(p).filter(t => t.due && dueOff(t) <= 0);
 const sortTasks = l => l.sort((x, y) => (x.due || '9999') .localeCompare(y.due || '9999') || (x.createdAt || 0) - (y.createdAt || 0));
 const dueLabel = (o, done) => o === 0 ? 'heute' : o === -1 ? 'gestern' : o === 1 ? 'morgen' : o < 0 && !done ? `seit ${fmtS(o)}` : o < 0 ? fmtS(o) : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' });
-const taskChip = t => t.to === 's' ? 'Beide' : t.from === t.to ? initial(t.to) : `${initial(t.from)} → ${initial(t.to)}`;
+const taskChip = t => t.to === 's' ? 'Gemeinsam' : t.from === t.to ? initial(t.to) : `${initial(t.from)} → ${initial(t.to)}`;
 const tasksDueOn = (p, o) => T().filter(t => taskFor(t, p) && t.due === dk(o));
 // Aufgaben einer Person im Zeitraum: fällig im Zeitraum oder darin erledigt
 const tasksIn = (p, s, e) => sortTasks(T().filter(t => taskFor(t, p) && ((t.due && dueOff(t) >= s && dueOff(t) <= e) || (t.done && t.doneAt && offOfKey(t.doneAt) >= s && offOfKey(t.doneAt) <= e))));
-const taskGroup = (list, label = 'Aufgaben') => list.length ? `<div class="sd-group sd-tasks"><span class="sd-label sd-catlabel">${icon('check-square-offset')}${label}<em>${list.length}</em></span>${list.map(taskItem).join('')}</div>` : '';
+const taskGroup = (list, label = 'Aufgaben') => list.length ? `<div class="sd-group sd-tasks"><span role="heading" aria-level="2" class="sd-label sd-catlabel">${icon('check-square-offset')}${label}<em>${list.length}</em></span>${list.map(taskItem).join('')}</div>` : '';
 const taskMeta = t => t.to === 's' ? 'gemeinsam' : t.from === t.to ? 'selbst' : `von ${esc(data.names[t.from])} an ${esc(data.names[t.to])}`;
 
 // ---------- Einkauf ----------
@@ -200,6 +202,46 @@ function parseShop(raw) {
   if ((m = t.match(new RegExp(`^(.+?)\\s+(${QTY})$`, 'i')))) return out(m[1], m[2]);
   return out(t);
 }
+
+// ---------- Ausgaben (seit Version 13) ----------
+// { id, title, amount (Cent, ganze Zahl), cat, by: 'a'|'b', date: 'JJJJ-MM-TT', createdAt }. Nur Überblick, kein Ausgleich.
+// Kategorien wie die Startliste von SuperFinance (Simons Ausgabenbuch); Geschäft = Titel.
+const EXP_CATS = [['essen', 'Lebensmittel', 'shopping-cart'], ['drogerie', 'Drogerie', 'spray-bottle'], ['haushalt', 'Haushalt', 'broom'],
+  ['auto', 'Tanken & Auto', 'car'], ['kleidung', 'Kleidung', 't-shirt'], ['gesundheit', 'Gesundheit', 'first-aid'],
+  ['restaurant', 'Restaurant & Café', 'fork-knife'], ['freizeit', 'Freizeit', 'confetti'], ['geschenke', 'Geschenke', 'gift'],
+  ['garten', 'Haus & Garten', 'plant'], ['sonst', 'Sonstiges', 'dots-three-circle']];
+const EXP_WORDS = [
+  ['auto', 'tank ^aral ^shell ^esso benzin diesel werkstatt ^tüv ^auto parken parkhaus waschanlage reifen'],
+  ['gesundheit', 'apotheke ^arzt zahnarzt medikament brille physio optiker'],
+  ['drogerie', 'drogerie ^dm ^rossmann ^müller kosmetik'],
+  ['restaurant', 'restaurant ^café ^cafe pizza ^döner lieferando ^bar ^bistro imbiss mcdonald burger sushi'],
+  ['freizeit', 'kino konzert ausflug museum schwimmbad ^zoo theater freizeitpark ^eintritt'],
+  ['geschenke', 'geschenk geburtstag blumen'],
+  ['kleidung', 'kleidung schuhe ^jacke ^hose ^h&m zara ^c&a ^primark'],
+  ['garten', 'baumarkt ^obi hornbach bauhaus garten pflanze ^erde werkzeug möbel ikea'],
+  ['haushalt', 'haushalt putz waschmittel ^tchibo ^kik geschirr'],
+  ['essen', 'rewe edeka aldi lidl netto penny kaufland supermarkt bäcker metzger markt lebensmittel einkauf wocheneinkauf']];
+const EXP_RE = EXP_WORDS.map(([id, w]) => [id, new RegExp(w.split(' ').map(x => x[0] === '^' ? `(?:^|[\\s-])${x.slice(1).replace(/[&]/g, '\\$&')}` : x).join('|'), 'i')]);
+const guessExpCat = t => EXP_RE.find(([, re]) => re.test(t))?.[0] || 'sonst';
+// Wie in SuperFinance: bekanntes Geschäft → die zuletzt dafür gewählte Kategorie
+const lastForShop = t => X().filter(x => norm(x.title) === norm(t)).sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))[0];
+const suggestExpCat = t => lastForShop(t)?.cat || guessExpCat(t);
+const knownShops = () => [...new Map(X().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(x => [norm(x.title), x.title])).values()];
+const expCat = id => EXP_CATS.find(c => c[0] === id) || EXP_CATS[EXP_CATS.length - 1];
+const X = () => Object.values(data.exp || {});
+const euro = c => (c / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+// „Rewe 23,80“, „23,80 € Tanken“, „Kino 18“ → { title, amount (Cent) }. Bevorzugt Zahlen mit Komma-Stellen.
+function parseExp(raw) {
+  const t = String(raw || '').trim().replace(/\s+/g, ' ');
+  const nums = [...t.matchAll(/(\d{1,6})(?:[.,](\d{1,2}))?\s*(?:€|eur(?:o)?)?/gi)];
+  if (!nums.length) return { title: t, amount: 0 };
+  const m = nums.filter(n => n[2]).pop() || nums[nums.length - 1];
+  const amount = +m[1] * 100 + (m[2] ? +m[2].padEnd(2, '0') : 0);
+  const title = (t.slice(0, m.index) + ' ' + t.slice(m.index + m[0].length)).replace(/\s+/g, ' ').replace(/^[-–:,\s]+|[-–:,\s]+$/g, '');
+  return { title: title ? title.charAt(0).toUpperCase() + title.slice(1) : '', amount };
+}
+const monthStart = k => { const d = dateAt(0); d.setDate(1); d.setMonth(d.getMonth() + k); return d; };
+const monthKey = k => { const d = monthStart(k); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
 
 // ---------- Speicher ----------
 const LS = 'superdaily-v1';
@@ -257,16 +299,27 @@ const store = {
     if (this.mode === 'local') return this.saveLocal();
     const { F, db } = fb; await F.deleteDoc(F.doc(db, 'households', hhId, 'shop', id));
   },
+  async saveExp(x) {
+    data.exp = { ...data.exp, [x.id]: x }; render();
+    if (this.mode === 'local') return this.saveLocal();
+    const { F, db } = fb; await F.setDoc(F.doc(db, 'households', hhId, 'expenses', x.id), x);
+  },
+  async deleteExp(id) {
+    const n = { ...data.exp }; delete n[id]; data.exp = n; render();
+    if (this.mode === 'local') return this.saveLocal();
+    const { F, db } = fb; await F.deleteDoc(F.doc(db, 'households', hhId, 'expenses', id));
+  },
   setMe(p) { ui.me = p; ui.person = p; render(); this.saveLocal(); },
   async importAll(obj) {
     if (!obj || typeof obj !== 'object' || !obj.routines) throw new Error('Ungültige Datei');
-    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats, tasks: obj.tasks || {}, shop: obj.shop || {} }); this.saveLocal(); return render(); }
+    if (this.mode === 'local') { Object.assign(data, { names: obj.names || data.names, routines: obj.routines, done: obj.done || {}, cats: obj.cats || data.cats, tasks: obj.tasks || {}, shop: obj.shop || {}, exp: obj.exp || {} }); this.saveLocal(); return render(); }
     // Mit Firebase nur übernehmen, was dieses Konto schreiben darf; der Rest bleibt für die andere Person.
     const { F, db } = fb, own = [ui.me, 's'];
     const routines = Object.values(obj.routines).filter(canEdit), skipped = Object.keys(obj.routines).length - routines.length;
     const writes = routines.map(r => [F.doc(db, 'households', hhId, 'routines', r.id), r, false]);
     Object.values(obj.tasks || {}).forEach(t => writes.push([F.doc(db, 'households', hhId, 'tasks', t.id), t, false]));
     Object.values(obj.shop || {}).forEach(x => writes.push([F.doc(db, 'households', hhId, 'shop', x.id), x, false]));
+    Object.values(obj.exp || {}).forEach(x => writes.push([F.doc(db, 'households', hhId, 'expenses', x.id), x, false]));
     const days = {};
     for (const [d, v] of Object.entries(obj.done || {})) for (const k of Object.keys(v || {})) {
       const [p, rid] = k.split('|'); if (!own.includes(p)) continue;
@@ -284,7 +337,7 @@ const store = {
 };
 
 function initLocal() {
-  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; data.tasks = s.tasks || {}; data.shop = s.shop || {}; ui.me = ui.person = s.me || 'a'; } } catch {}
+  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { data.names = s.names || data.names; data.routines = s.routines || {}; data.done = s.done || {}; data.cats = s.cats || null; data.tasks = s.tasks || {}; data.shop = s.shop || {}; data.exp = s.exp || {}; ui.me = ui.person = s.me || 'a'; } } catch {}
   ui.screen = 'app'; render();
 }
 
@@ -307,7 +360,7 @@ async function initFirebase() {
       attach(us.data());
     });
   } catch (e) {
-    console.error(e); ui.screen = 'error'; ui.authErr = 'Firebase konnte nicht geladen werden. Prüfe die Internetverbindung und firebase-config.js.'; render();
+    console.error(e); ui.screen = 'error'; ui.authErr = 'SuperDaily konnte nicht starten. Prüfe deine Internetverbindung und öffne die App erneut.'; render();
   }
 }
 // Google Analytics nur, wenn firebase-config.js eine measurementId enthält. Gesendet werden
@@ -340,6 +393,9 @@ function attach(u) {
   unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'tasks'), qs => {
     const t = {}; qs.forEach(d => { t[d.id] = d.data(); }); data.tasks = t; render();
   }));
+  unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'expenses'), qs => {
+    const x = {}; qs.forEach(d => { x[d.id] = d.data(); }); data.exp = x; render();
+  }));
   unsubs.push(F.onSnapshot(F.collection(db, 'households', hhId, 'shop'), qs => {
     const x = {}; qs.forEach(d => { x[d.id] = d.data(); }); data.shop = x; render();
   }));
@@ -354,12 +410,12 @@ const authMsg = c => ({
   'auth/invalid-email': 'Die E-Mail-Adresse ist ungültig.',
   'auth/invalid-credential': 'E-Mail oder Passwort stimmt nicht.',
   'auth/wrong-password': 'E-Mail oder Passwort stimmt nicht.',
-  'auth/user-not-found': 'Kein Konto mit dieser E-Mail.',
+  'auth/user-not-found': 'E-Mail oder Passwort stimmt nicht.',
   'auth/email-already-in-use': 'Für diese E-Mail gibt es schon ein Konto.',
   'auth/weak-password': 'Das Passwort braucht mindestens 6 Zeichen.',
   'auth/too-many-requests': 'Zu viele Versuche. Bitte kurz warten.',
-  'auth/network-request-failed': 'Keine Verbindung.'
-}[c] || 'Das hat nicht geklappt (' + c + ').');
+  'auth/network-request-failed': 'Keine Internetverbindung. Prüfe dein Netz und versuch es noch einmal.'
+}[c] || 'Anmelden hat nicht geklappt. Versuch es gleich noch einmal.');
 
 // ---------- Zeiträume ----------
 function rangeOf(m) {
@@ -383,11 +439,11 @@ function totals(p, s, e) { let a = 0, b = 0; R().filter(r => everVisible(r, p)).
 const icon = (n, cls = 'ph') => `<i class="${cls} ph-${n}" aria-hidden="true"></i>`;
 const initial = p => esc((data.names[p] || '?')[0].toUpperCase());
 // Heute: Simon | Irina | Duo (seit Version 9 statt der runden Knöpfe)
-const whoSeg = (duo = true) => `<div class="sd-seg sd-who3">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ...(duo ? [['duo', 'Duo']] : [])].map(([k, l]) => `<button class="${(duo && ui.duo ? 'duo' : ui.person) === k ? 'on' : ''}" data-a="who" data-v="${k}"><i class="sd-wdot ${k}" aria-hidden="true"></i>${l}</button>`).join('')}</div>`;
+const whoSeg = (duo = true) => `<div class="sd-seg sd-who3">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ...(duo ? [['duo', 'Duo']] : [])].map(([k, l]) => `<button class="${(duo && ui.duo ? 'duo' : ui.person) === k ? 'on' : ''}" aria-pressed="${(duo && ui.duo ? 'duo' : ui.person) === k}" data-a="who" data-v="${k}"><i class="sd-wdot ${k}" aria-hidden="true"></i>${l}</button>`).join('')}</div>`;
 // In Kalender und Raster gibt es kein Duo: dort zeigt der Umschalter die gewählte Person.
 const personSeg = () => whoSeg(false);
 const pair = () => `<span class="sd-pair" aria-label="Gemeinsam">${['a', 'b'].map(q => `<span class="${q}" aria-hidden="true">${initial(q)}</span>`).join('')}</span>`;
-const seg = (opts, cur, action) => `<div class="sd-seg">${opts.map(([k, l]) => `<button class="${k === cur ? 'on' : ''}" data-a="${action}" data-v="${k}">${l}</button>`).join('')}</div>`;
+const seg = (opts, cur, action) => `<div class="sd-seg">${opts.map(([k, l]) => `<button class="${k === cur ? 'on' : ''}" aria-pressed="${k === cur}" data-a="${action}" data-v="${k}">${l}</button>`).join('')}</div>`;
 const prog = (label, pct, glow = true) => `<div class="sd-prog"><div class="row"><span>${label}</span><b>${pct}%</b></div><div class="sd-track ${glow ? 'glow' : ''}"><div style="width:${pct}%"></div></div></div>`;
 const MODES = [['tag', 'Tag'], ['woche', 'Woche'], ['monat', 'Monat'], ['zeitraum', 'Von – bis']];
 function rangeControls(m, scope, modes = MODES) {
@@ -424,11 +480,11 @@ function listView(p, off) {
   if (!st.t) return empty('An diesem Tag ist nichts geplant.');
   return SLOTS.map(slot => {
     const items = st.list.filter(r => r.slot === slot); if (!items.length) return '';
-    return `<div class="sd-group"><span class="sd-label">${slot}</span>${items.map(r => {
+    return `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label">${slot}</span>${items.map(r => {
       const dn = isDone(r, p, off), sk = streak(r, p, off), x = rep(r);
       let meta = `${esc(catName(r))} · ${repLabel(r)}` + (r.who === 's' ? ' · gemeinsam' : '') + (givenBy(r) ? ' · ' + givenLabel(r) : '');
       if (x.type === 'perweek') meta += ` · ${weekDone(r, p, off, null)}/${x.n} diese Woche`;
-      return `<button class="sd-item ${dn ? 'done' : ''} ${canCheck(r, p) ? '' : 'ro'}" ${togAttr(r, p, off)}><span class="sd-check">${icon('check', 'ph-bold')}</span><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></span>${r.who === 's' ? pair() : ''}${sk > 1 ? `<span class="sd-streak">${icon('flame')}${sk}</span>` : ''}</button>`;
+      return `<button class="sd-item ${dn ? 'done' : ''} ${canCheck(r, p) ? '' : 'ro'}" ${togAttr(r, p, off)} aria-pressed="${dn}"><span class="sd-check">${icon('check', 'ph-bold')}</span><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></span>${r.who === 's' ? pair() : ''}${sk > 1 ? `<span class="sd-streak" aria-label="${sk} Tage in Folge">${icon('flame')}${sk}</span>` : ''}</button>`;
     }).join('')}</div>`;
   }).join('');
 }
@@ -444,7 +500,7 @@ function tilesView(p, off) {
   else tiles = `<div class="sd-tiles">${st.list.map(r => {
     const dn = isDone(r, p, off), sk = streak(r, p, off);
     const meta = [r.who === 's' ? 'Gemeinsam' : '', givenBy(r) ? 'von ' + esc(data.names[givenBy(r)]) : '', sk > 1 ? sk + ' Tage in Folge' : '', rep(r).type === 'perweek' ? `${weekDone(r, p, off, null)}/${rep(r).n} diese Woche` : ''].filter(Boolean).join(' · ');
-    return `<button class="sd-tile ${dn ? 'done' : ''} ${canCheck(r, p) ? '' : 'ro'}" ${togAttr(r, p, off)}><div class="top"><span>${r.slot}</span><span class="sd-check">${icon('check', 'ph-bold')}</span></div><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></button>`;
+    return `<button class="sd-tile ${dn ? 'done' : ''} ${canCheck(r, p) ? '' : 'ro'}" ${togAttr(r, p, off)} aria-pressed="${dn}"><div class="top"><span>${r.slot}</span><span class="sd-check">${icon('check', 'ph-bold')}</span></div><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></button>`;
   }).join('')}</div>`;
   return `<div class="sd-rings">${rings}</div><div class="sd-hdr" style="align-items:baseline"><span style="font-size:15px;font-weight:500">${off === 0 ? 'Heute dran' : 'An diesem Tag'}</span><span class="sd-muted">${st.t - st.n ? (st.t - st.n) + ' offen' : st.t ? 'Alles erledigt' : ''}</span></div>${tiles}`;
 }
@@ -462,9 +518,9 @@ function duoCell(r, p, off, tag) {
 function duoCells(r, off, tag) {
   if (whoAt(r, off) !== 's') return PP.map(p => duoCell(r, p, off, tag)).join('');
   const dn = isDone(r, ui.me, off);
-  return `<button class="sd-dcell both ${dn ? 'done' : ''}" ${togAttr(r, ui.me, off)} aria-pressed="${dn}" aria-label="${esc(r.title)}, gemeinsam: ${dn ? 'erledigt' : 'offen'}">${dn ? icon('check', 'ph-bold') : ''}Beide</button>`;
+  return `<button class="sd-dcell both ${dn ? 'done' : ''}" ${togAttr(r, ui.me, off)} aria-pressed="${dn}" aria-label="${esc(r.title)}, gemeinsam: ${dn ? 'erledigt' : 'offen'}">${dn ? icon('check', 'ph-bold') : ''}Gemeinsam</button>`;
 }
-const duoWho = (r, off) => ({ s: 'Gemeinsam', ab: 'Beide einzeln', a: 'Nur ' + esc(data.names.a), b: 'Nur ' + esc(data.names.b) })[whoAt(r, off)] || '';
+const duoWho = (r, off) => ({ s: 'Gemeinsam', ab: 'Jeder für sich', a: 'Nur ' + esc(data.names.a), b: 'Nur ' + esc(data.names.b) })[whoAt(r, off)] || '';
 const duoScore = off => `<div class="sd-duoscore">${PP.map(p => { const s = dayStats(p, off); return `<button class="sd-dsc" data-a="person" data-p="${p}" aria-label="${esc(data.names[p])} öffnen"><span class="sd-dring" style="background:conic-gradient(var(--sd-${p}) ${s.pct * 3.6}deg, var(--color-neutral-900) 0)"><span>${s.pct}%</span></span><span class="txt"><b>${esc(data.names[p])}</b><small>${s.n} von ${s.t}</small></span></button>`; }).join('')}</div>`;
 function duoListView(off) {
   if (!active().length) return empty('', true);
@@ -472,7 +528,7 @@ function duoListView(off) {
   const head = `<div class="sd-drow head" aria-hidden="true"><span></span>${PP.map(p => `<span class="${p}">${esc(data.names[p])}</span>`).join('')}</div>`;
   const groups = SLOTS.map(slot => {
     const items = list.filter(r => r.slot === slot); if (!items.length) return '';
-    return `<span class="sd-label">${slot}</span>${items.map(r => `<div class="sd-drow ${whoAt(r, off) === 's' ? 'shared' : ''}"><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${esc(catName(r))} · ${duoWho(r, off)}${givenBy(r) ? ' · ' + givenLabel(r) : ''}</span></span>${duoCells(r, off, false)}</div>`).join('')}`;
+    return `<span role="heading" aria-level="2" class="sd-label">${slot}</span>${items.map(r => `<div class="sd-drow ${whoAt(r, off) === 's' ? 'shared' : ''}"><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${esc(catName(r))} · ${duoWho(r, off)}${givenBy(r) ? ' · ' + givenLabel(r) : ''}</span></span>${duoCells(r, off, false)}</div>`).join('')}`;
   }).join('');
   return `${duoScore(off)}<div class="sd-duo">${head}${groups}</div>`;
 }
@@ -485,7 +541,7 @@ function matrixView(p, s, e, withRate) {
   const vis = R().filter(r => everVisible(r, p) && (!archived(r) || rate(r, p, s, e).b));
   if (!vis.length) return empty('Noch keine Routinen.', true);
   const cols = []; for (let o = s; o <= e; o++) cols.push(o);
-  const n = cols.length, size = n === 1 ? 44 : n <= 7 ? 30 : 26;
+  const n = cols.length, size = n === 1 ? 44 : n <= 7 ? 36 : 32;
   const gtc = `grid-template-columns:${n <= 7 ? 'minmax(0,1fr)' : '128px'} repeat(${n},${size}px)`;
   const head = cols.map(o => { const d = dateAt(o); return `<span class="sd-hcell ${o === 0 ? 'today' : d.getDay() === 1 && n > 7 ? 'mon' : ''}"><span>${WD[d.getDay()]}</span><b>${d.getDate()}</b></span>`; }).join('');
   const rows = vis.map(r => {
@@ -494,7 +550,7 @@ function matrixView(p, s, e, withRate) {
       const fut = o > 0, due = o >= MIN && (isDue(r, p, o) || rep(r).type === 'perweek' && o >= startOff(r)), dn = !fut && isDone(r, p, o);
       const cls = dn ? 'done' : !due ? 'off' : fut ? 'fut' : o === 0 ? 'today' : '';
       const can = !fut && (due || dn) && canCheck(r, p);
-      return `<button class="sd-cell ${cls}" ${can ? `data-a="toggle" data-r="${r.id}" data-o="${o}"` : 'tabindex="-1"'} aria-label="${esc(r.title)} ${dk(o)}">${icon('check', 'ph-bold')}</button>`;
+      return `<button class="sd-cell ${cls}" ${can ? `data-a="toggle" data-r="${r.id}" data-o="${o}"` : 'tabindex="-1"'} ${can ? `aria-pressed="${dn}"` : ''} aria-label="${esc(r.title)}, ${dateAt(o).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}">${icon('check', 'ph-bold')}</button>`;
     }).join('');
     const meta = (rep(r).type === 'daily' && r.who === 's' ? 'Gemeinsam' : repLabel(r)) + (withRate ? ` · ${rt.pct} %` : '');
     return `<div class="sd-grow" style="${gtc}"><div class="sd-sticky"><span class="t">${esc(r.title)}</span><span class="m">${meta}</span></div>${cells}</div>`;
@@ -521,10 +577,10 @@ function tabHeute() {
   const title = off === 0 ? 'Heute' : off === -1 ? 'Gestern' : dateAt(off).toLocaleDateString('de-DE', { weekday: 'long' });
   const end = off < -6 ? off + 3 : 0; const days = [];
   for (let o = end - 6; o <= end; o++) days.push(o);
-  const strip = `<div class="sd-strip">${days.map(o => `<button class="${o === off ? 'on' : ''}" data-a="day" data-o="${o}"><small>${WD[dateAt(o).getDay()]}</small><b>${dateAt(o).getDate()}</b><i class="bar"><i style="width:${ui.duo ? duoPct(o) : dayStats(p, o).pct}%"></i></i></button>`).join('')}</div>`;
+  const strip = `<div class="sd-strip">${days.map(o => `<button class="${o === off ? 'on' : ''}" aria-pressed="${o === off}" aria-label="${dateAt(o).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}, ${ui.duo ? duoPct(o) : dayStats(p, o).pct} Prozent" data-a="day" data-o="${o}"><small>${WD[dateAt(o).getDay()]}</small><b>${dateAt(o).getDate()}</b><i class="bar"><i style="width:${ui.duo ? duoPct(o) : dayStats(p, o).pct}%"></i></i></button>`).join('')}</div>`;
   const body = ui.duo ? (ui.heuteView === 'liste' ? duoListView(off) : duoTilesView(off))
     : ui.heuteView === 'liste' ? `${R().length ? hero(st, off) : ''}${listView(p, off)}` : tilesView(p, off);
-  return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div></div>
+  return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div><button class="sd-btn ghost sm" data-a="tab" data-v="verlauf">${icon('chart-line-up')}Verlauf</button></div>
   ${whoSeg()}
   ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
   ${strip}${newNote()}${newItemsNote()}${ui.duo ? '' : roNote()}${heuteTasks(ui.duo ? ui.me : p, off)}${body}`;
@@ -533,8 +589,11 @@ function tabHeute() {
 // An vergangenen Tagen: die an diesem Tag fälligen Aufgaben.
 function heuteTasks(p, off) {
   const list = off === 0 ? sortTasks(T().filter(t => taskFor(t, p) && t.due && dueOff(t) <= 0 && (!t.done || t.doneAt === dk(0)))) : sortTasks(tasksDueOn(p, off));
-  if (!list.length) return '';
-  return `<div class="sd-group sd-tasks"><span class="sd-label sd-catlabel">${icon('check-square-offset')}Aufgaben<button class="sd-mini" data-a="tab" data-v="aufgaben">Alle</button></span>${list.map(taskItem).join('')}</div>`;
+  // Seit Version 13 steht der Aufgaben-Block immer auf „Heute“: mit „Neu“ zum Vergeben und „Alle“ für die ganze Liste
+  const later = openTasks(p).filter(t => !t.due || dueOff(t) > 0).length;
+  const none = off === 0 ? `<div class="sd-tnone">${later ? `Heute nichts fällig · ${later} später` : 'Heute nichts fällig'}</div>` : '';
+  if (!list.length && off !== 0) return '';
+  return `<div class="sd-group sd-tasks"><span role="heading" aria-level="2" class="sd-label sd-catlabel">${icon('check-square-offset')}Aufgaben<button class="sd-mini" data-a="newTask" aria-label="Aufgabe hinzufügen">${icon('plus')}Neu</button><button class="sd-mini" data-a="tab" data-v="aufgaben">Alle</button></span>${list.length ? list.map(taskItem).join('') : none}</div>`;
 }
 // Verlauf (seit Version 10): Statistik, Kalender und Raster mit einem gemeinsamen Zeitraum.
 // Die Statistik kennt keinen Tag: steht der Zeitraum auf „Tag“, zeigt sie die Woche dieses Tages.
@@ -546,9 +605,9 @@ function tabVerlauf() {
   if (v === 'statistik') return head + statistikView(s, e);
   const tot = totals(p, s, e), tl = tasksIn(p, s, m.mode === 'monat' ? e : Math.min(e, 0));
   let body;
-  if (v === 'raster') body = prog(`${tot.a} von ${tot.b} erfüllt`, tot.pct) + matrixView(p, s, e, true);
+  if (v === 'raster') body = prog(`${tot.a} von ${tot.b} erledigt`, tot.pct) + matrixView(p, s, e, true);
   else if (m.mode === 'tag') { const st = dayStats(p, s); body = taskGroup(tl) + prog(`${st.n} von ${st.t} erledigt`, st.pct) + listView(p, s); }
-  else body = prog(`${tot.a} von ${tot.b} Erledigungen`, tot.pct) + (m.mode === 'woche' ? matrixView(p, s, e, false) : calendarView(p, s, e, m.mode === 'zeitraum')) + taskGroup(tl, m.mode === 'monat' ? 'Aufgaben in diesem Monat' : 'Aufgaben im Zeitraum');
+  else body = prog(`${tot.a} von ${tot.b} erledigt`, tot.pct) + (m.mode === 'woche' ? matrixView(p, s, e, false) : calendarView(p, s, e, m.mode === 'zeitraum')) + taskGroup(tl, m.mode === 'monat' ? 'Aufgaben in diesem Monat' : 'Aufgaben im Zeitraum');
   return head + personSeg() + roNote() + body;
 }
 function tabRoutinen() {
@@ -556,16 +615,16 @@ function tabRoutinen() {
   const row = r => `<button class="sd-row ${canEdit(r) ? '' : 'ro'}" ${canEdit(r) ? `data-a="edit" data-r="${r.id}"` : `aria-disabled="true" title="Nur ${esc(data.names[r.who])} kann diese Routine bearbeiten"`}><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${r.slot} · ${repLabel(r)}${givenBy(r) ? ' · ' + givenLabel(r) : ''}</span></span><span class="sd-who ${r.who === 's' ? 's' : ''}">${esc(whoLabel(r))}</span>${icon(canEdit(r) ? 'caret-right' : 'lock-simple')}</button>`;
   const groups = [...cats().map(c => [c.id, c.name, c.icon]), [null, 'Ohne Bereich', 'tag']].map(([id, name, ic]) => {
     const items = all.filter(r => id ? catOf(r) === id : !catById(catOf(r))); if (!items.length) return '';
-    return `<div class="sd-group"><span class="sd-label sd-catlabel">${icon(ic)}${esc(name)}<em>${items.length}</em></span>${items.map(row).join('')}</div>`;
+    return `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label sd-catlabel">${icon(ic)}${esc(name)}<em>${items.length}</em></span>${items.map(row).join('')}</div>`;
   }).join('');
   const archived_ = arch.length ? `<details class="sd-arch"><summary>${icon('archive')}Archiviert<em>${arch.length}</em></summary><p>Archivierte Routinen erscheinen nicht mehr, ihre vergangenen Tage zählen aber weiter in Kalender und Statistik.</p>${arch.map(r => `<div class="sd-row ro"><span class="txt"><span class="t">${esc(r.title)}</span><span class="m">${esc(catName(r))} · ${esc(whoLabel(r))}</span></span>${canEdit(r) ? `<button class="sd-mini" data-a="restore" data-r="${r.id}">${icon('arrow-counter-clockwise')}Wiederherstellen</button><button class="sd-mini danger" data-a="purge" data-r="${r.id}" aria-label="Endgültig löschen">${icon('trash')}</button>` : icon('lock-simple')}</div>`).join('')}</details>` : '';
   const body = !all.length && !arch.length ? empty('Noch keine Routinen.', true) : (all.length ? groups : empty('Alle Routinen sind archiviert.', true)) + archived_;
-  return `<div class="sd-hdr"><div><div class="sd-sub">${all.length} ${all.length === 1 ? 'Routine' : 'Routinen'}</div><h1>Routinen</h1></div><button class="sd-btn ghost sm" data-a="openCats">${icon('folders')}Bereiche</button></div>${body}`;
+  return `<div class="sd-hdr"><div><div class="sd-sub">${all.length} ${all.length === 1 ? 'Routine' : 'Routinen'}</div><h1>Routinen</h1></div><button class="sd-btn ghost sm" data-a="openCats">${icon('folders')}Bereiche</button></div><button class="sd-btn block sd-bigadd" data-a="newRoutine">${icon('plus', 'ph-bold')}Routine hinzufügen</button>${body}`;
 }
 function taskItem(t) {
   const o = dueOff(t), late = !t.done && o !== null && o < 0;
   const due = o === null ? '' : `<span class="due ${late ? 'late' : ''}">${icon(late ? 'warning-circle' : 'calendar-blank')}${dueLabel(o, t.done)}</span> · `;
-  return `<div class="sd-item sd-titem ${t.done ? 'done' : ''}"><button class="sd-check" data-a="taskToggle" data-t="${t.id}" aria-label="${esc(t.title)} ${t.done ? 'wieder öffnen' : 'abhaken'}">${icon('check', 'ph-bold')}</button><button class="txt" data-a="taskEdit" data-t="${t.id}"><span class="t">${esc(t.title)}</span><span class="m">${due}${taskMeta(t)}${t.note ? ' · ' + icon('note') : ''}</span></button><span class="sd-from">${taskChip(t)}</span></div>`;
+  return `<div class="sd-item sd-titem ${t.done ? 'done' : ''}"><button class="sd-check" data-a="taskToggle" data-t="${t.id}" aria-label="${esc(t.title)} ${t.done ? 'wieder öffnen' : 'abhaken'}">${icon('check', 'ph-bold')}</button><button class="txt" data-a="taskEdit" data-t="${t.id}"><span class="t">${esc(t.title)}</span><span class="m">${due}${taskMeta(t)}${t.note ? ' · ' + icon('note') : ''}</span></button><span class="sd-from" aria-hidden="true">${taskChip(t)}</span></div>`;
 }
 function tabAufgaben() {
   const me = ui.me, v = ui.taskView, open = openTasks(), late = open.filter(t => t.due && dueOff(t) < 0).length, today = dueNow(me).length;
@@ -576,12 +635,13 @@ function tabAufgaben() {
   } else {
     list = sortTasks(open.filter(t => v === 'all' || (v === 'mine' ? taskFor(t, me) : t.from === me && t.to !== me)));
     const groups = [['Überfällig', t => t.due && dueOff(t) < 0], ['Heute', t => t.due && dueOff(t) === 0], ['Morgen', t => t.due && dueOff(t) === 1], ['Später', t => t.due && dueOff(t) > 1], ['Ohne Datum', t => !t.due]];
-    body = groups.map(([name, f]) => { const g = list.filter(f); return g.length ? `<div class="sd-group"><span class="sd-label">${name}</span>${g.map(taskItem).join('')}</div>` : ''; }).join('');
+    body = groups.map(([name, f]) => { const g = list.filter(f); return g.length ? `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label">${name}</span>${g.map(taskItem).join('')}</div>` : ''; }).join('');
   }
-  const none = { mine: 'Nichts zu tun. Tippe auf +, um eine Aufgabe anzulegen.', from: 'Du hast gerade keine offenen Aufgaben vergeben.', all: 'Keine offenen Aufgaben.', done: 'In den letzten 30 Tagen wurde nichts erledigt.' }[v];
+  const none = { mine: `Alles erledigt. Tippe auf +, um dir oder ${esc(data.names[ui.me === 'a' ? 'b' : 'a'])} eine Aufgabe zu geben.`, from: 'Du hast gerade keine offenen Aufgaben vergeben.', all: 'Keine offenen Aufgaben.', done: 'In den letzten 30 Tagen wurde nichts erledigt.' }[v];
   const sub = `${open.length} offen${late ? ` · ${late} überfällig` : ''}`;
   return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>Aufgaben</h1></div></div>
   <div class="sd-tbanner"><span>${icon('sun-horizon', 'ph-fill')}Fällig für dich</span><b>${today}</b></div>
+  <button class="sd-btn block sd-bigadd sd-tbig" data-a="newTask">${icon('plus', 'ph-bold')}Aufgabe hinzufügen</button>
   ${seg([['mine', 'Für mich'], ['from', 'Vergeben'], ['all', 'Alle'], ['done', 'Erledigt']], v, 'taskView')}
   ${body || `<div class="sd-empty"><span>${none}</span></div>`}`;
 }
@@ -589,9 +649,9 @@ function taskSheetHtml() {
   const d = ui.task, opt = (on, a, v, l) => `<button class="sd-opt ${on ? 'on' : ''}" data-a="${a}" data-v="${v}">${l}</button>`;
   const enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
   const quick = [['', 'Ohne Datum'], [dk(0), 'Heute'], [dk(1), 'Morgen'], [dk((6 - dateAt(0).getDay() + 7) % 7 || 7), 'Samstag'], [dk(7), 'In einer Woche']];
-  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-tsheet" data-a="noop">
-  <div class="grip"></div><h3>${d.id ? 'Aufgabe bearbeiten' : 'Neue Aufgabe'}</h3>
-  <input class="sd-input" value="${esc(d.title)}" placeholder="z. B. Paket zur Post bringen" data-in="tTitle" maxlength="120">
+  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-tsheet" data-a="noop" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="grip"></div><div class="sd-sheethead"><h2 id="sheet-title" tabindex="-1">${d.id ? 'Aufgabe bearbeiten' : 'Neue Aufgabe'}</h2><button class="sd-mini sd-cancel" data-a="closeSheet">Abbrechen</button></div>
+  <label class="sd-field">Was ist zu tun?<input class="sd-input" value="${esc(d.title)}" placeholder="z. B. Paket zur Post bringen" data-in="tTitle" maxlength="120"></label>
   <div class="sd-field">Für wen<div class="sd-g3">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ['s', 'Gemeinsam']].map(([k, l]) => opt(d.to === k, 'tTo', k, l)).join('')}</div></div>
   <div class="sd-field">Fällig<div class="sd-chips">${quick.map(([k, l]) => `<button class="sd-chip ${(d.due || '') === k ? 'on' : ''}" data-a="tDue" data-v="${k}">${l}</button>`).join('')}</div><input class="sd-input" type="date" value="${d.due || ''}" data-ch="tDate" aria-label="Datum wählen"></div>
   <label class="sd-field">Notiz<textarea class="sd-input" rows="2" maxlength="500" placeholder="optional" data-in="tNote">${esc(d.note || '')}</textarea></label>
@@ -609,15 +669,15 @@ function shopSuggest() {
   const list = q ? known.filter(x => norm(x.title).includes(q) && norm(x.title) !== q) : known.filter(x => (x.count || 0) > 0);
   const top = list.sort((a, b) => (b.count || 0) - (a.count || 0) || a.title.localeCompare(b.title)).slice(0, q ? 6 : 8);
   if (!top.length) return '';
-  return `<span class="sd-label">${q ? 'Vorschläge' : 'Häufig gekauft'}</span><div class="sd-chips">${top.map(x => `<button class="sd-chip" data-a="shopQuick" data-s="${x.id}">${icon('plus')}${esc(x.title)}</button>`).join('')}</div>`;
+  return `<span role="heading" aria-level="2" class="sd-label">${q ? 'Vorschläge' : 'Häufig gekauft'}</span><div class="sd-chips">${top.map(x => `<button class="sd-chip" data-a="shopQuick" data-s="${x.id}">${icon('plus')}${esc(x.title)}</button>`).join('')}</div>`;
 }
 function tabEinkauf() {
   const open = S().filter(onList), cart = S().filter(x => x.open && x.done).sort((a, b) => (a.doneAt || 0) - (b.doneAt || 0));
   const groups = AISLES.map(([id, name, ic]) => {
     const g = open.filter(x => (x.aisle || 'sonst') === id).sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0)); if (!g.length) return '';
-    return `<div class="sd-group"><span class="sd-label sd-catlabel">${icon(ic)}${name}<em>${g.length}</em></span>${g.map(shopItem).join('')}</div>`;
+    return `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label sd-catlabel">${icon(ic)}${name}<em>${g.length}</em></span>${g.map(shopItem).join('')}</div>`;
   }).join('');
-  const done = cart.length ? `<div class="sd-group"><span class="sd-label sd-catlabel">${icon('shopping-cart-simple')}Im Wagen<em>${cart.length}</em><button class="sd-mini" data-a="shopClear">${icon('trash-simple')}Erledigte löschen</button></span>${cart.map(shopItem).join('')}</div>` : '';
+  const done = cart.length ? `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label sd-catlabel">${icon('shopping-cart-simple')}Im Wagen<em>${cart.length}</em><button class="sd-mini" data-a="shopClear">${icon('trash-simple')}Erledigte löschen</button></span>${cart.map(shopItem).join('')}</div>` : '';
   const msg = ui.shopMsg ? `<div class="sd-hint">${icon('info')}<span>${esc(ui.shopMsg)}</span></div>` : '';
   return `<div class="sd-hdr"><div><div class="sd-sub">${open.length ? `${open.length} auf der Liste` : 'Alles da'}${cart.length ? ` · ${cart.length} im Wagen` : ''}</div><h1>Einkauf</h1></div></div>
   <div class="sd-shop">
@@ -629,8 +689,8 @@ function tabEinkauf() {
 }
 function shopSheetHtml() {
   const d = ui.shopEdit, enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
-  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-ssheet" data-a="noop">
-  <div class="grip"></div><h3>Eintrag bearbeiten</h3>
+  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-ssheet" data-a="noop" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="grip"></div><div class="sd-sheethead"><h2 id="sheet-title" tabindex="-1">Eintrag bearbeiten</h2><button class="sd-mini sd-cancel" data-a="closeSheet">Abbrechen</button></div>
   <div class="sd-g2"><label class="sd-field">Was<input class="sd-input" value="${esc(d.title)}" data-in="sTitle" maxlength="80"></label><label class="sd-field">Menge<input class="sd-input" value="${esc(d.qty || '')}" data-in="sQty" maxlength="30" placeholder="z. B. 2"></label></div>
   <div class="sd-field">Bereich im Laden<div class="sd-chips">${AISLES.map(([id, name, ic]) => `<button class="sd-chip ${d.aisle === id ? 'on' : ''}" data-a="sAisle" data-v="${id}">${icon(ic)}${name}</button>`).join('')}</div></div>
   <button class="sd-btn block" data-a="sSave" ${d.title.trim() ? '' : 'disabled'}>Speichern</button>
@@ -638,12 +698,74 @@ function shopSheetHtml() {
   <button class="sd-btn danger block" data-a="sDelete">${icon('trash')}Ganz löschen (auch aus den Vorschlägen)</button>
   </div></div>`;
 }
+// ---------- Ausgaben: Ansicht ----------
+function expSuggest() {
+  const q = norm(ui.expDraft.replace(/[\d.,€]+/g, ''));
+  if (!q) return '';
+  const hits = knownShops().filter(t => norm(t).startsWith(q) && norm(t) !== q).slice(0, 5);
+  return hits.length ? `<div class="sd-chips">${hits.map(t => `<button class="sd-chip" data-a="expShop" data-v="${esc(t)}">${icon(expCat(lastForShop(t)?.cat)[2])}${esc(t)}</button>`).join('')}</div>` : '';
+}
+function tabAusgaben() {
+  const k = ui.expMonth, mk = monthKey(k), d0 = monthStart(k), fc = ui.expCat;
+  const all = X().filter(x => (x.date || '').startsWith(mk));
+  const list = all.filter(x => !fc || (x.cat || 'sonst') === fc).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  const sum = l => l.reduce((s, x) => s + x.amount, 0), total = sum(list), allTotal = sum(all);
+  const mName = d0.toLocaleDateString('de-DE', { month: 'long' }), month = d0.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  const prev = sum(X().filter(x => (x.date || '').startsWith(monthKey(k - 1))));
+  const byCat = EXP_CATS.map(([id, name, ic]) => ({ id, name, ic, sum: sum(all.filter(x => (x.cat || 'sonst') === id)) })).filter(c => c.sum).sort((a, b) => b.sum - a.sum);
+  const cats = byCat.length ? `<div class="sd-card sd-ecats"><h2>Nach Kategorie</h2><p class="sd-muted">Antippen zeigt nur diese Kategorie.</p>${byCat.map(c => `<button class="sd-rate sd-ecat ${fc === c.id ? 'on' : ''}" aria-pressed="${fc === c.id}" data-a="expFilter" data-v="${c.id}"><div class="row"><span>${icon(c.ic)} ${c.name}</span><span>${euro(c.sum)} · ${Math.round(c.sum / allTotal * 100)} %</span></div><div class="sd-track"><div style="width:${Math.max(2, Math.round(c.sum / byCat[0].sum * 100))}%"></div></div></button>`).join('')}</div>` : '';
+  const days = [...new Set(list.map(x => x.date))];
+  const dayLabel = key => { const o = offOfKey(key); return o === 0 ? 'Heute' : o === -1 ? 'Gestern' : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }); };
+  const item = x => { const c = expCat(x.cat); return `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}"><span class="sd-vico" aria-hidden="true">${icon(c[2])}</span><span class="txt"><span class="t">${esc(x.title)}</span><span class="m">${c[1]}${x.by ? ` · ${esc(data.names[x.by])}` : ''}${x.note ? ' · ' + icon('note') : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b></button>`; };
+  const groups = days.map(dd => { const l = list.filter(x => x.date === dd); return `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label sd-eday"><span>${dayLabel(dd)}</span><span>${euro(sum(l))}</span></span>${l.map(item).join('')}</div>`; }).join('');
+  const msg = ui.expMsg ? `<div class="sd-hint" role="status">${icon('info')}<span>${esc(ui.expMsg)}</span></div>` : '';
+  const nav = `<div class="sd-nav"><button class="sd-circ" data-a="expMonth" data-v="-1" aria-label="Voriger Monat">${icon('caret-left')}</button><span>${month}</span><button class="sd-circ" data-a="expMonth" data-v="1" ${k < 0 ? '' : 'disabled'} aria-label="Nächster Monat">${icon('caret-right')}</button></div>`;
+  const prevName = monthStart(k - 1).toLocaleDateString('de-DE', { month: 'long' });
+  const diff = !fc && prev && total !== prev ? ` · ${euro(Math.abs(total - prev))} ${total > prev ? 'mehr' : 'weniger'} als im ${prevName}` : '';
+  const filt = fc ? `<div class="sd-hint">${icon(expCat(fc)[2])}<span>Nur <b>${expCat(fc)[1]}</b></span><button class="sd-mini" data-a="expFilter" data-v="${fc}">Alle zeigen</button></div>` : '';
+  return `<div class="sd-hdr"><div><div class="sd-sub">${list.length} ${list.length === 1 ? 'Ausgabe' : 'Ausgaben'}${diff}</div><h1>Ausgaben</h1></div></div>
+  <div class="sd-exp">
+  <form class="sd-sadd sd-eadd" data-form="exp"><input class="sd-input" data-in="expNew" value="${esc(ui.expDraft)}" placeholder="z. B. Rewe 23,80" maxlength="90" enterkeyhint="done" autocomplete="off" aria-label="Neue Ausgabe: Geschäft und Betrag"><button class="sd-btn" type="submit" aria-label="Ausgabe hinzufügen">${icon('plus', 'ph-bold')}</button></form>
+  <div class="sd-esug">${expSuggest()}</div>
+  ${msg}
+  ${nav}
+  <div class="sd-tbanner sd-ebanner"><span>${icon('wallet', 'ph-fill')}Ausgegeben im ${mName}</span><b>${euro(total)}</b></div>
+  ${filt}${cats}${groups || `<div class="sd-empty"><span>${k === 0 ? `Noch keine Ausgaben im ${mName}. Trag oben das Geschäft und den Betrag ein, zum Beispiel „Rewe 23,80“.` : `Im ${mName} wurde nichts eingetragen.`}</span></div>`}
+  </div>`;
+}
+function expSheetHtml() {
+  const d = ui.expEdit, enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
+  const val = (d.amount / 100).toFixed(2).replace('.', ',');
+  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-esheet" data-a="noop" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="grip"></div><div class="sd-sheethead"><h2 id="sheet-title" tabindex="-1">Ausgabe bearbeiten</h2><button class="sd-mini sd-cancel" data-a="closeSheet">Abbrechen</button></div>
+  <div class="sd-g2"><label class="sd-field">Betrag in €<input class="sd-input sd-eamtin" value="${val}" data-in="eAmount" inputmode="decimal" maxlength="10"></label><label class="sd-field">Geschäft<input class="sd-input" value="${esc(d.title)}" data-in="eTitle" maxlength="80"></label></div>
+  <div class="sd-field">Kategorie<div class="sd-chips">${EXP_CATS.map(([id, name, ic]) => `<button class="sd-chip ${d.cat === id ? 'on' : ''}" aria-pressed="${d.cat === id}" data-a="eCat" data-v="${id}">${icon(ic)}${name}</button>`).join('')}</div></div>
+  <label class="sd-field">Datum<input class="sd-input" type="date" value="${d.date}" data-ch="eDate"></label>
+  <label class="sd-field">Notiz (optional)<textarea class="sd-input" rows="2" maxlength="500" data-in="eNote">${esc(d.note || '')}</textarea></label>
+  <p class="sd-muted sd-tnote">Erfasst von ${esc(data.names[d.by] || '–')}</p>
+  <button class="sd-btn block" data-a="eSave">Speichern</button>
+  <button class="sd-btn danger block" data-a="eDelete">${icon('trash')}Ausgabe löschen</button>
+  </div></div>`;
+}
+// ---------- Verwaltung (seit Version 13): Stammdaten und Einstellungen hinter einem Tab ----------
+function tabVerwaltung() {
+  const row = (v, ic, t, m, a = 'tab') => `<button class="sd-row sd-vrow" data-a="${a}" data-v="${v}"><span class="sd-vico">${icon(ic)}</span><span class="txt"><span class="t">${t}</span><span class="m">${m}</span></span>${icon('caret-right')}</button>`;
+  const open = openTasks().length;
+  return `<div class="sd-hdr"><div><div class="sd-sub">Routinen, Aufgaben und Einstellungen</div><h1>Verwaltung</h1></div></div>
+  <div class="sd-group">
+  ${row('routinen', 'list-checks', 'Routinen', `${active().length} aktiv · anlegen, ändern, archivieren`)}
+  ${row('', 'folders', 'Bereiche', `${cats().length} Bereiche für Routinen`, 'openCats')}
+  ${row('aufgaben', 'check-square-offset', 'Alle Aufgaben', `${open} offen · vergeben, erledigt`)}
+  ${row('verlauf', 'chart-line-up', 'Verlauf und Statistik', 'Kalender, Raster, Quoten')}
+  ${row('mehr', 'gear-six', 'Einstellungen', 'Namen, Darstellung, Haushalt, Daten, Version')}
+  </div>`;
+}
 const CAT_ICONS = ['heartbeat', 'barbell', 'house-line', 'users-three', 'broom', 'dots-three-circle', 'tag', 'briefcase', 'book-open', 'leaf', 'moon', 'sun', 'heart', 'brain', 'paint-brush', 'music-notes', 'baby', 'dog', 'currency-eur', 'fork-knife', 'drop', 'graduation-cap'];
 function catSheetHtml() {
   const enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
   const count = id => active().filter(r => catOf(r) === id).length;
-  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet" data-a="noop">
-  <div class="grip"></div><h3>Bereiche</h3>
+  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet" data-a="noop" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="grip"></div><div class="sd-sheethead"><h2 id="sheet-title" tabindex="-1">Bereiche</h2><button class="sd-mini sd-cancel" data-a="closeSheet">Abbrechen</button></div>
   <p class="sd-sheetp">Ordne Routinen nach Lebensbereichen. Symbol antippen zum Wechseln, Namen direkt ändern. Gilt für euch beide.</p>
   <div class="sd-catlist">${cats().map(c => `<div class="sd-catrow"><button class="sd-caticon" data-a="catIcon" data-id="${c.id}" aria-label="Symbol wechseln">${icon(c.icon)}</button><input class="sd-input" value="${esc(c.name)}" maxlength="40" data-ch="catName" data-id="${c.id}" aria-label="Name des Bereichs"><span class="sd-catn">${count(c.id)}</span><button class="sd-circ" data-a="catDel" data-id="${c.id}" aria-label="Bereich ${esc(c.name)} entfernen">${icon('trash')}</button></div>`).join('')}</div>
   <div class="sd-catadd"><input class="sd-input" placeholder="Neuer Bereich, z. B. Beruf" maxlength="40" data-in="catNew" value="${esc(ui.catDraft || '')}"><button class="sd-btn" data-a="catAdd">${icon('plus')}Anlegen</button></div>
@@ -676,14 +798,14 @@ const aboutCard = () => {
 };
 function tabMehr() {
   const fbMode = store.mode === 'firebase';
-  return `<div class="sd-hdr"><div><div class="sd-sub">${fbMode ? 'Synchronisiert' : 'Lokaler Modus'}</div><h1>Einstellungen</h1></div></div>
+  return `<div class="sd-hdr"><div><div class="sd-sub">${fbMode ? 'Mit dem Partner verbunden' : 'Nur auf diesem Gerät'}</div><h1>Einstellungen</h1></div></div>
   <div class="sd-card"><h2>Namen</h2><div class="sd-g2"><label class="sd-field">Person 1<input class="sd-input" value="${esc(data.names.a)}" data-ch="nameA"></label><label class="sd-field">Person 2<input class="sd-input" value="${esc(data.names.b)}" data-ch="nameB"></label></div></div>
   <div class="sd-card"><h2>Darstellung</h2><p>Automatisch folgt der Einstellung deines Handys.</p>${seg([['auto', 'Automatisch'], ['light', 'Hell'], ['dark', 'Dunkel']], modePref(), 'mode')}</div>
   ${fbMode ? `<div class="sd-card"><h2>Ich bin ${esc(data.names[ui.me])}</h2><p>Dieses Konto gehört fest zu ${esc(data.names[ui.me])}. Ihr seht beide alles und dürft alle Routinen, Aufgaben und Einkäufe abhaken und bearbeiten.</p></div>`
       : `<div class="sd-card"><h2>Ich bin</h2><p>Mit dieser Person startet die App auf diesem Gerät.</p>${seg([['a', esc(data.names.a)], ['b', esc(data.names.b)]], ui.me, 'me')}</div>`}
-  ${fbMode ? `<div class="sd-card"><h2>Haushalt</h2><p>Mit diesem Code tritt die zweite Person nach der Registrierung bei.</p><span class="sd-code">${esc(hhId)}</span><p>Angemeldet als ${esc(fb.auth.currentUser?.email)}</p><p>Nutzungsstatistik (Google Analytics): ${an ? 'aktiv' : 'aus'}</p><button class="sd-btn ghost" data-a="logout">${icon('sign-out')}Abmelden</button></div>`
-      : `<div class="sd-card"><h2>Synchronisierung</h2><p>Die Daten liegen nur auf diesem Gerät. Für den Abgleich zwischen zwei Handys trägst du die Firebase-Konfiguration in firebase-config.js ein (siehe README).</p></div>`}
-  <div class="sd-card"><h2>Daten</h2><p>Sicherung als JSON-Datei. Ein Import ersetzt alle Routinen und Erledigungen.</p><div class="sd-g2"><button class="sd-btn ghost" data-a="export">${icon('download-simple')}Export</button><label class="sd-btn ghost">${icon('upload-simple')}Import<input type="file" accept="application/json,.json" data-ch="import" hidden></label></div></div>
+  ${fbMode ? `<div class="sd-card"><h2>Haushalt</h2><p>Mit diesem Code tritt die zweite Person bei: in der App registrieren, dann „Mit Code beitreten“.</p><span class="sd-code">${esc(hhId)}</span><p>Angemeldet als ${esc(fb.auth.currentUser?.email)}</p><button class="sd-btn ghost" data-a="logout">${icon('sign-out')}Abmelden</button></div>`
+      : `<div class="sd-card"><h2>Nur auf diesem Gerät</h2><p>Deine Daten liegen nur auf diesem Handy und werden nicht abgeglichen.</p></div>`}
+  <div class="sd-card"><h2>Daten</h2><p>Lade eine Sicherung deiner Daten herunter oder stelle eine Sicherung wieder her. Beim Wiederherstellen werden vorhandene Einträge überschrieben.</p><div class="sd-g2"><button class="sd-btn ghost" data-a="export">${icon('download-simple')}Export</button><label class="sd-btn ghost">${icon('upload-simple')}Import<input type="file" accept="application/json,.json" data-ch="import" hidden></label></div></div>
   ${aboutCard()}`;
 }
 
@@ -752,13 +874,13 @@ function sheetHtml() {
   const valid = d.title.trim() && (x.type !== 'weekdays' || (x.days || []).length);
   const changed = d.id && data.routines[d.id] && startOff(data.routines[d.id]) < 0 && (JSON.stringify(rep(data.routines[d.id])) !== JSON.stringify(x) || data.routines[d.id].who !== d.who);
   const enter = ui.sheetFresh ? 'enter' : ''; ui.sheetFresh = false;
-  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet" data-a="noop">
-  <div class="grip"></div><h3>${d.id ? 'Routine bearbeiten' : 'Neue Routine'}</h3>
-  <input class="sd-input" value="${esc(d.title)}" placeholder="z. B. Zahnseide" data-in="dTitle" maxlength="80">
+  return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet" data-a="noop" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="grip"></div><div class="sd-sheethead"><h2 id="sheet-title" tabindex="-1">${d.id ? 'Routine bearbeiten' : 'Neue Routine'}</h2><button class="sd-mini sd-cancel" data-a="closeSheet">Abbrechen</button></div>
+  <label class="sd-field">Name der Routine<input class="sd-input" value="${esc(d.title)}" placeholder="z. B. Zahnseide" data-in="dTitle" maxlength="80"></label>
   ${!d.id && !d.title && tplChips('dTpl') ? `<div class="sd-field">Vorschläge<div class="sd-tpls">${tplChips('dTpl')}</div></div>` : ''}
   <div class="sd-field">Tageszeit<div class="sd-g3">${SLOTS.map(s => opt(d.slot === s, 'dSlot', s, s)).join('')}</div></div>
   <div class="sd-field">Bereich<div class="sd-chips">${cats().map(c => `<button class="sd-chip ${d.cat === c.id ? 'on' : ''}" data-a="dCat" data-v="${c.id}">${icon(c.icon)}${esc(c.name)}</button>`).join('')}<button class="sd-chip add" data-a="openCats">${icon('pencil-simple')}Bereiche</button></div></div>
-  <div class="sd-field">Für wen<div class="sd-g2">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ['ab', 'Beide einzeln'], ['s', 'Gemeinsam']].filter(([k]) => canEdit({ who: k })).map(([k, l]) => opt(d.who === k, 'dWho', k, l)).join('')}</div></div>
+  <div class="sd-field">Für wen<div class="sd-g2">${[['a', esc(data.names.a)], ['b', esc(data.names.b)], ['ab', 'Jeder für sich'], ['s', 'Gemeinsam']].filter(([k]) => canEdit({ who: k })).map(([k, l]) => opt(d.who === k, 'dWho', k, l)).join('')}</div></div>
   <div class="sd-field">Wiederholung<div class="sd-chips">${[['daily', 'Täglich'], ['weekdays', 'Wochentage'], ['every', 'Alle X Tage'], ['monthly', 'Monatlich'], ['perweek', 'X-mal pro Woche']].map(([k, l]) => `<button class="sd-chip ${x.type === k ? 'on' : ''}" data-a="dRep" data-v="${k}">${l}</button>`).join('')}</div>${extra}</div>
   ${changed ? `<div class="sd-hint">${icon('clock-counter-clockwise')}<span>Die Änderung gilt ab heute. Vergangene Tage bleiben so gewertet, wie sie geplant waren.</span></div>` : ''}
   <button class="sd-btn block" data-a="dSave" ${valid ? '' : 'disabled'}>${d.id ? 'Speichern' : 'Hinzufügen'}</button>
@@ -779,12 +901,13 @@ function loginHtml() {
   ${reg ? '' : '<button class="sd-btn danger block" type="button" data-a="resetPw">Passwort vergessen?</button>'}
   </form></div>`;
 }
+// Haushalt anlegen: wer anlegt, ist Person 1; die zweite Person tritt mit dem Code bei und wird Person 2.
 function setupHtml() {
-  const s = ui.setup, who = seg([['a', esc(s.a || 'Person 1')], ['b', esc(s.b || 'Person 2')]], s.me, 'setupMe');
+  const s = ui.setup;
   return `<div class="sd-auth"><div class="sd-brand"><h1>Haushalt</h1><p>Einmal anlegen, die zweite Person tritt mit dem Code bei.</p></div>
-  ${ui.setupErr ? `<div class="sd-err">${esc(ui.setupErr)}</div>` : ''}
-  <div class="sd-card"><h2>Neuen Haushalt anlegen</h2><div class="sd-g2"><label class="sd-field">Person 1<input class="sd-input" value="${esc(s.a)}" data-in="setupA"></label><label class="sd-field">Person 2<input class="sd-input" value="${esc(s.b)}" data-in="setupB"></label></div><div class="sd-field">Ich bin${who}</div><button class="sd-btn block" data-a="createHH" ${ui.busy ? 'disabled' : ''}>Anlegen</button></div>
-  <div class="sd-card"><h2>Mit Code beitreten</h2><p>Du bekommst automatisch die noch freie Person.</p><input class="sd-input" value="${esc(s.code)}" placeholder="z. B. K7Q2XM" data-in="setupCode" style="text-transform:uppercase;letter-spacing:.1em"><button class="sd-btn block" data-a="joinHH" ${ui.busy ? 'disabled' : ''}>Beitreten</button></div>
+  ${ui.setupErr ? `<div class="sd-err" role="alert">${esc(ui.setupErr)}</div>` : ''}
+  <div class="sd-card"><h2>Neuen Haushalt anlegen</h2><div class="sd-g2"><label class="sd-field">Dein Name<input class="sd-input" value="${esc(s.a)}" placeholder="z. B. Anna" autocomplete="given-name" data-in="setupA"></label><label class="sd-field">Name der zweiten Person<input class="sd-input" value="${esc(s.b)}" placeholder="z. B. Ben" data-in="setupB"></label></div><button class="sd-btn block" data-a="createHH" ${ui.busy ? 'disabled' : ''}>Haushalt anlegen</button></div>
+  <div class="sd-card"><h2>Mit Code beitreten</h2><p>Du hast einen Code bekommen? Gib ihn hier ein.</p><label class="sd-field">Code<input class="sd-input" value="${esc(s.code)}" placeholder="z. B. K7Q2XM" autocomplete="off" data-in="setupCode" style="text-transform:uppercase;letter-spacing:.1em"></label><button class="sd-btn block" data-a="joinHH" ${ui.busy ? 'disabled' : ''}>Beitreten</button></div>
   <button class="sd-btn danger" data-a="logout">Abmelden</button></div>`;
 }
 
@@ -802,29 +925,55 @@ darkMQ.addEventListener?.('change', applyMode);
 
 // ---------- Render ----------
 const $app = document.getElementById('app');
-const TABS = [['heute', 'sun', 'Heute'], ['verlauf', 'chart-line-up', 'Verlauf'], ['aufgaben', 'check-square-offset', 'Aufgaben'], ['einkauf', 'shopping-cart', 'Einkauf'], ['routinen', 'list-checks', 'Routinen'], ['mehr', 'gear-six', 'Mehr']];
+// Seit Version 13: vier Bereiche unten; Verlauf, Aufgaben (alle), Routinen und Einstellungen sind Unterseiten mit „Zurück“.
+const TABS = [['heute', 'sun', 'Heute'], ['einkauf', 'shopping-cart', 'Einkauf'], ['ausgaben', 'wallet', 'Ausgaben'], ['verwaltung', 'sliders-horizontal', 'Verwaltung']];
+const SUB_PARENT = { verlauf: 'heute', aufgaben: 'heute', routinen: 'verwaltung', mehr: 'verwaltung' };
+const tabLabel = k => TABS.find(t => t[0] === k)?.[2] || '';
+const parentTab = () => SUB_PARENT[ui.tab] ? (ui.back || SUB_PARENT[ui.tab]) : ui.tab;
 const scrollMem = {}; let gridMem = { key: null, left: 0 };
 function render() {
   const sc = $app.querySelector('.sd-scroll'); if (sc) scrollMem[sc.dataset.tab] = sc.scrollTop;
   const gs = $app.querySelector('.sd-gridscroll'); if (gs) gridMem = { key: gs.dataset.key, left: gs.scrollLeft };
-  const focusCh = document.activeElement?.dataset?.in;
+  const focusCh = document.activeElement?.dataset?.in, sheetOpened = ui.sheetFresh;
   if (ui.screen === 'loading') { $app.innerHTML = '<div class="sd-center"><span class="sd-muted">Lädt …</span></div>'; return; }
   if (ui.screen === 'error') { $app.innerHTML = `<div class="sd-auth"><div class="sd-err">${esc(ui.authErr)}</div></div>`; return; }
   if (ui.screen === 'login') { $app.innerHTML = loginHtml(); return; }
   if (ui.screen === 'setup') { $app.innerHTML = setupHtml(); return; }
-  const tab = { heute: tabHeute, verlauf: tabVerlauf, aufgaben: tabAufgaben, einkauf: tabEinkauf, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
-  const fab = ui.tab === 'aufgaben' ? `<button class="sd-fab sd-tfab" data-a="newTask" aria-label="Aufgabe hinzufügen">${icon('plus')}</button>`
-    : (['heute', 'routinen'].includes(ui.tab) || ui.tab === 'verlauf' && ui.verlauf !== 'statistik') ? `<button class="sd-fab" data-a="newRoutine" aria-label="Routine hinzufügen">${icon('plus')}</button>` : '';
+  const page = { heute: tabHeute, verlauf: tabVerlauf, aufgaben: tabAufgaben, einkauf: tabEinkauf, ausgaben: tabAusgaben, verwaltung: tabVerwaltung, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
+  const cur = parentTab(), backLink = SUB_PARENT[ui.tab] ? `<button class="sd-backlink" data-a="back">${icon('caret-left', 'ph-bold')}${tabLabel(cur)}</button>` : '';
   const badge = dueNow(ui.me).length;
-  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${tab}</main>${fab}<nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${ui.tab === k ? 'on' : ''}" data-a="tab" data-v="${k}">${icon(i, ui.tab === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}`;
+  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${backLink}${page}</main><nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, cur === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'heute' && badge ? `<em class="sd-badge" aria-label="${badge} Aufgaben fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}${ui.expEdit ? expSheetHtml() : ''}`;
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
   const ngs = $app.querySelector('.sd-gridscroll'); if (ngs) ngs.scrollLeft = ngs.dataset.key === gridMem.key ? gridMem.left : ngs.scrollWidth;
   if (focusCh) { const el = $app.querySelector(`[data-in="${focusCh}"]`); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } }
+  // Offenes Eingabeblatt: Seite dahinter für Tastatur und Vorlesen sperren, beim Öffnen Fokus auf die Überschrift
+  const dlg = $app.querySelector('.sd-sheet[role="dialog"]');
+  $app.querySelectorAll('.sd-scroll, .sd-tabs, .sd-fab').forEach(el => { el.inert = !!dlg; });
+  if (dlg && sheetOpened && !focusCh) dlg.querySelector('#sheet-title')?.focus({ preventScroll: true });
 }
 
 // ---------- Aktionen ----------
 const A = {
-  tab: d => { ui.tab = d.v; if (d.v === 'aufgaben') markItems('task'); if (d.v === 'routinen') markItems('routine'); render(); track('screen_view', { firebase_screen: d.v }); },
+  tab: d => { if (SUB_PARENT[d.v]) ui.back = TABS.some(t => t[0] === ui.tab) ? ui.tab : parentTab(); else ui.back = null; ui.tab = d.v; if (d.v === 'aufgaben') markItems('task'); if (d.v === 'routinen') markItems('routine'); render(); track('screen_view', { firebase_screen: d.v }); },
+  back: () => { ui.tab = parentTab(); ui.back = null; render(); },
+  expMonth: d => { ui.expMonth = Math.min(0, ui.expMonth + +d.v); render(); },
+  expFilter: d => { ui.expCat = ui.expCat === d.v ? null : d.v; render(); },
+  expShop: d => { ui.expDraft = d.v + ' '; render(); requestAnimationFrame(() => { const el = $app.querySelector('[data-in="expNew"]'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }); },
+  expEdit: d => { const x = data.exp[d.x]; if (!x) return; ui.expEdit = { ...x }; ui.sheetFresh = true; render(); },
+  eCat: d => { ui.expEdit.cat = d.v; render(); },
+  eSave: () => {
+    const d = ui.expEdit, title = (d.title || '').trim(), amount = Math.round(parseFloat(String(d.amountText ?? (d.amount / 100)).replace(',', '.')) * 100);
+    if (!title) return alert('Bitte ein Geschäft eingeben.');
+    if (!(amount > 0) || amount >= 1e8) return alert('Bitte einen Betrag größer als 0 eingeben.');
+    const x = { ...data.exp[d.id], title, amount, cat: d.cat, date: d.date, updatedAt: Date.now() }, note = (d.note || '').trim();
+    if (note) x.note = note.slice(0, 500); else delete x.note;
+    ui.expEdit = null; store.saveExp(x).catch(fail);
+  },
+  eDelete: () => {
+    const x = data.exp[ui.expEdit?.id]; if (!x) return;
+    if (!confirm(`Ausgabe ${x.title} ${euro(x.amount)} löschen?`)) return;
+    ui.expEdit = null; store.deleteExp(x.id).catch(fail); track('expense_delete');
+  },
   person: d => { ui.person = d.p; ui.duo = false; render(); },
   who: d => { ui.duo = d.v === 'duo'; if (!ui.duo) ui.person = d.v; render(); track('view_change', { view: ui.duo ? 'duo' : 'person' }); },
   heuteView: d => { ui.heuteView = d.v; render(); track('view_change', { view: d.v }); },
@@ -891,7 +1040,7 @@ const A = {
   calDay: d => { Object.assign(ui.cal, { mode: 'tag', anchor: +d.o }); render(); },
   newRoutine: () => { ui.sheet = newDraft(); ui.sheetFresh = true; render(); },
   edit: d => { if (!canEdit(data.routines[d.r])) return; ui.sheet = newDraft(data.routines[d.r]); ui.sheetFresh = true; render(); },
-  closeSheet: () => { if (ui.catSheet && ui.sheet) { ui.catSheet = false; return render(); } ui.sheet = null; ui.catSheet = false; ui.task = null; ui.shopEdit = null; render(); },
+  closeSheet: () => { if (ui.catSheet && ui.sheet) { ui.catSheet = false; return render(); } ui.sheet = null; ui.catSheet = false; ui.task = null; ui.shopEdit = null; ui.expEdit = null; render(); },
   noop: () => {},
   addTpl: d => { const [, title, slot, cat] = TPL[+d.v]; store.saveRoutine({ id: rid(), title, slot, who: ui.me, from: ui.me, cat: tplCat(cat) || guessCat(title), rep: { type: 'daily' }, created: dk(0), createdAt: Date.now() }).catch(fail); track('routine_create', { slot, repeat: 'daily', who: ui.me, template: true }); },
   dTpl: d => { const [, title, slot, cat] = TPL[+d.v]; Object.assign(ui.sheet, { title, slot, cat: tplCat(cat) || ui.sheet.cat }); render(); },
@@ -954,7 +1103,7 @@ const A = {
   },
   me: d => store.setMe(d.v),
   export: () => {
-    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), routines: data.routines, done: data.done, tasks: data.tasks, shop: data.shop }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ app: 'SuperDaily', version: 1, exported: new Date().toISOString(), names: data.names, cats: cats(), routines: data.routines, done: data.done, tasks: data.tasks, shop: data.shop, exp: data.exp }, null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `superdaily-${dk(0)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
   authMode: d => { ui.authMode = d.v; ui.authErr = ''; render(); },
@@ -966,13 +1115,13 @@ const A = {
   },
   setupMe: d => { ui.setup.me = d.v; render(); },
   createHH: async () => {
-    const { F, db, auth } = fb, s = ui.setup; ui.busy = true; ui.setupErr = ''; render();
+    const { F, db, auth } = fb, s = ui.setup; s.me = 'a'; ui.busy = true; ui.setupErr = ''; render();
     try {
       const code = Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
-      await F.setDoc(F.doc(db, 'households', code), { members: [auth.currentUser.uid], roles: { [auth.currentUser.uid]: s.me }, names: { a: s.a.trim() || 'Person 1', b: s.b.trim() || 'Person 2' } });
+      await F.setDoc(F.doc(db, 'households', code), { members: [auth.currentUser.uid], roles: { [auth.currentUser.uid]: s.me }, names: { a: s.a.trim().slice(0, 30) || 'Person 1', b: s.b.trim().slice(0, 30) || 'Person 2' } });
       await F.setDoc(F.doc(db, 'users', auth.currentUser.uid), { hh: code, person: s.me });
       ui.busy = false; attach({ hh: code, person: s.me });
-    } catch (e) { console.error(e); ui.busy = false; ui.setupErr = 'Anlegen fehlgeschlagen. Sind die Firestore-Regeln eingetragen?'; render(); }
+    } catch (e) { console.error(e); ui.busy = false; ui.setupErr = 'Der Haushalt konnte nicht angelegt werden. Versuch es bitte noch einmal.'; render(); }
   },
   joinHH: async () => {
     const { F, db, auth } = fb, s = ui.setup, code = s.code.trim().toUpperCase(); if (!code) return;
@@ -988,7 +1137,7 @@ const A = {
         ui.busy = false; return attach({ hh: code, person: me });
       } catch (e) { console.error(e); break; }
     }
-    ui.busy = false; ui.setupErr = 'Beitreten fehlgeschlagen. Stimmt der Code? Ein Haushalt hat Platz für zwei Personen; ist er schon voll, geht es nicht.'; render();
+    ui.busy = false; ui.setupErr = 'Beitreten hat nicht geklappt. Prüfe den Code. Ein Haushalt hat Platz für zwei Personen.'; render();
   },
   seen: () => { markSeen(); render(); },
   openNew: d => { markItems(d.v); ui.tab = d.v === 'task' ? 'aufgaben' : 'routinen'; if (d.v === 'task') ui.taskView = 'mine'; render(); track('new_items_open', { kind: d.v }); },
@@ -1011,6 +1160,16 @@ function addShop(raw) {
   store.saveShop(x).catch(fail);
   track('shop_add', { known: !!ex });
 }
+// Ausgabe eintragen: „Rewe 23,80“ → Betrag, Titel, Kategorie aus dem Text, heutiges Datum
+function addExp(raw) {
+  const { title, amount } = parseExp(raw);
+  if (!(amount > 0)) { ui.expDraft = raw; ui.expMsg = 'Bitte auch den Betrag angeben, zum Beispiel „Rewe 23,80“.'; return render(); }
+  if (!title) { ui.expDraft = raw; ui.expMsg = 'Bitte auch das Geschäft angeben, zum Beispiel „Rewe 23,80“.'; return render(); }
+  const t = knownShops().find(k => norm(k) === norm(title)) || title, cat = suggestExpCat(t);
+  ui.expDraft = ''; ui.expMsg = ''; ui.expMonth = 0;
+  store.saveExp({ id: rid(), title: t, amount, cat, by: ui.me, date: dk(0), createdAt: Date.now() }).catch(fail);
+  track('expense_add', { cat });
+}
 // Konfetti, wenn ein Tag komplett abgehakt ist. Liegt außerhalb von #app, damit render() es nicht entfernt.
 function celebrate() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -1023,12 +1182,16 @@ function celebrate() {
   }
   document.body.appendChild(box); setTimeout(() => box.remove(), 1900);
 }
-function fail(e) { console.error(e); alert('Speichern fehlgeschlagen: ' + (e.message || e)); }
+// Fehler verständlich melden; technische Details nur in der Konsole
+function fail(e) { console.error(e); alert(navigator.onLine === false ? 'Gerade keine Verbindung. Deine Änderung wird gespeichert, sobald du wieder online bist.' : 'Konnte nicht gespeichert werden. Versuch es bitte noch einmal.'); }
 
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-a]'); if (!el || el.disabled) return;
   if (el.getAttribute('type') === 'submit') return;
   const fn = A[el.dataset.a]; if (fn) { e.preventDefault(); fn(el.dataset, el); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $app.querySelector('.sd-sheet[role="dialog"]')) { e.preventDefault(); A.closeSheet(); }
 });
 document.addEventListener('input', e => {
   const k = e.target.dataset?.in; if (!k) return; const v = e.target.value;
@@ -1037,6 +1200,10 @@ document.addEventListener('input', e => {
   if (k === 'shopNew') { ui.shopDraft = v; if (ui.shopMsg) { ui.shopMsg = ''; $app.querySelector('.sd-shop > .sd-hint')?.remove(); } const box = $app.querySelector('.sd-ssug'); if (box) box.innerHTML = shopSuggest(); }
   if (k === 'sTitle') { ui.shopEdit.title = v; const b = $app.querySelector('[data-a="sSave"]'); if (b) b.disabled = !v.trim(); }
   if (k === 'sQty') ui.shopEdit.qty = v;
+  if (k === 'expNew') { ui.expDraft = v; if (ui.expMsg) { ui.expMsg = ''; $app.querySelector('.sd-exp > .sd-hint[role="status"]')?.remove(); } const box = $app.querySelector('.sd-esug'); if (box) box.innerHTML = expSuggest(); }
+  if (k === 'eNote') ui.expEdit.note = v;
+  if (k === 'eTitle') ui.expEdit.title = v;
+  if (k === 'eAmount') ui.expEdit.amountText = v;
   if (k === 'tTitle') { ui.task.title = v; const b = $app.querySelector('[data-a="tSave"]'); if (b) b.disabled = !v.trim(); }
   if (k === 'tNote') ui.task.note = v;
   if (k === 'setupA') ui.setup.a = v;
@@ -1047,6 +1214,7 @@ document.addEventListener('change', async e => {
   const k = e.target.dataset?.ch; if (!k) return; const v = e.target.value;
   const toOff = v => clamp(offOfKey(v));
   if (k === 'tDate') { ui.task.due = v || null; render(); }
+  if (k === 'eDate' && v && ui.expEdit) { ui.expEdit.date = v; }
   if (k === 'calFrom' && v) { ui.cal.from = toOff(v); render(); }
   if (k === 'calTo' && v) { ui.cal.to = toOff(v); render(); }
   if (k === 'catName') {
@@ -1057,11 +1225,16 @@ document.addEventListener('change', async e => {
   if (k === 'nameA' || k === 'nameB') { const n = { ...data.names, [k === 'nameA' ? 'a' : 'b']: v.trim() || (k === 'nameA' ? 'Person 1' : 'Person 2') }; store.setNames(n).catch(fail); }
   if (k === 'import') {
     const f = e.target.files[0]; if (!f) return;
-    if (!confirm('Alle Routinen und Erledigungen durch den Inhalt der Datei ersetzen?')) return;
+    if (!confirm('Sicherung wiederherstellen? Vorhandene Routinen und Haken werden überschrieben.')) return;
     try { const skipped = await store.importAll(JSON.parse(await f.text())); alert('Import abgeschlossen.' + (skipped ? ` ${skipped} Routine(n) der anderen Person wurden übersprungen; die kann sie selbst importieren.` : '')); } catch (err) { alert('Import fehlgeschlagen: ' + err.message); }
   }
 });
 document.addEventListener('submit', async e => {
+  if (e.target.dataset.form === 'exp') {
+    e.preventDefault(); const v = e.target.querySelector('input')?.value || '';
+    if (v.trim()) addExp(v);
+    return requestAnimationFrame(() => $app.querySelector('[data-in="expNew"]')?.focus());
+  }
   if (e.target.dataset.form === 'shop') {
     e.preventDefault(); const el = e.target.querySelector('input'), v = el?.value || '';
     if (v.trim()) addShop(v);
