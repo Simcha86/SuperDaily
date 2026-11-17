@@ -2,6 +2,12 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 15 · 17. November 2026 · [Release Notes](docs/releases/v15/RELEASE-NOTES.md)
+
+- **Ausgaben:** Kategorie schon beim Eintragen wählen – die App markiert ihren Vorschlag, ein Tipp ändert ihn.
+- **Ausgaben:** Stift an jedem Eintrag; Antippen öffnet Ändern und Löschen. Nach dem Eintragen zeigt die App, was gespeichert wurde.
+- **Zurück-Taste am Handy** schließt erst Fenster und Unterseiten und führt zu „Heute“, statt die App sofort zu verlassen.
+
 ## Version 14 · 17. November 2026 · [Release Notes](docs/releases/v14/RELEASE-NOTES.md)
 
 - **Aufgaben haben einen eigenen Bereich** unten in der Leiste, in Senfgold: Heute · Aufgaben · Einkauf · Ausgaben · Verwaltung. Dort der große Knopf „Aufgabe hinzufügen“ und alle Aufgaben mit Filtern.

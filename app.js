@@ -22,6 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 15, date: '2026-11-17', items: ['Ausgaben: Kategorie schon beim Eintragen wählen – die App schlägt eine vor, ein Tipp ändert sie', 'Ausgaben ändern oder löschen: Stift an jedem Eintrag, Antippen öffnet das Bearbeiten', 'Nach dem Eintragen zeigt die App, was gespeichert wurde', 'Zurück-Taste am Handy: schließt erst Fenster und Unterseiten, führt dann zu „Heute“ – die App bleibt offen'] },
   { v: 14, date: '2026-11-17', items: ['Aufgaben haben unten einen eigenen Bereich, in Senfgold', 'Die Zahl der fälligen Aufgaben steht jetzt am Bereich „Aufgaben“', 'Auf „Heute“ bleiben die wichtigsten Aufgaben oben, mit „Neu“ und „Alle“'] },
   { v: 13, date: '2026-11-17', items: ['Neu: Ausgaben – Geschäft und Betrag in einem Satz („Rewe 23,80“), Monatssumme, Tagessummen und Kategorien wie in SuperFinance', 'Unten nur noch vier Bereiche: Heute, Einkauf, Ausgaben, Verwaltung', 'Routinen, alle Aufgaben, Verlauf und Einstellungen findet ihr unter Verwaltung; Verlauf auch oben auf Heute'] },
   { v: 12, date: '2026-11-16', items: ['Besser lesbar: kräftigere Knöpfe und Überschriften, größere Tippflächen', 'Eingaben mit „Abbrechen“, der Plus-Knopf verdeckt nichts mehr', 'Verständlichere Texte: „Gemeinsam“ und „Jeder für sich“, klare Fehlermeldungen', 'Besser mit Vorlesefunktion: „erledigt“ und „ausgewählt“ werden angesagt'] },
@@ -48,7 +49,7 @@ const markSeen = () => { seenVersion = APP_VERSION; try { localStorage.setItem(S
 const data = { names: { a: 'Person 1', b: 'Person 2' }, routines: {}, done: {}, cats: null, tasks: {}, shop: {}, exp: {} };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
-  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '', back: null, expMonth: 0, expDraft: '', expMsg: '', expEdit: null, expCat: null,
+  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '', back: null, expMonth: 0, expDraft: '', expMsg: '', expEdit: null, expCat: null, expDraftCat: null,
   // Verlauf (seit Version 10): ein Zeitraum für Statistik, Kalender und Raster; Start: letzte 30 Tage
   cal: { mode: 'zeitraum', anchor: 0, from: -29, to: 0 },
   sheet: null, catSheet: false, authMode: 'login', authErr: '', setupErr: '', busy: false,
@@ -706,6 +707,12 @@ function expSuggest() {
   const hits = knownShops().filter(t => norm(t).startsWith(q) && norm(t) !== q).slice(0, 5);
   return hits.length ? `<div class="sd-chips">${hits.map(t => `<button class="sd-chip" data-a="expShop" data-v="${esc(t)}">${icon(expCat(lastForShop(t)?.cat)[2])}${esc(t)}</button>`).join('')}</div>` : '';
 }
+// Seit Version 15: Kategorie schon beim Eintragen wählen. Ohne Wahl gilt der Vorschlag (bekanntes Geschäft oder Wortteile).
+function expCatPick() {
+  const t = parseExp(ui.expDraft || '').title, auto = t ? suggestExpCat(knownShops().find(k => norm(k) === norm(t)) || t) : null, cur = ui.expDraftCat || auto;
+  const hint = ui.expDraftCat ? 'gewählt' : auto ? 'Vorschlag' : 'wird erkannt';
+  return `<span class="sd-ecplabel">Kategorie <small>${hint}</small></span><div class="sd-ecpick">${EXP_CATS.map(([id, name, ic]) => `<button type="button" class="sd-chip ${cur === id ? 'on' : ''}" aria-pressed="${cur === id}" data-a="expPick" data-v="${id}">${icon(ic)}${name}</button>`).join('')}</div>`;
+}
 function tabAusgaben() {
   const k = ui.expMonth, mk = monthKey(k), d0 = monthStart(k), fc = ui.expCat;
   const all = X().filter(x => (x.date || '').startsWith(mk));
@@ -717,7 +724,7 @@ function tabAusgaben() {
   const cats = byCat.length ? `<div class="sd-card sd-ecats"><h2>Nach Kategorie</h2><p class="sd-muted">Antippen zeigt nur diese Kategorie.</p>${byCat.map(c => `<button class="sd-rate sd-ecat ${fc === c.id ? 'on' : ''}" aria-pressed="${fc === c.id}" data-a="expFilter" data-v="${c.id}"><div class="row"><span>${icon(c.ic)} ${c.name}</span><span>${euro(c.sum)} · ${Math.round(c.sum / allTotal * 100)} %</span></div><div class="sd-track"><div style="width:${Math.max(2, Math.round(c.sum / byCat[0].sum * 100))}%"></div></div></button>`).join('')}</div>` : '';
   const days = [...new Set(list.map(x => x.date))];
   const dayLabel = key => { const o = offOfKey(key); return o === 0 ? 'Heute' : o === -1 ? 'Gestern' : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }); };
-  const item = x => { const c = expCat(x.cat); return `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}"><span class="sd-vico" aria-hidden="true">${icon(c[2])}</span><span class="txt"><span class="t">${esc(x.title)}</span><span class="m">${c[1]}${x.by ? ` · ${esc(data.names[x.by])}` : ''}${x.note ? ' · ' + icon('note') : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b></button>`; };
+  const item = x => { const c = expCat(x.cat); return `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}" aria-label="${esc(x.title)}, ${euro(x.amount)}, ${c[1]} – ändern oder löschen"><span class="sd-vico" aria-hidden="true">${icon(c[2])}</span><span class="txt"><span class="t">${esc(x.title)}</span><span class="m">${c[1]}${x.by ? ` · ${esc(data.names[x.by])}` : ''}${x.note ? ' · ' + icon('note') : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b>${icon('pencil-simple', 'ph sd-eedit')}</button>`; };
   const groups = days.map(dd => { const l = list.filter(x => x.date === dd); return `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label sd-eday"><span>${dayLabel(dd)}</span><span>${euro(sum(l))}</span></span>${l.map(item).join('')}</div>`; }).join('');
   const msg = ui.expMsg ? `<div class="sd-hint" role="status">${icon('info')}<span>${esc(ui.expMsg)}</span></div>` : '';
   const nav = `<div class="sd-nav"><button class="sd-circ" data-a="expMonth" data-v="-1" aria-label="Voriger Monat">${icon('caret-left')}</button><span>${month}</span><button class="sd-circ" data-a="expMonth" data-v="1" ${k < 0 ? '' : 'disabled'} aria-label="Nächster Monat">${icon('caret-right')}</button></div>`;
@@ -728,10 +735,11 @@ function tabAusgaben() {
   <div class="sd-exp">
   <form class="sd-sadd sd-eadd" data-form="exp"><input class="sd-input" data-in="expNew" value="${esc(ui.expDraft)}" placeholder="z. B. Rewe 23,80" maxlength="90" enterkeyhint="done" autocomplete="off" aria-label="Neue Ausgabe: Geschäft und Betrag"><button class="sd-btn" type="submit" aria-label="Ausgabe hinzufügen">${icon('plus', 'ph-bold')}</button></form>
   <div class="sd-esug">${expSuggest()}</div>
+  <div class="sd-ecp" role="group" aria-label="Kategorie für die neue Ausgabe">${expCatPick()}</div>
   ${msg}
   ${nav}
   <div class="sd-tbanner sd-ebanner"><span>${icon('wallet', 'ph-fill')}Ausgegeben im ${mName}</span><b>${euro(total)}</b></div>
-  ${filt}${cats}${groups || `<div class="sd-empty"><span>${k === 0 ? `Noch keine Ausgaben im ${mName}. Trag oben das Geschäft und den Betrag ein, zum Beispiel „Rewe 23,80“.` : `Im ${mName} wurde nichts eingetragen.`}</span></div>`}
+  ${filt}${cats}${groups ? `<p class="sd-muted sd-tnote">${icon('pencil-simple')} Eine Ausgabe antippen, um sie zu ändern oder zu löschen.</p>` : ''}${groups || `<div class="sd-empty"><span>${k === 0 ? `Noch keine Ausgaben im ${mName}. Trag oben das Geschäft und den Betrag ein, zum Beispiel „Rewe 23,80“.` : `Im ${mName} wurde nichts eingetragen.`}</span></div>`}
   </div>`;
 }
 function expSheetHtml() {
@@ -930,6 +938,23 @@ const SUB_PARENT = { verlauf: 'heute', routinen: 'verwaltung', mehr: 'verwaltung
 const tabLabel = k => TABS.find(t => t[0] === k)?.[2] || '';
 const parentTab = () => SUB_PARENT[ui.tab] ? (ui.back || SUB_PARENT[ui.tab]) : ui.tab;
 const scrollMem = {}; let gridMem = { key: null, left: 0 };
+// Seit Version 15: Zurück-Taste von Android (und Wischgeste im Browser) bleibt in der App.
+// Ist ein Blatt offen, eine Unterseite oder ein anderer Bereich als „Heute“ gewählt, liegt ein Eintrag im Verlauf des Browsers.
+// Zurück schließt dann zuerst das Blatt, dann die Unterseite, dann geht es zu „Heute“. Erst auf „Heute“ verlässt Zurück die App.
+let skipPop = false;
+const isDeep = () => !!(ui.sheet || ui.catSheet || ui.task || ui.shopEdit || ui.expEdit || ui.tab !== 'heute');
+function syncHistory() {
+  const deep = isDeep(), inHist = history.state?.sd === 'deep';
+  if (deep && !inHist) history.pushState({ sd: 'deep' }, '');
+  else if (!deep && inHist) { skipPop = true; history.back(); }
+}
+addEventListener('popstate', () => {
+  if (skipPop) { skipPop = false; return; }
+  if (ui.screen !== 'app' && ui.screen) return;
+  if (ui.sheet || ui.catSheet || ui.task || ui.shopEdit || ui.expEdit) return A.closeSheet();
+  if (SUB_PARENT[ui.tab]) return A.back();
+  if (ui.tab !== 'heute') { ui.tab = 'heute'; ui.back = null; render(); }
+});
 function render() {
   const sc = $app.querySelector('.sd-scroll'); if (sc) scrollMem[sc.dataset.tab] = sc.scrollTop;
   const gs = $app.querySelector('.sd-gridscroll'); if (gs) gridMem = { key: gs.dataset.key, left: gs.scrollLeft };
@@ -942,6 +967,7 @@ function render() {
   const cur = parentTab(), backLink = SUB_PARENT[ui.tab] ? `<button class="sd-backlink" data-a="back">${icon('caret-left', 'ph-bold')}${tabLabel(cur)}</button>` : '';
   const badge = dueNow(ui.me).length;
   $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${backLink}${page}</main><nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, cur === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} Aufgaben fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}${ui.expEdit ? expSheetHtml() : ''}`;
+  syncHistory();
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
   const ngs = $app.querySelector('.sd-gridscroll'); if (ngs) ngs.scrollLeft = ngs.dataset.key === gridMem.key ? gridMem.left : ngs.scrollWidth;
   if (focusCh) { const el = $app.querySelector(`[data-in="${focusCh}"]`); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } }
@@ -958,6 +984,7 @@ const A = {
   expMonth: d => { ui.expMonth = Math.min(0, ui.expMonth + +d.v); render(); },
   expFilter: d => { ui.expCat = ui.expCat === d.v ? null : d.v; render(); },
   expShop: d => { ui.expDraft = d.v + ' '; render(); requestAnimationFrame(() => { const el = $app.querySelector('[data-in="expNew"]'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }); },
+  expPick: d => { ui.expDraftCat = ui.expDraftCat === d.v ? null : d.v; const box = $app.querySelector('.sd-ecp'); if (box) box.innerHTML = expCatPick(); },
   expEdit: d => { const x = data.exp[d.x]; if (!x) return; ui.expEdit = { ...x }; ui.sheetFresh = true; render(); },
   eCat: d => { ui.expEdit.cat = d.v; render(); },
   eSave: () => {
@@ -1164,8 +1191,8 @@ function addExp(raw) {
   const { title, amount } = parseExp(raw);
   if (!(amount > 0)) { ui.expDraft = raw; ui.expMsg = 'Bitte auch den Betrag angeben, zum Beispiel „Rewe 23,80“.'; return render(); }
   if (!title) { ui.expDraft = raw; ui.expMsg = 'Bitte auch das Geschäft angeben, zum Beispiel „Rewe 23,80“.'; return render(); }
-  const t = knownShops().find(k => norm(k) === norm(title)) || title, cat = suggestExpCat(t);
-  ui.expDraft = ''; ui.expMsg = ''; ui.expMonth = 0;
+  const t = knownShops().find(k => norm(k) === norm(title)) || title, cat = ui.expDraftCat || suggestExpCat(t);
+  ui.expDraft = ''; ui.expDraftCat = null; ui.expMsg = `Gespeichert: ${t} ${euro(amount)} · ${expCat(cat)[1]}. Antippen in der Liste zum Ändern oder Löschen.`; ui.expMonth = 0;
   store.saveExp({ id: rid(), title: t, amount, cat, by: ui.me, date: dk(0), createdAt: Date.now() }).catch(fail);
   track('expense_add', { cat });
 }
@@ -1199,7 +1226,7 @@ document.addEventListener('input', e => {
   if (k === 'shopNew') { ui.shopDraft = v; if (ui.shopMsg) { ui.shopMsg = ''; $app.querySelector('.sd-shop > .sd-hint')?.remove(); } const box = $app.querySelector('.sd-ssug'); if (box) box.innerHTML = shopSuggest(); }
   if (k === 'sTitle') { ui.shopEdit.title = v; const b = $app.querySelector('[data-a="sSave"]'); if (b) b.disabled = !v.trim(); }
   if (k === 'sQty') ui.shopEdit.qty = v;
-  if (k === 'expNew') { ui.expDraft = v; if (ui.expMsg) { ui.expMsg = ''; $app.querySelector('.sd-exp > .sd-hint[role="status"]')?.remove(); } const box = $app.querySelector('.sd-esug'); if (box) box.innerHTML = expSuggest(); }
+  if (k === 'expNew') { ui.expDraft = v; if (ui.expMsg) { ui.expMsg = ''; $app.querySelector('.sd-exp > .sd-hint[role="status"]')?.remove(); } const box = $app.querySelector('.sd-esug'); if (box) box.innerHTML = expSuggest(); const cp = $app.querySelector('.sd-ecp'); if (cp && !ui.expDraftCat) cp.innerHTML = expCatPick(); }
   if (k === 'eNote') ui.expEdit.note = v;
   if (k === 'eTitle') ui.expEdit.title = v;
   if (k === 'eAmount') ui.expEdit.amountText = v;

@@ -63,12 +63,13 @@ households/{code}/expenses/{id}          Ausgabe { title (Geschäft), amount (Ce
 - Neue Felder im Haushalt-Dokument müssen in `firestore.rules` bei `affectedKeys().hasOnly([...])` freigegeben werden, sonst schlägt das Speichern fehl.
 - Firestore-Regeln können keine Listen oder Maps durchlaufen. Deshalb liegen Routinen und Haken als eigene Dokumente, damit pro Dokument geprüft werden kann.
 - Haken-Dokumente heißen `<Rolle>_<Datum>`; die Regeln prüfen das Präfix.
-- Ausgaben: Betrag immer in Cent als ganze Zahl (Regeln prüfen `is int`). `title` = Geschäft. Eingabe als ein Satz („Rewe 23,80“) über `parseExp`. Kategorien und Regeln angelehnt an Simons App **SuperFinance** (Repository `Simcha86/SuperFinance`): gleiche Startliste (`EXP_CATS`), bekanntes Geschäft → zuletzt gewählte Kategorie (`suggestExpCat`), sonst Wortteile (`EXP_WORDS`); optionale Notiz (≤ 500 Zeichen). Kein Ausgleich/keine Aufteilung zwischen den Personen.
+- Ausgaben: Betrag immer in Cent als ganze Zahl (Regeln prüfen `is int`). `title` = Geschäft. Eingabe als ein Satz („Rewe 23,80“) über `parseExp`. Kategorien und Regeln angelehnt an Simons App **SuperFinance** (Repository `Simcha86/SuperFinance`): gleiche Startliste (`EXP_CATS`), bekanntes Geschäft → zuletzt gewählte Kategorie (`suggestExpCat`), sonst Wortteile (`EXP_WORDS`); optionale Notiz (≤ 500 Zeichen). Seit Version 15 Kategorie schon beim Eintragen wählbar (`expCatPick`, `ui.expDraftCat`; ohne Wahl gilt der Vorschlag). Kein Ausgleich/keine Aufteilung zwischen den Personen.
 - Einkauf: ein Dokument je Produkt (gleicher Name = gleiches Dokument). `open` = steht auf der Liste, `done` = im Wagen, `count` = wie oft gekauft (für Vorschläge). „Erledigte löschen“ setzt `open: false`, das Dokument bleibt; nur „Ganz löschen“ entfernt es. Bereiche (`aisle`) und Erkennung nach Wortteilen: `AISLES`, `AISLE_WORDS` in `app.js`.
 
 ## Verlauf und Statistik
 
 - **Navigation seit Version 14:** Leiste unten mit fünf Bereichen `TABS` = Heute · Aufgaben · Einkauf · Ausgaben · Verwaltung (Aufgaben seit Version 14 eigener Bereich, Zahl der fälligen als Badge daran). Unterseiten (`SUB_PARENT`): Verlauf gehört zu Heute, Routinen und Einstellungen (`mehr`) zur Verwaltung; sie zeigen oben „Zurück“ (`ui.back`). Kein schwebender Plus-Knopf, sondern große Knöpfe oben (`.sd-bigadd`). In Tests öffnet `tab(seite, 'Routinen'|'Verlauf'|'Mehr')` die Unterseite über die Verwaltung, `tab(seite, 'Aufgaben')` den Bereich direkt.
+- **Zurück-Taste** (seit Version 15): `syncHistory()` am Ende von `render()` legt einen Eintrag im Browser-Verlauf an, solange ein Blatt offen, eine Unterseite oder ein anderer Bereich als Heute gewählt ist (`isDeep`); `popstate` schließt Blatt → Unterseite → Heute. Neue Blätter in `isDeep` und im `popstate`-Handler ergänzen. Test: `tests/klick/zurueck.spec.js`.
 - **Verlauf** (seit Version 10) mit Umschalter Statistik | Kalender | Raster (`ui.verlauf`, Statistik zuerst) und einem gemeinsamen Zeitraum `ui.cal`; in der Statistik wird „Tag“ zur Woche (`verlaufRange`).
 
 - **Vergangenheit bleibt richtig:** Ändert sich Wiederholung oder Person einer Routine, wird die alte Einstellung in `hist` mit `until` = gestern gespeichert (`addVersion`). Berechnungen fragen pro Tag `repAt`/`whoAt`. Nie die aktuelle Einstellung rückwirkend anwenden.
@@ -92,7 +93,7 @@ Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
 3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
 4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen. Seit Version 13 veröffentlicht die GitHub Action sie nach dem Merge selbst (Ergebnis unter Actions → „Firebase-Regeln veröffentlichen“; bei Fehler rot). Kein Anmelde-Code mehr nötig. Schlägt die Action fehl, gelten die alten Regeln weiter.
 
-Aktueller Stand: Version 14, `CACHE = 'superdaily-v15'`.
+Aktueller Stand: Version 15, `CACHE = 'superdaily-v16'`.
 
 ## Testen
 

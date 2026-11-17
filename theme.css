@@ -394,3 +394,12 @@ button.sd-dcell:active{transform:scale(.94)}
 /* ---------- Version 14: Aufgaben als eigener Bereich, fünf Bereiche unten ---------- */
 .sd-tabs{grid-template-columns:repeat(5,1fr);padding-inline:2px}
 .sd-tab span{font-size:11px;letter-spacing:-.01em}
+
+/* ---------- Version 15: Ausgaben – Kategorie beim Eintragen, Stift zum Bearbeiten ---------- */
+.sd-ecp{display:flex;flex-direction:column;gap:6px;margin-top:-4px;min-width:0}
+.sd-ecplabel{font:600 12.5px var(--font-body);color:var(--color-neutral-300);letter-spacing:.02em}
+.sd-ecplabel small{font-weight:500;margin-left:6px;color:var(--color-neutral-400)}
+.sd-ecpick{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;margin:0 -2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.sd-ecpick::-webkit-scrollbar{display:none}
+.sd-ecpick .sd-chip{flex:0 0 auto;min-height:44px}
+.sd-erow .sd-eedit{font-size:18px;color:var(--color-neutral-400);margin-left:4px;flex:0 0 auto}

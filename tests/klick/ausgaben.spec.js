@@ -136,3 +136,38 @@ test('Wie in SuperFinance: Geschäft-Vorschläge, gemerkte Kategorie, Notiz, Fil
   await expect(seite.locator('.sd-erow')).toHaveCount(9);
   expect(seite.fehler).toEqual([]);
 });
+
+test('Version 15: Kategorie beim Eintragen wählen, Vorschlag sichtbar, Stift zum Ändern und Löschen', async ({ browser, lokal }) => {
+  const seite = await oeffneHandy(browser, lokal);
+  await tab(seite, 'Ausgaben');
+  const wahl = seite.getByRole('group', { name: 'Kategorie für die neue Ausgabe' });
+  await expect(wahl.getByRole('button')).toHaveCount(11);
+  await expect(wahl.locator('.sd-chip.on')).toHaveCount(0);
+  // Beim Tippen erscheint der Vorschlag
+  await eingabe(seite).fill('Rewe 12');
+  await expect(wahl.locator('.sd-chip.on')).toHaveText('Lebensmittel');
+  await expect(wahl).toContainText('Vorschlag');
+  // Selbst gewählt: gilt statt des Vorschlags
+  await eingabe(seite).fill('Rewe 31,20');
+  await wahl.getByRole('button', { name: 'Haushalt' }).click();
+  await expect(wahl.locator('.sd-chip.on')).toHaveText('Haushalt');
+  await expect(wahl).toContainText('gewählt');
+  await eingabe(seite).press('Enter');
+  expect((await gespeichert(seite)).find(e => e.amount === 3120)).toMatchObject({ title: 'Rewe', cat: 'haushalt' });
+  await expect(seite.getByRole('status')).toContainText('Gespeichert: Rewe');
+  // Danach wieder automatisch
+  await expect(wahl.locator('.sd-chip.on')).toHaveCount(0);
+  // Kategorie-Leiste verschiebt die Seite nicht seitlich
+  const [sw, cw] = await seite.locator('.sd-scroll').evaluate(m => [m.scrollWidth, m.clientWidth]);
+  expect(sw).toBeLessThanOrEqual(cw);
+  // Eintrag zeigt einen Stift und öffnet das Bearbeiten, dort auch löschen
+  const zeile = seite.getByRole('button', { name: /Rewe.*ändern oder löschen/ });
+  await expect(zeile.locator('.sd-eedit')).toBeVisible();
+  await expect(seite.getByText('Eine Ausgabe antippen, um sie zu ändern oder zu löschen.')).toBeVisible();
+  await zeile.click();
+  const blatt = seite.getByRole('dialog', { name: 'Ausgabe bearbeiten' });
+  await expect(blatt.getByRole('button', { name: 'Haushalt' })).toHaveAttribute('aria-pressed', 'true');
+  await blatt.getByRole('button', { name: 'Ausgabe löschen' }).click();
+  await expect(seite.locator('.sd-erow')).toHaveCount(0);
+  expect(seite.fehler).toEqual([]);
+});
