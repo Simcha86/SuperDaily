@@ -68,7 +68,7 @@ households/{code}/expenses/{id}          Ausgabe { title (Geschäft), amount (Ce
 
 ## Verlauf und Statistik
 
-- **Navigation seit Version 13:** Leiste unten mit vier Bereichen `TABS` = Heute · Einkauf · Ausgaben · Verwaltung. Unterseiten (`SUB_PARENT`): Verlauf und Aufgaben gehören zu Heute, Routinen und Einstellungen (`mehr`) zur Verwaltung; sie zeigen oben „Zurück“ (`ui.back`). Kein schwebender Plus-Knopf mehr, sondern große Knöpfe oben (`.sd-bigadd`). In Tests öffnet `tab(seite, 'Routinen'|'Aufgaben'|'Verlauf'|'Mehr')` die Unterseite über die Verwaltung.
+- **Navigation seit Version 14:** Leiste unten mit fünf Bereichen `TABS` = Heute · Aufgaben · Einkauf · Ausgaben · Verwaltung (Aufgaben seit Version 14 eigener Bereich, Zahl der fälligen als Badge daran). Unterseiten (`SUB_PARENT`): Verlauf gehört zu Heute, Routinen und Einstellungen (`mehr`) zur Verwaltung; sie zeigen oben „Zurück“ (`ui.back`). Kein schwebender Plus-Knopf, sondern große Knöpfe oben (`.sd-bigadd`). In Tests öffnet `tab(seite, 'Routinen'|'Verlauf'|'Mehr')` die Unterseite über die Verwaltung, `tab(seite, 'Aufgaben')` den Bereich direkt.
 - **Verlauf** (seit Version 10) mit Umschalter Statistik | Kalender | Raster (`ui.verlauf`, Statistik zuerst) und einem gemeinsamen Zeitraum `ui.cal`; in der Statistik wird „Tag“ zur Woche (`verlaufRange`).
 
 - **Vergangenheit bleibt richtig:** Ändert sich Wiederholung oder Person einer Routine, wird die alte Einstellung in `hist` mit `until` = gestern gespeichert (`addVersion`). Berechnungen fragen pro Tag `repAt`/`whoAt`. Nie die aktuelle Einstellung rückwirkend anwenden.
@@ -92,7 +92,7 @@ Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
 3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
 4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen. Seit Version 13 veröffentlicht die GitHub Action sie nach dem Merge selbst (Ergebnis unter Actions → „Firebase-Regeln veröffentlichen“; bei Fehler rot). Kein Anmelde-Code mehr nötig. Schlägt die Action fehl, gelten die alten Regeln weiter.
 
-Aktueller Stand: Version 13, `CACHE = 'superdaily-v14'`.
+Aktueller Stand: Version 14, `CACHE = 'superdaily-v15'`.
 
 ## Testen
 

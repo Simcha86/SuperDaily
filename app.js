@@ -22,6 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 14, date: '2026-11-17', items: ['Aufgaben haben unten einen eigenen Bereich, in Senfgold', 'Die Zahl der fälligen Aufgaben steht jetzt am Bereich „Aufgaben“', 'Auf „Heute“ bleiben die wichtigsten Aufgaben oben, mit „Neu“ und „Alle“'] },
   { v: 13, date: '2026-11-17', items: ['Neu: Ausgaben – Geschäft und Betrag in einem Satz („Rewe 23,80“), Monatssumme, Tagessummen und Kategorien wie in SuperFinance', 'Unten nur noch vier Bereiche: Heute, Einkauf, Ausgaben, Verwaltung', 'Routinen, alle Aufgaben, Verlauf und Einstellungen findet ihr unter Verwaltung; Verlauf auch oben auf Heute'] },
   { v: 12, date: '2026-11-16', items: ['Besser lesbar: kräftigere Knöpfe und Überschriften, größere Tippflächen', 'Eingaben mit „Abbrechen“, der Plus-Knopf verdeckt nichts mehr', 'Verständlichere Texte: „Gemeinsam“ und „Jeder für sich“, klare Fehlermeldungen', 'Besser mit Vorlesefunktion: „erledigt“ und „ausgewählt“ werden angesagt'] },
   { v: 11, date: '2026-11-07', items: ['Routinen für die andere Person vorgeben – mit „vorgegeben von …“', 'Ihr dürft beide alle Routinen bearbeiten und archivieren', 'Hinweis auf „Heute“ bei neuen Aufgaben und Routinen von der anderen Person', 'Einkauf in Ozeanblau, deutlicher von den anderen Bereichen zu unterscheiden'] },
@@ -750,12 +751,10 @@ function expSheetHtml() {
 // ---------- Verwaltung (seit Version 13): Stammdaten und Einstellungen hinter einem Tab ----------
 function tabVerwaltung() {
   const row = (v, ic, t, m, a = 'tab') => `<button class="sd-row sd-vrow" data-a="${a}" data-v="${v}"><span class="sd-vico">${icon(ic)}</span><span class="txt"><span class="t">${t}</span><span class="m">${m}</span></span>${icon('caret-right')}</button>`;
-  const open = openTasks().length;
-  return `<div class="sd-hdr"><div><div class="sd-sub">Routinen, Aufgaben und Einstellungen</div><h1>Verwaltung</h1></div></div>
+  return `<div class="sd-hdr"><div><div class="sd-sub">Routinen und Einstellungen</div><h1>Verwaltung</h1></div></div>
   <div class="sd-group">
   ${row('routinen', 'list-checks', 'Routinen', `${active().length} aktiv · anlegen, ändern, archivieren`)}
   ${row('', 'folders', 'Bereiche', `${cats().length} Bereiche für Routinen`, 'openCats')}
-  ${row('aufgaben', 'check-square-offset', 'Alle Aufgaben', `${open} offen · vergeben, erledigt`)}
   ${row('verlauf', 'chart-line-up', 'Verlauf und Statistik', 'Kalender, Raster, Quoten')}
   ${row('mehr', 'gear-six', 'Einstellungen', 'Namen, Darstellung, Haushalt, Daten, Version')}
   </div>`;
@@ -925,9 +924,9 @@ darkMQ.addEventListener?.('change', applyMode);
 
 // ---------- Render ----------
 const $app = document.getElementById('app');
-// Seit Version 13: vier Bereiche unten; Verlauf, Aufgaben (alle), Routinen und Einstellungen sind Unterseiten mit „Zurück“.
-const TABS = [['heute', 'sun', 'Heute'], ['einkauf', 'shopping-cart', 'Einkauf'], ['ausgaben', 'wallet', 'Ausgaben'], ['verwaltung', 'sliders-horizontal', 'Verwaltung']];
-const SUB_PARENT = { verlauf: 'heute', aufgaben: 'heute', routinen: 'verwaltung', mehr: 'verwaltung' };
+// Seit Version 14: fünf Bereiche unten (Aufgaben eigener Bereich); Verlauf, Routinen und Einstellungen sind Unterseiten mit „Zurück“.
+const TABS = [['heute', 'sun', 'Heute'], ['aufgaben', 'check-square-offset', 'Aufgaben'], ['einkauf', 'shopping-cart', 'Einkauf'], ['ausgaben', 'wallet', 'Ausgaben'], ['verwaltung', 'sliders-horizontal', 'Verwaltung']];
+const SUB_PARENT = { verlauf: 'heute', routinen: 'verwaltung', mehr: 'verwaltung' };
 const tabLabel = k => TABS.find(t => t[0] === k)?.[2] || '';
 const parentTab = () => SUB_PARENT[ui.tab] ? (ui.back || SUB_PARENT[ui.tab]) : ui.tab;
 const scrollMem = {}; let gridMem = { key: null, left: 0 };
@@ -942,7 +941,7 @@ function render() {
   const page = { heute: tabHeute, verlauf: tabVerlauf, aufgaben: tabAufgaben, einkauf: tabEinkauf, ausgaben: tabAusgaben, verwaltung: tabVerwaltung, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
   const cur = parentTab(), backLink = SUB_PARENT[ui.tab] ? `<button class="sd-backlink" data-a="back">${icon('caret-left', 'ph-bold')}${tabLabel(cur)}</button>` : '';
   const badge = dueNow(ui.me).length;
-  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${backLink}${page}</main><nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, cur === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'heute' && badge ? `<em class="sd-badge" aria-label="${badge} Aufgaben fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}${ui.expEdit ? expSheetHtml() : ''}`;
+  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${backLink}${page}</main><nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, cur === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} Aufgaben fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}${ui.expEdit ? expSheetHtml() : ''}`;
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
   const ngs = $app.querySelector('.sd-gridscroll'); if (ngs) ngs.scrollLeft = ngs.dataset.key === gridMem.key ? gridMem.left : ngs.scrollWidth;
   if (focusCh) { const el = $app.querySelector(`[data-in="${focusCh}"]`); if (el) { el.focus(); el.setSelectionRange?.(el.value.length, el.value.length); } }

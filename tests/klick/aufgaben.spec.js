@@ -91,3 +91,21 @@ test('Verlauf → Statistik: Karte „Aufgaben“ je Person', async ({ browser, 
   await expect(karte.locator('.sd-given')).toContainText('Simon → Irina: 1Irina → Simon: 3Gemeinsam: 2');
   expect(seite.fehler).toEqual([]);
 });
+
+test('Version 14: Aufgaben als eigener Bereich unten, mit großem Knopf und Zahl der fälligen', async ({ browser, lokal }) => {
+  const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
+  const knopf = seite.locator('.sd-tabs').getByRole('button', { name: /Aufgaben/ });
+  await expect(knopf.locator('.sd-badge')).toHaveText('3');
+  await knopf.click();
+  await expect(knopf).toHaveAttribute('aria-current', 'page');
+  await expect(seite.locator('.sd-hdr h1')).toHaveText('Aufgaben');
+  await expect(seite.locator('.sd-backlink')).toHaveCount(0);
+  await expect(seite.locator('.sd-scroll')).toHaveAttribute('data-tab', 'aufgaben');
+  await seite.getByRole('button', { name: 'Aufgabe hinzufügen' }).click();
+  await expect(seite.getByRole('dialog', { name: 'Neue Aufgabe' })).toBeVisible();
+  // Verwaltung führt keine Aufgaben mehr
+  await seite.keyboard.press('Escape');
+  await seite.locator('.sd-tabs').getByRole('button', { name: 'Verwaltung' }).click();
+  await expect(seite.locator('.sd-vrow', { hasText: 'Aufgaben' })).toHaveCount(0);
+  expect(seite.fehler).toEqual([]);
+});

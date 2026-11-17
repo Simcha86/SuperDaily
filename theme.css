@@ -390,3 +390,7 @@ button.sd-dcell:active{transform:scale(.94)}
 .sd-ecats > p{margin:-6px 0 0;font-size:13px}
 .sd-esug:empty{display:none}
 .sd-erow .sd-vico{width:36px;height:36px;font-size:18px}
+
+/* ---------- Version 14: Aufgaben als eigener Bereich, fünf Bereiche unten ---------- */
+.sd-tabs{grid-template-columns:repeat(5,1fr);padding-inline:2px}
+.sd-tab span{font-size:11px;letter-spacing:-.01em}
