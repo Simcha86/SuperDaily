@@ -69,11 +69,13 @@ test('Navigation: Verwaltung führt zu Routinen, Aufgaben, Verlauf und Einstellu
   await expect(seite.locator('.sd-hdr h1')).toHaveText('Heute');
   await seite.locator('.sd-tasks').getByRole('button', { name: 'Alle' }).click();
   await expect(seite.locator('.sd-hdr h1')).toHaveText('Aufgaben');
-  await seite.locator('.sd-backlink').click();
-  await expect(seite.locator('.sd-hdr h1')).toHaveText('Heute');
+  // Seit Version 14 eigener Bereich: unten markiert, kein „Zurück“
+  await expect(seite.locator('.sd-tab.on')).toContainText('Aufgaben');
+  await expect(seite.locator('.sd-backlink')).toHaveCount(0);
+  await tab(seite, 'Heute');
   // Verwaltung
   await tab(seite, 'Verwaltung');
-  await expect(seite.locator('.sd-vrow .t')).toHaveText(['Routinen', 'Bereiche', 'Alle Aufgaben', 'Verlauf und Statistik', 'Einstellungen']);
+  await expect(seite.locator('.sd-vrow .t')).toHaveText(['Routinen', 'Bereiche', 'Verlauf und Statistik', 'Einstellungen']);
   await seite.locator('.sd-vrow').filter({ hasText: /^Routinen/ }).click();
   await expect(seite.locator('.sd-tab.on')).toContainText('Verwaltung');
   await expect(seite.locator('.sd-backlink')).toHaveText('Verwaltung');
@@ -84,8 +86,9 @@ test('Navigation: Verwaltung führt zu Routinen, Aufgaben, Verlauf und Einstellu
   await expect(seite.locator('.sd-hdr h1')).toHaveText('Verwaltung');
   await seite.locator('.sd-vrow').filter({ hasText: /^Bereiche/ }).click();
   await expect(seite.getByRole('dialog', { name: 'Bereiche' })).toBeVisible();
-  // Badge „fällig“ jetzt an „Heute“
-  await expect(seite.locator('.sd-tab', { hasText: 'Heute' }).locator('.sd-badge')).toHaveText('3');
+  // Badge „fällig“ seit Version 14 am Bereich „Aufgaben“
+  await expect(seite.locator('.sd-tab', { hasText: 'Aufgaben' }).locator('.sd-badge')).toHaveText('3');
+  await expect(seite.locator('.sd-tab', { hasText: 'Heute' }).locator('.sd-badge')).toHaveCount(0);
   expect(seite.fehler).toEqual([]);
 });
 

@@ -90,7 +90,7 @@ export async function oeffneHandy(browser, server, { beispieldaten = false, scho
 
 // Seit Version 13 gibt es unten vier Bereiche (Heute, Einkauf, Ausgaben, Verwaltung). Routinen, Aufgaben,
 // Verlauf und Einstellungen („Mehr“) sind Unterseiten der Verwaltung; tab() öffnet sie von dort.
-const UNTERSEITE = { Routinen: /^Routinen/, Aufgaben: /^Alle Aufgaben/, Verlauf: /^Verlauf und Statistik/, Mehr: /^Einstellungen/ };
+const UNTERSEITE = { Routinen: /^Routinen/, Verlauf: /^Verlauf und Statistik/, Mehr: /^Einstellungen/ };
 export async function tab(seite, name) {
   if (!UNTERSEITE[name]) return seite.locator('.sd-tabs').getByRole('button', { name }).click();
   await seite.locator('.sd-tabs').getByRole('button', { name: 'Verwaltung' }).click();

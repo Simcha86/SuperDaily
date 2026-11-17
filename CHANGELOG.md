@@ -2,6 +2,12 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 14 · 17. November 2026 · [Release Notes](docs/releases/v14/RELEASE-NOTES.md)
+
+- **Aufgaben haben einen eigenen Bereich** unten in der Leiste, in Senfgold: Heute · Aufgaben · Einkauf · Ausgaben · Verwaltung. Dort der große Knopf „Aufgabe hinzufügen“ und alle Aufgaben mit Filtern.
+- Die Zahl der fälligen Aufgaben steht jetzt am Bereich „Aufgaben“ statt an „Heute“.
+- Auf „Heute“ bleiben die wichtigsten Aufgaben oben, mit „Neu“ und „Alle“. In der Verwaltung entfällt „Alle Aufgaben“.
+
 ## Version 13 · 17. November 2026 · [Release Notes](docs/releases/v13/RELEASE-NOTES.md)
 
 **Neue Aufteilung**
