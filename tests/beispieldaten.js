@@ -32,9 +32,9 @@
   ].forEach(([id, title, qty, aisle, open, isDone, count, by], i) => { shop[id] = { id, title, qty, aisle, open, done: isDone, count, by, addedAt: Date.now() - (12 - i) * 36e5, doneAt: isDone ? Date.now() - 6e5 : null }; });
   // Ausgaben: zehn Einträge in diesem und im vorigen Monat (Cent)
   const exp = {};
-  [['x1', 'Rewe', 6420, 'essen', 'a', 0], ['x2', 'Tanken', 7150, 'mobil', 'b', -1], ['x3', 'Kino', 2400, 'freizeit', 'a', -2], ['x4', 'dm', 1835, 'haushalt', 'b', -3],
-   ['x5', 'Apotheke', 990, 'gesundheit', 'b', -4], ['x6', 'Edeka', 4280, 'essen', 'a', -5], ['x7', 'Pizza', 3150, 'freizeit', 'b', -6],
-   ['x8', 'Miete', 98000, 'wohnen', 'a', -35], ['x9', 'Aldi', 5370, 'essen', 'b', -36], ['x10', 'Geschenk für Oma', 2500, 'geschenke', 'a', -38]
+  [['x1', 'Rewe', 6420, 'essen', 'a', 0], ['x2', 'Aral', 7150, 'auto', 'b', -1], ['x3', 'Kino', 2400, 'freizeit', 'a', -2], ['x4', 'dm', 1835, 'drogerie', 'b', -3],
+   ['x5', 'Apotheke', 990, 'gesundheit', 'b', -4], ['x6', 'Edeka', 4280, 'essen', 'a', -5], ['x7', 'Pizzeria Roma', 3150, 'restaurant', 'b', -6],
+   ['x8', 'Obi', 12900, 'garten', 'a', -35], ['x9', 'Aldi', 5370, 'essen', 'b', -36], ['x10', 'Blumen Meyer', 2500, 'geschenke', 'a', -38]
   ].forEach(([id, title, amount, cat, by, o], i) => { exp[id] = { id, title, amount, cat, by, date: dk(o), createdAt: Date.now() - (10 - i) * 36e5 }; });
   globalThis.SD_SAMPLE = { app: 'SuperDaily', version: 1, names: { a: 'Simon', b: 'Irina' }, routines, done, tasks, shop, exp, me: 'a' };
 })();

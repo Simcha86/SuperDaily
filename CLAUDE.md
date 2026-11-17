@@ -56,13 +56,13 @@ households/{code}/routines/{id}          Routine (inkl. hist, cat, from)
 households/{code}/days/{a|b|s}_{Datum}   { routineId: true }
 households/{code}/tasks/{id}             Aufgabe { title, note, from, to, due, done, doneAt, doneBy, createdAt }
 households/{code}/shop/{id}              Einkauf { title, qty, aisle, open, done, count, by, addedAt, doneAt }
-households/{code}/expenses/{id}          Ausgabe { title, amount (Cent, ganze Zahl), cat, by, date, createdAt }
+households/{code}/expenses/{id}          Ausgabe { title (Geschäft), amount (Cent), cat, by, date, note?, createdAt, updatedAt? }
 ```
 
 - Neue Felder im Haushalt-Dokument müssen in `firestore.rules` bei `affectedKeys().hasOnly([...])` freigegeben werden, sonst schlägt das Speichern fehl.
 - Firestore-Regeln können keine Listen oder Maps durchlaufen. Deshalb liegen Routinen und Haken als eigene Dokumente, damit pro Dokument geprüft werden kann.
 - Haken-Dokumente heißen `<Rolle>_<Datum>`; die Regeln prüfen das Präfix.
-- Ausgaben: Betrag immer in Cent als ganze Zahl (Regeln prüfen `is int`). Eingabe als ein Satz („Rewe 23,80“) über `parseExp`, Kategorie über `EXP_CATS`/`EXP_WORDS`.
+- Ausgaben: Betrag immer in Cent als ganze Zahl (Regeln prüfen `is int`). `title` = Geschäft. Eingabe als ein Satz („Rewe 23,80“) über `parseExp`. Kategorien und Regeln angelehnt an Simons App **SuperFinance** (Repository `Simcha86/SuperFinance`): gleiche Startliste (`EXP_CATS`), bekanntes Geschäft → zuletzt gewählte Kategorie (`suggestExpCat`), sonst Wortteile (`EXP_WORDS`); optionale Notiz (≤ 500 Zeichen). Kein Ausgleich/keine Aufteilung zwischen den Personen.
 - Einkauf: ein Dokument je Produkt (gleicher Name = gleiches Dokument). `open` = steht auf der Liste, `done` = im Wagen, `count` = wie oft gekauft (für Vorschläge). „Erledigte löschen“ setzt `open: false`, das Dokument bleibt; nur „Ganz löschen“ entfernt es. Bereiche (`aisle`) und Erkennung nach Wortteilen: `AISLES`, `AISLE_WORDS` in `app.js`.
 
 ## Verlauf und Statistik

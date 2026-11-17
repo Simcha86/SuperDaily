@@ -324,7 +324,7 @@ test('Ausgaben: Simon trägt ein, Irina sieht es sofort und kann es ändern', as
   await simon.locator('[data-in="expNew"]').press('Enter');
   const zeile = irina.locator('.sd-erow', { hasText: 'Rewe' });
   await expect(zeile).toContainText('23,80');
-  await expect(zeile).toContainText('Lebensmittel · von Simon');
+  await expect(zeile).toContainText('Lebensmittel · Simon');
   await expect(irina.locator('.sd-ebanner')).toContainText('23,80');
   await zeile.click();
   await irina.locator('[data-in="eAmount"]').fill('25');

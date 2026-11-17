@@ -113,6 +113,8 @@ await t('Ausgabe mit falschem Datum abgelehnt', assertFails(setDoc(AU(simon, 'x2
 await t('Ausgabe von unbekannter Person abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', by: 'x' })));
 await t('Fremder sieht keine Ausgaben', assertFails(getDoc(AU(fremd, 'x1'))));
 await t('Fremder trägt nichts ein', assertFails(setDoc(AU(fremd, 'x9'), { ...rewe, id: 'x9' })));
+await t('Ausgabe mit Notiz', assertSucceeds(setDoc(AU(irina, 'x1'), { ...rewe, note: 'Wocheneinkauf' })));
+await t('Notiz über 500 Zeichen abgelehnt', assertFails(setDoc(AU(irina, 'x1'), { ...rewe, note: 'x'.repeat(501) })));
 await t('Irina löscht die Ausgabe', assertSucceeds(deleteDoc(AU(irina, 'x1'))));
 console.log(`\n${pass} bestanden, ${failN} fehlgeschlagen`);
 await env.cleanup(); process.exit(failN ? 1 : 0);

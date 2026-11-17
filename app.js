@@ -22,7 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
-  { v: 13, date: '2026-11-17', items: ['Neu: Ausgaben – tragt mit einem Satz ein, wofür und wie viel, mit Monatsüberblick nach Kategorie', 'Unten nur noch vier Bereiche: Heute, Einkauf, Ausgaben, Verwaltung', 'Routinen, alle Aufgaben, Verlauf und Einstellungen findet ihr unter Verwaltung; Verlauf auch oben auf Heute'] },
+  { v: 13, date: '2026-11-17', items: ['Neu: Ausgaben – Geschäft und Betrag in einem Satz („Rewe 23,80“), Monatssumme, Tagessummen und Kategorien wie in SuperFinance', 'Unten nur noch vier Bereiche: Heute, Einkauf, Ausgaben, Verwaltung', 'Routinen, alle Aufgaben, Verlauf und Einstellungen findet ihr unter Verwaltung; Verlauf auch oben auf Heute'] },
   { v: 12, date: '2026-11-16', items: ['Besser lesbar: kräftigere Knöpfe und Überschriften, größere Tippflächen', 'Eingaben mit „Abbrechen“, der Plus-Knopf verdeckt nichts mehr', 'Verständlichere Texte: „Gemeinsam“ und „Jeder für sich“, klare Fehlermeldungen', 'Besser mit Vorlesefunktion: „erledigt“ und „ausgewählt“ werden angesagt'] },
   { v: 11, date: '2026-11-07', items: ['Routinen für die andere Person vorgeben – mit „vorgegeben von …“', 'Ihr dürft beide alle Routinen bearbeiten und archivieren', 'Hinweis auf „Heute“ bei neuen Aufgaben und Routinen von der anderen Person', 'Einkauf in Ozeanblau, deutlicher von den anderen Bereichen zu unterscheiden'] },
   { v: 10, date: '2026-11-04', items: ['Neu: Einkaufsliste für euch beide, sortiert nach Bereichen im Laden, mit Vorschlägen', 'Statistik, Kalender und Raster sind jetzt ein Tab „Verlauf“ mit einem Zeitraum', 'Die Statistik wertet bis zu 365 Tage aus'] },
@@ -47,7 +47,7 @@ const markSeen = () => { seenVersion = APP_VERSION; try { localStorage.setItem(S
 const data = { names: { a: 'Person 1', b: 'Person 2' }, routines: {}, done: {}, cats: null, tasks: {}, shop: {}, exp: {} };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
-  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '', back: null, expMonth: 0, expDraft: '', expMsg: '', expEdit: null,
+  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '', back: null, expMonth: 0, expDraft: '', expMsg: '', expEdit: null, expCat: null,
   // Verlauf (seit Version 10): ein Zeitraum für Statistik, Kalender und Raster; Start: letzte 30 Tage
   cal: { mode: 'zeitraum', anchor: 0, from: -29, to: 0 },
   sheet: null, catSheet: false, authMode: 'login', authErr: '', setupErr: '', busy: false,
@@ -205,21 +205,28 @@ function parseShop(raw) {
 
 // ---------- Ausgaben (seit Version 13) ----------
 // { id, title, amount (Cent, ganze Zahl), cat, by: 'a'|'b', date: 'JJJJ-MM-TT', createdAt }. Nur Überblick, kein Ausgleich.
-const EXP_CATS = [['essen', 'Lebensmittel', 'shopping-cart'], ['haushalt', 'Haushalt & Drogerie', 'broom'], ['wohnen', 'Wohnen & Energie', 'house-line'],
-  ['mobil', 'Mobilität', 'car'], ['freizeit', 'Freizeit & Essen gehen', 'fork-knife'], ['gesundheit', 'Gesundheit', 'first-aid'],
-  ['kleidung', 'Kleidung', 't-shirt'], ['kinder', 'Kinder', 'baby'], ['geschenke', 'Geschenke', 'gift'], ['sonst', 'Sonstiges', 'dots-three-circle']];
+// Kategorien wie die Startliste von SuperFinance (Simons Ausgabenbuch); Geschäft = Titel.
+const EXP_CATS = [['essen', 'Lebensmittel', 'shopping-cart'], ['drogerie', 'Drogerie', 'spray-bottle'], ['haushalt', 'Haushalt', 'broom'],
+  ['auto', 'Tanken & Auto', 'car'], ['kleidung', 'Kleidung', 't-shirt'], ['gesundheit', 'Gesundheit', 'first-aid'],
+  ['restaurant', 'Restaurant & Café', 'fork-knife'], ['freizeit', 'Freizeit', 'confetti'], ['geschenke', 'Geschenke', 'gift'],
+  ['garten', 'Haus & Garten', 'plant'], ['sonst', 'Sonstiges', 'dots-three-circle']];
 const EXP_WORDS = [
-  ['wohnen', 'miete ^strom ^gas nebenkosten internet handy telefon ^gez rundfunk wasserrechnung heizung versicherung'],
-  ['mobil', 'tank benzin diesel ^bahn ^db ticket ^bus parken parkhaus werkstatt ^tüv ^auto ^taxi ^uber flug'],
-  ['gesundheit', 'apotheke ^arzt zahnarzt medikament brille physio'],
-  ['kinder', 'kita schule spielzeug ^kind windel babysitter'],
+  ['auto', 'tank ^aral ^shell ^esso benzin diesel werkstatt ^tüv ^auto parken parkhaus waschanlage reifen'],
+  ['gesundheit', 'apotheke ^arzt zahnarzt medikament brille physio optiker'],
+  ['drogerie', 'drogerie ^dm ^rossmann ^müller kosmetik'],
+  ['restaurant', 'restaurant ^café ^cafe pizza ^döner lieferando ^bar ^bistro imbiss mcdonald burger sushi'],
+  ['freizeit', 'kino konzert ausflug museum schwimmbad ^zoo theater freizeitpark ^eintritt'],
   ['geschenke', 'geschenk geburtstag blumen'],
-  ['kleidung', 'kleidung schuhe ^jacke ^hose ^h&m zara ^c&a'],
-  ['freizeit', 'restaurant ^café ^cafe kino konzert ausflug urlaub hotel pizza ^döner lieferando bar ^eis museum schwimmbad netflix spotify streaming'],
-  ['haushalt', 'drogerie ^dm ^rossmann ikea baumarkt putz waschmittel möbel'],
+  ['kleidung', 'kleidung schuhe ^jacke ^hose ^h&m zara ^c&a ^primark'],
+  ['garten', 'baumarkt ^obi hornbach bauhaus garten pflanze ^erde werkzeug möbel ikea'],
+  ['haushalt', 'haushalt putz waschmittel ^tchibo ^kik geschirr'],
   ['essen', 'rewe edeka aldi lidl netto penny kaufland supermarkt bäcker metzger markt lebensmittel einkauf wocheneinkauf']];
 const EXP_RE = EXP_WORDS.map(([id, w]) => [id, new RegExp(w.split(' ').map(x => x[0] === '^' ? `(?:^|[\\s-])${x.slice(1).replace(/[&]/g, '\\$&')}` : x).join('|'), 'i')]);
 const guessExpCat = t => EXP_RE.find(([, re]) => re.test(t))?.[0] || 'sonst';
+// Wie in SuperFinance: bekanntes Geschäft → die zuletzt dafür gewählte Kategorie
+const lastForShop = t => X().filter(x => norm(x.title) === norm(t)).sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))[0];
+const suggestExpCat = t => lastForShop(t)?.cat || guessExpCat(t);
+const knownShops = () => [...new Map(X().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(x => [norm(x.title), x.title])).values()];
 const expCat = id => EXP_CATS.find(c => c[0] === id) || EXP_CATS[EXP_CATS.length - 1];
 const X = () => Object.values(data.exp || {});
 const euro = c => (c / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
@@ -692,29 +699,38 @@ function shopSheetHtml() {
   </div></div>`;
 }
 // ---------- Ausgaben: Ansicht ----------
+function expSuggest() {
+  const q = norm(ui.expDraft.replace(/[\d.,€]+/g, ''));
+  if (!q) return '';
+  const hits = knownShops().filter(t => norm(t).startsWith(q) && norm(t) !== q).slice(0, 5);
+  return hits.length ? `<div class="sd-chips">${hits.map(t => `<button class="sd-chip" data-a="expShop" data-v="${esc(t)}">${icon(expCat(lastForShop(t)?.cat)[2])}${esc(t)}</button>`).join('')}</div>` : '';
+}
 function tabAusgaben() {
-  const k = ui.expMonth, mk = monthKey(k), d0 = monthStart(k);
-  const list = X().filter(x => (x.date || '').startsWith(mk)).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
-  const total = list.reduce((s, x) => s + x.amount, 0);
-  const month = d0.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
-  const prev = X().filter(x => (x.date || '').startsWith(monthKey(k - 1))).reduce((s, x) => s + x.amount, 0);
-  const byCat = EXP_CATS.map(([id, name, ic]) => ({ id, name, ic, sum: list.filter(x => (x.cat || 'sonst') === id).reduce((s, x) => s + x.amount, 0) })).filter(c => c.sum).sort((a, b) => b.sum - a.sum);
-  const cats = byCat.length ? `<div class="sd-card sd-ecats"><h2>Nach Kategorie</h2>${byCat.map(c => `<div class="sd-rate"><div class="row"><span>${icon(c.ic)} ${c.name}</span><span>${euro(c.sum)} · ${Math.round(c.sum / total * 100)} %</span></div><div class="sd-track"><div style="width:${Math.max(2, Math.round(c.sum / byCat[0].sum * 100))}%"></div></div></div>`).join('')}</div>` : '';
+  const k = ui.expMonth, mk = monthKey(k), d0 = monthStart(k), fc = ui.expCat;
+  const all = X().filter(x => (x.date || '').startsWith(mk));
+  const list = all.filter(x => !fc || (x.cat || 'sonst') === fc).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  const sum = l => l.reduce((s, x) => s + x.amount, 0), total = sum(list), allTotal = sum(all);
+  const mName = d0.toLocaleDateString('de-DE', { month: 'long' }), month = d0.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  const prev = sum(X().filter(x => (x.date || '').startsWith(monthKey(k - 1))));
+  const byCat = EXP_CATS.map(([id, name, ic]) => ({ id, name, ic, sum: sum(all.filter(x => (x.cat || 'sonst') === id)) })).filter(c => c.sum).sort((a, b) => b.sum - a.sum);
+  const cats = byCat.length ? `<div class="sd-card sd-ecats"><h2>Nach Kategorie</h2><p class="sd-muted">Antippen zeigt nur diese Kategorie.</p>${byCat.map(c => `<button class="sd-rate sd-ecat ${fc === c.id ? 'on' : ''}" aria-pressed="${fc === c.id}" data-a="expFilter" data-v="${c.id}"><div class="row"><span>${icon(c.ic)} ${c.name}</span><span>${euro(c.sum)} · ${Math.round(c.sum / allTotal * 100)} %</span></div><div class="sd-track"><div style="width:${Math.max(2, Math.round(c.sum / byCat[0].sum * 100))}%"></div></div></button>`).join('')}</div>` : '';
   const days = [...new Set(list.map(x => x.date))];
   const dayLabel = key => { const o = offOfKey(key); return o === 0 ? 'Heute' : o === -1 ? 'Gestern' : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }); };
-  const item = x => `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}"><span class="txt"><span class="t">${esc(x.title)}</span><span class="m">${expCat(x.cat)[1]}${x.by && x.by !== ui.me ? ` · von ${esc(data.names[x.by])}` : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b></button>`;
-  const groups = days.map(dd => `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label">${dayLabel(dd)}</span>${list.filter(x => x.date === dd).map(item).join('')}</div>`).join('');
+  const item = x => { const c = expCat(x.cat); return `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}"><span class="sd-vico" aria-hidden="true">${icon(c[2])}</span><span class="txt"><span class="t">${esc(x.title)}</span><span class="m">${c[1]}${x.by ? ` · ${esc(data.names[x.by])}` : ''}${x.note ? ' · ' + icon('note') : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b></button>`; };
+  const groups = days.map(dd => { const l = list.filter(x => x.date === dd); return `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label sd-eday"><span>${dayLabel(dd)}</span><span>${euro(sum(l))}</span></span>${l.map(item).join('')}</div>`; }).join('');
   const msg = ui.expMsg ? `<div class="sd-hint" role="status">${icon('info')}<span>${esc(ui.expMsg)}</span></div>` : '';
   const nav = `<div class="sd-nav"><button class="sd-circ" data-a="expMonth" data-v="-1" aria-label="Voriger Monat">${icon('caret-left')}</button><span>${month}</span><button class="sd-circ" data-a="expMonth" data-v="1" ${k < 0 ? '' : 'disabled'} aria-label="Nächster Monat">${icon('caret-right')}</button></div>`;
   const prevName = monthStart(k - 1).toLocaleDateString('de-DE', { month: 'long' });
-  const diff = prev && total !== prev ? ` · ${euro(Math.abs(total - prev))} ${total > prev ? 'mehr' : 'weniger'} als im ${prevName}` : '';
-  return `<div class="sd-hdr"><div><div class="sd-sub">${list.length} ${list.length === 1 ? 'Eintrag' : 'Einträge'}${diff}</div><h1>Ausgaben</h1></div></div>
+  const diff = !fc && prev && total !== prev ? ` · ${euro(Math.abs(total - prev))} ${total > prev ? 'mehr' : 'weniger'} als im ${prevName}` : '';
+  const filt = fc ? `<div class="sd-hint">${icon(expCat(fc)[2])}<span>Nur <b>${expCat(fc)[1]}</b></span><button class="sd-mini" data-a="expFilter" data-v="${fc}">Alle zeigen</button></div>` : '';
+  return `<div class="sd-hdr"><div><div class="sd-sub">${list.length} ${list.length === 1 ? 'Ausgabe' : 'Ausgaben'}${diff}</div><h1>Ausgaben</h1></div></div>
   <div class="sd-exp">
-  <form class="sd-sadd sd-eadd" data-form="exp"><input class="sd-input" data-in="expNew" value="${esc(ui.expDraft)}" placeholder="z. B. Rewe 23,80" maxlength="90" enterkeyhint="done" autocomplete="off" inputmode="text" aria-label="Neue Ausgabe"><button class="sd-btn" type="submit" aria-label="Ausgabe hinzufügen">${icon('plus', 'ph-bold')}</button></form>
+  <form class="sd-sadd sd-eadd" data-form="exp"><input class="sd-input" data-in="expNew" value="${esc(ui.expDraft)}" placeholder="z. B. Rewe 23,80" maxlength="90" enterkeyhint="done" autocomplete="off" aria-label="Neue Ausgabe: Geschäft und Betrag"><button class="sd-btn" type="submit" aria-label="Ausgabe hinzufügen">${icon('plus', 'ph-bold')}</button></form>
+  <div class="sd-esug">${expSuggest()}</div>
   ${msg}
   ${nav}
-  <div class="sd-tbanner sd-ebanner"><span>${icon('wallet', 'ph-fill')}Ausgegeben</span><b>${euro(total)}</b></div>
-  ${cats}${groups || `<div class="sd-empty"><span>${k === 0 ? 'Noch keine Ausgaben in diesem Monat. Trag oben ein, wofür und wie viel, zum Beispiel „Rewe 23,80“.' : 'In diesem Monat wurde nichts eingetragen.'}</span></div>`}
+  <div class="sd-tbanner sd-ebanner"><span>${icon('wallet', 'ph-fill')}Ausgegeben im ${mName}</span><b>${euro(total)}</b></div>
+  ${filt}${cats}${groups || `<div class="sd-empty"><span>${k === 0 ? `Noch keine Ausgaben im ${mName}. Trag oben das Geschäft und den Betrag ein, zum Beispiel „Rewe 23,80“.` : `Im ${mName} wurde nichts eingetragen.`}</span></div>`}
   </div>`;
 }
 function expSheetHtml() {
@@ -722,9 +738,11 @@ function expSheetHtml() {
   const val = (d.amount / 100).toFixed(2).replace('.', ',');
   return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-esheet" data-a="noop" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
   <div class="grip"></div><div class="sd-sheethead"><h2 id="sheet-title" tabindex="-1">Ausgabe bearbeiten</h2><button class="sd-mini sd-cancel" data-a="closeSheet">Abbrechen</button></div>
-  <div class="sd-g2"><label class="sd-field">Wofür<input class="sd-input" value="${esc(d.title)}" data-in="eTitle" maxlength="80"></label><label class="sd-field">Betrag in €<input class="sd-input" value="${val}" data-in="eAmount" inputmode="decimal" maxlength="10"></label></div>
+  <div class="sd-g2"><label class="sd-field">Betrag in €<input class="sd-input sd-eamtin" value="${val}" data-in="eAmount" inputmode="decimal" maxlength="10"></label><label class="sd-field">Geschäft<input class="sd-input" value="${esc(d.title)}" data-in="eTitle" maxlength="80"></label></div>
   <div class="sd-field">Kategorie<div class="sd-chips">${EXP_CATS.map(([id, name, ic]) => `<button class="sd-chip ${d.cat === id ? 'on' : ''}" aria-pressed="${d.cat === id}" data-a="eCat" data-v="${id}">${icon(ic)}${name}</button>`).join('')}</div></div>
-  <label class="sd-field">Datum<input class="sd-input" type="date" value="${d.date}" max="${dk(0)}" data-ch="eDate"></label>
+  <label class="sd-field">Datum<input class="sd-input" type="date" value="${d.date}" data-ch="eDate"></label>
+  <label class="sd-field">Notiz (optional)<textarea class="sd-input" rows="2" maxlength="500" data-in="eNote">${esc(d.note || '')}</textarea></label>
+  <p class="sd-muted sd-tnote">Erfasst von ${esc(data.names[d.by] || '–')}</p>
   <button class="sd-btn block" data-a="eSave">Speichern</button>
   <button class="sd-btn danger block" data-a="eDelete">${icon('trash')}Ausgabe löschen</button>
   </div></div>`;
@@ -939,16 +957,21 @@ const A = {
   tab: d => { if (SUB_PARENT[d.v]) ui.back = TABS.some(t => t[0] === ui.tab) ? ui.tab : parentTab(); else ui.back = null; ui.tab = d.v; if (d.v === 'aufgaben') markItems('task'); if (d.v === 'routinen') markItems('routine'); render(); track('screen_view', { firebase_screen: d.v }); },
   back: () => { ui.tab = parentTab(); ui.back = null; render(); },
   expMonth: d => { ui.expMonth = Math.min(0, ui.expMonth + +d.v); render(); },
+  expFilter: d => { ui.expCat = ui.expCat === d.v ? null : d.v; render(); },
+  expShop: d => { ui.expDraft = d.v + ' '; render(); requestAnimationFrame(() => { const el = $app.querySelector('[data-in="expNew"]'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }); },
   expEdit: d => { const x = data.exp[d.x]; if (!x) return; ui.expEdit = { ...x }; ui.sheetFresh = true; render(); },
   eCat: d => { ui.expEdit.cat = d.v; render(); },
   eSave: () => {
     const d = ui.expEdit, title = (d.title || '').trim(), amount = Math.round(parseFloat(String(d.amountText ?? (d.amount / 100)).replace(',', '.')) * 100);
-    if (!title || !(amount > 0)) return alert('Bitte gib an, wofür und einen Betrag größer als 0.');
-    ui.expEdit = null; store.saveExp({ ...data.exp[d.id], title, amount, cat: d.cat, date: d.date }).catch(fail);
+    if (!title) return alert('Bitte ein Geschäft eingeben.');
+    if (!(amount > 0) || amount >= 1e8) return alert('Bitte einen Betrag größer als 0 eingeben.');
+    const x = { ...data.exp[d.id], title, amount, cat: d.cat, date: d.date, updatedAt: Date.now() }, note = (d.note || '').trim();
+    if (note) x.note = note.slice(0, 500); else delete x.note;
+    ui.expEdit = null; store.saveExp(x).catch(fail);
   },
   eDelete: () => {
     const x = data.exp[ui.expEdit?.id]; if (!x) return;
-    if (!confirm(`Ausgabe „${x.title}“ (${euro(x.amount)}) löschen?`)) return;
+    if (!confirm(`Ausgabe ${x.title} ${euro(x.amount)} löschen?`)) return;
     ui.expEdit = null; store.deleteExp(x.id).catch(fail); track('expense_delete');
   },
   person: d => { ui.person = d.p; ui.duo = false; render(); },
@@ -1140,8 +1163,9 @@ function addShop(raw) {
 // Ausgabe eintragen: „Rewe 23,80“ → Betrag, Titel, Kategorie aus dem Text, heutiges Datum
 function addExp(raw) {
   const { title, amount } = parseExp(raw);
-  if (!(amount > 0)) { ui.expDraft = raw; ui.expMsg = 'Bitte gib auch einen Betrag an, zum Beispiel „Rewe 23,80“.'; return render(); }
-  const t = title || 'Ausgabe', cat = guessExpCat(t);
+  if (!(amount > 0)) { ui.expDraft = raw; ui.expMsg = 'Bitte auch den Betrag angeben, zum Beispiel „Rewe 23,80“.'; return render(); }
+  if (!title) { ui.expDraft = raw; ui.expMsg = 'Bitte auch das Geschäft angeben, zum Beispiel „Rewe 23,80“.'; return render(); }
+  const t = knownShops().find(k => norm(k) === norm(title)) || title, cat = suggestExpCat(t);
   ui.expDraft = ''; ui.expMsg = ''; ui.expMonth = 0;
   store.saveExp({ id: rid(), title: t, amount, cat, by: ui.me, date: dk(0), createdAt: Date.now() }).catch(fail);
   track('expense_add', { cat });
@@ -1176,7 +1200,8 @@ document.addEventListener('input', e => {
   if (k === 'shopNew') { ui.shopDraft = v; if (ui.shopMsg) { ui.shopMsg = ''; $app.querySelector('.sd-shop > .sd-hint')?.remove(); } const box = $app.querySelector('.sd-ssug'); if (box) box.innerHTML = shopSuggest(); }
   if (k === 'sTitle') { ui.shopEdit.title = v; const b = $app.querySelector('[data-a="sSave"]'); if (b) b.disabled = !v.trim(); }
   if (k === 'sQty') ui.shopEdit.qty = v;
-  if (k === 'expNew') { ui.expDraft = v; if (ui.expMsg) { ui.expMsg = ''; $app.querySelector('.sd-exp > .sd-hint')?.remove(); } }
+  if (k === 'expNew') { ui.expDraft = v; if (ui.expMsg) { ui.expMsg = ''; $app.querySelector('.sd-exp > .sd-hint[role="status"]')?.remove(); } const box = $app.querySelector('.sd-esug'); if (box) box.innerHTML = expSuggest(); }
+  if (k === 'eNote') ui.expEdit.note = v;
   if (k === 'eTitle') ui.expEdit.title = v;
   if (k === 'eAmount') ui.expEdit.amountText = v;
   if (k === 'tTitle') { ui.task.title = v; const b = $app.querySelector('[data-a="tSave"]'); if (b) b.disabled = !v.trim(); }

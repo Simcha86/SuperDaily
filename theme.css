@@ -382,3 +382,11 @@ button.sd-dcell:active{transform:scale(.94)}
 .sd-eadd .sd-btn i,.sd-sadd .sd-btn i{font-size:24px}
 .sd-sadd .sd-input{min-height:52px;font-size:16px}
 .sd-sadd{grid-template-columns:minmax(0,1fr) 56px}
+/* Ausgaben wie SuperFinance: Tagessumme im Kopf, Kategorie-Balken als Filter */
+.sd-eday{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.sd-eday span:last-child{font-variant-numeric:tabular-nums;letter-spacing:0;text-transform:none;font-weight:700;color:var(--color-text)}
+.sd-ecat{display:flex;flex-direction:column;gap:6px;width:100%;padding:8px 10px;margin:0 -10px;width:calc(100% + 20px);border:0;border-radius:12px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;min-height:44px}
+.sd-ecat.on{background:var(--color-accent-900)}
+.sd-ecats > p{margin:-6px 0 0;font-size:13px}
+.sd-esug:empty{display:none}
+.sd-erow .sd-vico{width:36px;height:36px;font-size:18px}

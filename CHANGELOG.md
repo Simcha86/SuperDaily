@@ -11,8 +11,9 @@ Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei j
 - Große Knöpfe zum Anlegen oben im Bereich statt schwebendem Plus.
 
 **Ausgaben (neu, Violett)**
-- Mit einem Satz eintragen: „Rewe 23,80“, „45 € Tanken“. Betrag, Titel und Kategorie erkennt die App, alles ist änderbar.
-- Monatsüberblick: Summe, Vergleich zum Vormonat, Balken nach Kategorie und die Einträge nach Tagen. Beide sehen und ändern alles, live auf beiden Handys.
+- Mit einem Satz eintragen: „Rewe 23,80“, „45 € Tanken“. Betrag, Geschäft und Kategorie erkennt die App; beim Tippen erscheinen bekannte Geschäfte als Vorschlag.
+- Wie in SuperFinance: gleiche Kategorien-Liste, ein bekanntes Geschäft bekommt die zuletzt gewählte Kategorie, optionale Notiz, „erfasst von“.
+- Monatsüberblick: „Ausgegeben im …“, Vergleich zum Vormonat, Balken nach Kategorie (antippen filtert) und die Einträge nach Tagen mit Tagessumme. Keine Aufteilung zwischen den Personen. Beide sehen und ändern alles, live auf beiden Handys.
 
 ## Version 12 · 16. November 2026 · [Release Notes](docs/releases/v12/RELEASE-NOTES.md)
 
