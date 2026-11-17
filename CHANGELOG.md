@@ -2,6 +2,11 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 18 · 17. November 2026 · [Release Notes](docs/releases/v18/RELEASE-NOTES.md)
+
+- **„Heute“ ganz auf Routinen ausgerichtet:** kein Aufgaben-Block mehr, Liste/Kacheln und Verlauf als Symbole oben rechts.
+- Neue Aufgaben der anderen Person: roter Punkt am Bereich „Aufgaben“ (wenn nichts fällig ist) und Hinweis beim Öffnen.
+
 ## Version 17 · 17. November 2026 · [Release Notes](docs/releases/v17/RELEASE-NOTES.md)
 
 - **Ausgaben: Kennzeichen „steuerrelevant“** beim Eintragen und Bearbeiten, auch per „#steuer“ im Satz; Kennzeichen in der Liste.

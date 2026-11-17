@@ -22,6 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 18, date: '2026-11-17', items: ['„Heute“ ganz auf Routinen ausgerichtet: Aufgaben stehen nur noch im Bereich „Aufgaben“', 'Liste/Kacheln und Verlauf als kleine Symbole oben rechts', 'Neue Aufgaben der anderen Person: Punkt am Bereich „Aufgaben“ und Hinweis beim Öffnen'] },
   { v: 17, date: '2026-11-17', items: ['Ausgaben: Kennzeichen „steuerrelevant“ beim Eintragen und Bearbeiten, auch per „#steuer“ im Satz', 'Filter „Nur steuerrelevant“ mit Summe für Monat und Jahr'] },
   { v: 16, date: '2026-11-17', items: ['Ausgaben: Das Geschäft ist freiwillig – Betrag und Kategorie genügen, z. B. „4,50“ und Lebensmittel › Bäckerei', 'Ohne Geschäft zeigt die Liste die Unterkategorie als Namen'] },
   { v: 15, date: '2026-11-17', items: ['Ausgaben mit Kategorie und Unterkategorie, z. B. Tanken & Auto › Tanken – beim Eintragen wählen, die App schlägt vor', 'Ausgaben-Kategorien selbst pflegen: Verwaltung → Ausgaben-Kategorien (anlegen, umbenennen, archivieren)', 'Ausgaben ändern oder löschen: Stift an jedem Eintrag', 'Zurück-Taste am Handy: schließt erst Fenster und Unterseiten, führt dann zu „Heute“ – die App bleibt offen'] },
@@ -618,20 +619,13 @@ function tabHeute() {
   const strip = `<div class="sd-strip">${days.map(o => `<button class="${o === off ? 'on' : ''}" aria-pressed="${o === off}" aria-label="${dateAt(o).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}, ${ui.duo ? duoPct(o) : dayStats(p, o).pct} Prozent" data-a="day" data-o="${o}"><small>${WD[dateAt(o).getDay()]}</small><b>${dateAt(o).getDate()}</b><i class="bar"><i style="width:${ui.duo ? duoPct(o) : dayStats(p, o).pct}%"></i></i></button>`).join('')}</div>`;
   const body = ui.duo ? (ui.heuteView === 'liste' ? duoListView(off) : duoTilesView(off))
     : ui.heuteView === 'liste' ? `${R().length ? hero(st, off) : ''}${listView(p, off)}` : tilesView(p, off);
-  return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div><button class="sd-btn ghost sm" data-a="tab" data-v="verlauf">${icon('chart-line-up')}Verlauf</button></div>
+  // Seit Version 18 ganz auf Routinen ausgerichtet: kein Aufgaben-Block mehr (die Zahl der fälligen steht am Bereich „Aufgaben“);
+  // Liste/Kacheln und Verlauf sind kleine Symbol-Knöpfe oben rechts.
+  const other = ui.heuteView === 'liste' ? 'kacheln' : 'liste';
+  const tools = `<div class="sd-htools"><button class="sd-circ" data-a="heuteView" data-v="${other}" aria-label="${other === 'liste' ? 'Als Liste zeigen' : 'Als Kacheln zeigen'}" title="${other === 'liste' ? 'Liste' : 'Kacheln'}">${icon(other === 'liste' ? 'list' : 'squares-four')}</button><button class="sd-circ" data-a="tab" data-v="verlauf" aria-label="Verlauf" title="Verlauf">${icon('chart-line-up')}</button></div>`;
+  return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div>${tools}</div>
   ${whoSeg()}
-  ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
-  ${strip}${newNote()}${newItemsNote()}${ui.duo ? '' : roNote()}${heuteTasks(ui.duo ? ui.me : p, off)}${body}`;
-}
-// Ganz oben auf „Heute“: fällige und überfällige Aufgaben der Person; an diesem Tag Erledigtes bleibt durchgestrichen stehen.
-// An vergangenen Tagen: die an diesem Tag fälligen Aufgaben.
-function heuteTasks(p, off) {
-  const list = off === 0 ? sortTasks(T().filter(t => taskFor(t, p) && t.due && dueOff(t) <= 0 && (!t.done || t.doneAt === dk(0)))) : sortTasks(tasksDueOn(p, off));
-  // Seit Version 13 steht der Aufgaben-Block immer auf „Heute“: mit „Neu“ zum Vergeben und „Alle“ für die ganze Liste
-  const later = openTasks(p).filter(t => !t.due || dueOff(t) > 0).length;
-  const none = off === 0 ? `<div class="sd-tnone">${later ? `Heute nichts fällig · ${later} später` : 'Heute nichts fällig'}</div>` : '';
-  if (!list.length && off !== 0) return '';
-  return `<div class="sd-group sd-tasks"><span role="heading" aria-level="2" class="sd-label sd-catlabel">${icon('check-square-offset')}Aufgaben<button class="sd-mini" data-a="newTask" aria-label="Aufgabe hinzufügen">${icon('plus')}Neu</button><button class="sd-mini" data-a="tab" data-v="aufgaben">Alle</button></span>${list.length ? list.map(taskItem).join('') : none}</div>`;
+  ${strip}${newNote()}${newItemsNote('routine')}${ui.duo ? '' : roNote()}${body}`;
 }
 // Verlauf (seit Version 10): Statistik, Kalender und Raster mit einem gemeinsamen Zeitraum.
 // Die Statistik kennt keinen Tag: steht der Zeitraum auf „Tag“, zeigt sie die Woche dieses Tages.
@@ -677,7 +671,8 @@ function tabAufgaben() {
   }
   const none = { mine: `Alles erledigt. Tippe auf +, um dir oder ${esc(data.names[ui.me === 'a' ? 'b' : 'a'])} eine Aufgabe zu geben.`, from: 'Du hast gerade keine offenen Aufgaben vergeben.', all: 'Keine offenen Aufgaben.', done: 'In den letzten 30 Tagen wurde nichts erledigt.' }[v];
   const sub = `${open.length} offen${late ? ` · ${late} überfällig` : ''}`;
-  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>Aufgaben</h1></div></div>
+  const fresh = ui.newTaskCount ? `<div class="sd-hint sd-new sd-tasks" role="status">${icon('check-square-offset', 'ph-fill')}<span><b>${ui.newTaskCount} ${ui.newTaskCount === 1 ? 'neue Aufgabe' : 'neue Aufgaben'}</b> von ${esc(data.names[ui.me === 'a' ? 'b' : 'a'])}</span></div>` : '';
+  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>Aufgaben</h1></div></div>${fresh}
   <div class="sd-tbanner"><span>${icon('sun-horizon', 'ph-fill')}Fällig für dich</span><b>${today}</b></div>
   <button class="sd-btn block sd-bigadd sd-tbig" data-a="newTask">${icon('plus', 'ph-bold')}Aufgabe hinzufügen</button>
   ${seg([['mine', 'Für mich'], ['from', 'Vergeben'], ['all', 'Alle'], ['done', 'Erledigt']], v, 'taskView')}
@@ -863,10 +858,10 @@ function markItems(kind) { const m = seenMap(); if (!m) return; m[ui.me + '|' + 
 // seenAt zuerst aufrufen: so wird „jetzt“ schon beim ersten Anzeigen gemerkt, nicht erst beim ersten neuen Eintrag
 const newTasks = (since = seenAt('task')) => T().filter(t => !t.done && t.from !== ui.me && taskFor(t, ui.me) && (t.createdAt || 0) > since);
 const newRoutines = (since = seenAt('routine')) => active().filter(r => r.who === ui.me && givenBy(r) && (r.createdAt || 0) > since);
-function newItemsNote() {
+function newItemsNote(only) {
   const other = esc(data.names[ui.me === 'a' ? 'b' : 'a']), t = newTasks().length, r = newRoutines().length;
   const hint = (n, kind, one, many, ic, cls) => n ? `<div class="sd-hint sd-new ${cls}">${icon(ic, 'ph-fill')}<button class="sd-hlink" data-a="openNew" data-v="${kind}"><b>${n} ${n === 1 ? one : many}</b> von ${other}</button><span class="sd-newact"><button class="sd-circ" data-a="seenNew" data-v="${kind}" aria-label="Hinweis schließen">${icon('x')}</button></span></div>` : '';
-  return hint(r, 'routine', 'neue Routine', 'neue Routinen', 'list-checks', '') + hint(t, 'task', 'neue Aufgabe', 'neue Aufgaben', 'check-square-offset', 'sd-tasks');
+  return (only !== 'task' ? hint(r, 'routine', 'neue Routine', 'neue Routinen', 'list-checks', '') : '') + (only !== 'routine' ? hint(t, 'task', 'neue Aufgabe', 'neue Aufgaben', 'check-square-offset', 'sd-tasks') : '');
 }
 const newNote = () => seenVersion < APP_VERSION ? `<div class="sd-hint sd-new">${icon('sparkle', 'ph-fill')}<span><b>Neu in Version ${APP_VERSION}:</b> ${CHANGES.filter(c => c.v > seenVersion).flatMap(c => c.items).slice(0, 3).map(esc).join(' · ')}</span><span class="sd-newact"><button class="sd-mini" data-a="whatsNew">Mehr</button><button class="sd-circ" data-a="seen" aria-label="Hinweis schließen">${icon('x')}</button></span></div>` : '';
 const aboutCard = () => {
@@ -1036,7 +1031,7 @@ function render() {
   const page = { heute: tabHeute, verlauf: tabVerlauf, aufgaben: tabAufgaben, einkauf: tabEinkauf, ausgaben: tabAusgaben, verwaltung: tabVerwaltung, ekat: tabEkat, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
   const cur = parentTab(), backLink = SUB_PARENT[ui.tab] ? `<button class="sd-backlink" data-a="back">${icon('caret-left', 'ph-bold')}${tabLabel(cur)}</button>` : '';
   const badge = dueNow(ui.me).length;
-  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${backLink}${page}</main><nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, cur === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} Aufgaben fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}${ui.expEdit ? expSheetHtml() : ''}`;
+  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${backLink}${page}</main><nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, cur === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} Aufgaben fällig">${badge}</em>` : k === 'aufgaben' && ui.tab !== 'aufgaben' && newTasks().length ? '<em class="sd-badge sd-bdot" aria-label="Neue Aufgaben"></em>' : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}${ui.expEdit ? expSheetHtml() : ''}`;
   syncHistory();
   if (ui.tab === 'ausgaben') showPicked();
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
@@ -1050,7 +1045,7 @@ function render() {
 
 // ---------- Aktionen ----------
 const A = {
-  tab: d => { if (SUB_PARENT[d.v]) ui.back = TABS.some(t => t[0] === ui.tab) ? ui.tab : parentTab(); else ui.back = null; ui.tab = d.v; if (d.v === 'aufgaben') markItems('task'); if (d.v === 'routinen') markItems('routine'); render(); track('screen_view', { firebase_screen: d.v }); },
+  tab: d => { if (SUB_PARENT[d.v]) ui.back = TABS.some(t => t[0] === ui.tab) ? ui.tab : parentTab(); else ui.back = null; ui.newTaskCount = d.v === 'aufgaben' ? newTasks().length : 0; ui.tab = d.v; if (d.v === 'aufgaben') markItems('task'); if (d.v === 'routinen') markItems('routine'); render(); track('screen_view', { firebase_screen: d.v }); },
   back: () => { ui.tab = parentTab(); ui.back = null; render(); },
   expMonth: d => { ui.expMonth = Math.min(0, ui.expMonth + +d.v); render(); },
   expTaxToggle: () => { ui.expDraftTax = !taxOn(); if (!ui.expDraftTax && hasTaxTag(ui.expDraft)) { ui.expDraft = ui.expDraft.replace(TAX_RE, '').replace(/\s+/g, ' ').trim(); const el = $app.querySelector('[data-in="expNew"]'); if (el) el.value = ui.expDraft; } const box = $app.querySelector('.sd-etax'); if (box) box.innerHTML = taxChip(taxOn(), 'expTaxToggle'); },
@@ -1273,7 +1268,7 @@ const A = {
     ui.busy = false; ui.setupErr = 'Beitreten hat nicht geklappt. Prüfe den Code. Ein Haushalt hat Platz für zwei Personen.'; render();
   },
   seen: () => { markSeen(); render(); },
-  openNew: d => { markItems(d.v); ui.tab = d.v === 'task' ? 'aufgaben' : 'routinen'; if (d.v === 'task') ui.taskView = 'mine'; render(); track('new_items_open', { kind: d.v }); },
+  openNew: d => { ui.newTaskCount = 0; markItems(d.v); ui.tab = d.v === 'task' ? 'aufgaben' : 'routinen'; if (d.v === 'task') ui.taskView = 'mine'; render(); track('new_items_open', { kind: d.v }); },
   seenNew: d => { markItems(d.v); render(); },
   whatsNew: () => { markSeen(); ui.tab = 'mehr'; render(); requestAnimationFrame(() => $app.querySelector('#about')?.scrollIntoView({ block: 'start' })); },
   logout: () => fb && fb.A.signOut(fb.auth)

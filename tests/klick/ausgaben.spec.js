@@ -60,14 +60,15 @@ test('Monatsüberblick: Summe, Kategorien, voriger Monat, bearbeiten und lösche
 
 test('Navigation: Verwaltung führt zu Routinen, Aufgaben, Verlauf und Einstellungen, „Zurück“ führt zurück', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
-  // Heute: Aufgaben mit „Neu“ und „Alle“, Knopf „Verlauf“
-  await expect(seite.locator('.sd-tasks').getByRole('button', { name: 'Aufgabe hinzufügen' })).toBeVisible();
+  // Heute (seit Version 18): nur Routinen; oben rechts Symbole für Liste/Kacheln und Verlauf
+  await expect(seite.locator('.sd-scroll .sd-tasks')).toHaveCount(0);
+  await expect(seite.locator('.sd-hdr').getByRole('button', { name: 'Als Kacheln zeigen' })).toBeVisible();
   await seite.locator('.sd-hdr').getByRole('button', { name: 'Verlauf' }).click();
   await expect(seite.locator('.sd-hdr h1')).toHaveText('Verlauf');
   await expect(seite.locator('.sd-tab.on')).toContainText('Heute');
   await seite.getByRole('button', { name: 'Heute' }).first().click();
   await expect(seite.locator('.sd-hdr h1')).toHaveText('Heute');
-  await seite.locator('.sd-tasks').getByRole('button', { name: 'Alle' }).click();
+  await tab(seite, 'Aufgaben');
   await expect(seite.locator('.sd-hdr h1')).toHaveText('Aufgaben');
   // Seit Version 14 eigener Bereich: unten markiert, kein „Zurück“
   await expect(seite.locator('.sd-tab.on')).toContainText('Aufgaben');

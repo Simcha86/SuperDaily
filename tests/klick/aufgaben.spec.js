@@ -54,13 +54,14 @@ test('Aufgabe anlegen, abhaken, ändern und löschen', async ({ browser, lokal }
   expect(seite.fehler).toEqual([]);
 });
 
-test('Heute: fällige Aufgaben stehen ganz oben, vor den Routinen', async ({ browser, lokal }) => {
+test('Seit Version 18: „Heute“ zeigt nur Routinen, fällige Aufgaben zählt der Bereich „Aufgaben“', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
-  const reihenfolge = await seite.locator('.sd-scroll > *').evaluateAll(l => l.map(e => e.className));
-  expect(reihenfolge.findIndex(c => c.includes('sd-tasks'))).toBeLessThan(reihenfolge.findIndex(c => c.includes('sd-hero')));
-  await expect(seite.locator('.sd-tasks .sd-titem')).toHaveCount(3);
+  await expect(seite.locator('.sd-scroll .sd-titem')).toHaveCount(0);
+  await expect(seite.locator('.sd-scroll .sd-tasks')).toHaveCount(0);
+  await expect(seite.locator('.sd-scroll .sd-hero')).toBeVisible();
+  await expect(seite.locator('.sd-tab', { hasText: 'Aufgaben' }).locator('.sd-badge')).toHaveText('3');
+  await tab(seite, 'Aufgaben');
   await seite.getByRole('button', { name: 'Paket zur Post bringen abhaken' }).click();
-  await expect(aufgabe(seite, 'Paket zur Post bringen')).toHaveClass(/done/);
   await expect(seite.locator('.sd-tab .sd-badge')).toHaveText('2');
 });
 

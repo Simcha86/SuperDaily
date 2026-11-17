@@ -45,7 +45,8 @@ Keine Abhängigkeiten oder Build-Werkzeuge in die App einbauen. Externe Biblioth
 - **Ausgaben** (seit Version 13): beide dürfen alles eintragen, ändern und löschen. Nur Überblick, kein Ausgleich zwischen den Personen.
 - Rechte immer zweifach umsetzen: in der App (Bedienung ausblenden) **und** in `firestore.rules` (durchsetzen).
 - „Heute“ hat seit Version 9 den Umschalter Simon | Irina | Duo (`whoSeg`, `ui.duo`); Duo zeigt beide nebeneinander (`duoListView`, `duoTilesView`). Abhak-Knöpfe tragen `data-p` für die Person; `A.toggle` nimmt sonst `ui.person`.
-- Hinweise „Neu von …“ auf Heute (seit Version 11): neue Aufgaben und vorgegebene Routinen der anderen Person seit dem letzten Blick; pro Gerät und Person in `localStorage` (`superdaily-seen-items`), beim ersten Start „jetzt“.
+- **„Heute“ seit Version 18 nur Routinen** (Simons Wahl, Variante A): kein Aufgaben-Block, Liste/Kacheln und Verlauf als Symbol-Knöpfe `.sd-htools` oben rechts; Tagesleiste und Fortschrittskreis bleiben.
+- Hinweise „Neu von …“ (seit Version 11): neue vorgegebene Routinen der anderen Person als Hinweis auf Heute (`newItemsNote('routine')`); neue Aufgaben seit Version 18 als roter Punkt `.sd-bdot` am Bereich Aufgaben (nur wenn nichts fällig ist) und einmal als Hinweis beim Öffnen des Bereichs (`ui.newTaskCount`). Gesehen-Zeitpunkt pro Gerät und Person in `localStorage` (`superdaily-seen-items`), beim ersten Start „jetzt“.
 - Im lokalen Modus (ohne Firebase) gibt es keine Einschränkungen.
 
 ## Datenmodell (Firestore)
@@ -93,7 +94,7 @@ Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
 3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
 4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen. Seit Version 13 veröffentlicht die GitHub Action sie nach dem Merge selbst (Ergebnis unter Actions → „Firebase-Regeln veröffentlichen“; bei Fehler rot). Kein Anmelde-Code mehr nötig. Schlägt die Action fehl, gelten die alten Regeln weiter.
 
-Aktueller Stand: Version 17, `CACHE = 'superdaily-v18'`.
+Aktueller Stand: Version 18, `CACHE = 'superdaily-v19'`.
 
 ## Testen
 

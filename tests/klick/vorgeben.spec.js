@@ -38,19 +38,20 @@ test('Simon gibt Irina eine Routine vor: „Für wen“ bietet alle vier, „vor
   expect(seite.fehler).toEqual([]);
 });
 
-test('Hinweis „3 neue Aufgaben von Irina“: Antippen öffnet Aufgaben, danach weg', async ({ browser, lokal }) => {
+test('Neue Aufgaben von Irina (seit Version 18): Punkt am Bereich, Hinweis „3 neue Aufgaben von Irina“ beim Öffnen, danach weg', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
   // Erster Start: nichts als neu markiert
   await expect(seite.locator('.sd-hlink')).toHaveCount(0);
   await zuletztGesehen(seite, { 'a|task': 1, 'a|routine': 1 });
-  // Offen, von Irina, für Simon oder gemeinsam: Paket, Arzttermin, Urlaub planen
-  const hinweis = seite.getByRole('button', { name: '3 neue Aufgaben von Irina' });
-  await expect(hinweis).toBeVisible();
+  // „Heute“ bleibt bei Routinen: kein Aufgaben-Hinweis
+  await expect(seite.getByRole('button', { name: /neue Aufgabe/ })).toHaveCount(0);
   await expect(seite.getByRole('button', { name: /neue Routine/ })).toHaveCount(0);
-  await hinweis.click();
-  await expect(seite.locator('.sd-hdr h1')).toHaveText('Aufgaben');
+  // Offen, von Irina, für Simon oder gemeinsam: Paket, Arzttermin, Urlaub planen
+  await tab(seite, 'Aufgaben');
+  await expect(seite.getByRole('status').filter({ hasText: 'neue Aufgaben' })).toContainText('3 neue Aufgaben von Irina');
   await tab(seite, 'Heute');
-  await expect(seite.locator('.sd-hlink')).toHaveCount(0);
+  await tab(seite, 'Aufgaben');
+  await expect(seite.getByText(/neue Aufgaben von Irina/)).toHaveCount(0);
   expect(seite.fehler).toEqual([]);
 });
 
@@ -69,13 +70,29 @@ test('Hinweis „1 neue Routine von Simon“ bei Irina, schließen per X, Besuch
   await ichBin(seite, 'Irina');
   await tab(seite, 'Heute');
   await expect(seite.getByRole('button', { name: '1 neue Routine von Simon' })).toBeVisible();
-  await expect(seite.getByRole('button', { name: '2 neue Aufgaben von Simon' })).toBeVisible();
+  // Neue Aufgaben: Punkt am Bereich „Aufgaben“ (wenn nichts fällig ist) statt Hinweis auf „Heute“
+  await expect(seite.getByRole('button', { name: /neue Aufgabe/ })).toHaveCount(0);
   // X schließt den Routinen-Hinweis
   await seite.locator('.sd-hint', { hasText: 'neue Routine' }).getByRole('button', { name: 'Hinweis schließen' }).click();
   await expect(seite.getByRole('button', { name: /neue Routine/ })).toHaveCount(0);
-  // Tab Aufgaben besuchen zählt als gesehen
+  // Tab Aufgaben besuchen zeigt den Hinweis einmal und zählt als gesehen
   await tab(seite, 'Aufgaben');
+  await expect(seite.getByText('2 neue Aufgaben von Simon')).toBeVisible();
   await tab(seite, 'Heute');
   await expect(seite.locator('.sd-hlink')).toHaveCount(0);
+  expect(seite.fehler).toEqual([]);
+});
+
+test('Punkt am Bereich „Aufgaben“ bei neuer Aufgabe ohne Fälligkeit (seit Version 18)', async ({ browser, lokal }) => {
+  const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
+  // Nur Aufgaben ohne Fälligkeit: Zahl fällt weg, Punkt erscheint für neue von Irina
+  await seite.evaluate(() => { const d = JSON.parse(localStorage.getItem('superdaily-v1')); for (const t of Object.values(d.tasks)) t.due = null; localStorage.setItem('superdaily-v1', JSON.stringify(d)); });
+  await zuletztGesehen(seite, { 'a|task': 1, 'a|routine': 1 });
+  const bereich = seite.locator('.sd-tab', { hasText: 'Aufgaben' });
+  await expect(bereich.locator('.sd-bdot')).toBeVisible();
+  await expect(bereich.locator('.sd-bdot')).toHaveAttribute('aria-label', 'Neue Aufgaben');
+  await tab(seite, 'Aufgaben');
+  await tab(seite, 'Heute');
+  await expect(bereich.locator('.sd-bdot')).toHaveCount(0);
   expect(seite.fehler).toEqual([]);
 });
