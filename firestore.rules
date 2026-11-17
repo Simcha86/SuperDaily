@@ -37,6 +37,7 @@ service cloud.firestore {
       return x.title is string && x.title.size() > 0 && x.title.size() <= 80
         && x.amount is int && x.amount > 0 && x.amount < 100000000
         && x.cat is string && x.cat.size() <= 20
+        && (!('sub' in x) || (x.sub is string && x.sub.size() <= 20))
         && x.by in ['a', 'b']
         && x.date is string && x.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && (!('note' in x) || (x.note is string && x.note.size() <= 500));
@@ -57,7 +58,8 @@ service cloud.firestore {
       allow update: if request.auth != null && (
         // Mitglieder ändern nur Namen und Bereiche; Mitglieder und Rollen bleiben fest
         (request.auth.uid in resource.data.members
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['names', 'cats']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['names', 'cats', 'ecats'])
+          && (!('ecats' in request.resource.data) || (request.resource.data.ecats is list && request.resource.data.ecats.size() <= 60)))
         // Beitritt per Code: nur sich selbst, mit der noch freien Rolle, höchstens zwei Personen
         || (resource.data.members.size() < 2
           && request.resource.data.members == resource.data.members.concat([request.auth.uid])

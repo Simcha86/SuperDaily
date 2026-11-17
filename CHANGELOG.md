@@ -2,6 +2,14 @@
 
 Die aktuelle Version steht in der App unter **Mehr → Über SuperDaily**. Bei jeder Veröffentlichung hier, in `CHANGES` am Anfang von `app.js` und bei `CACHE` in `sw.js` ergänzen.
 
+## Version 15 · 17. November 2026 · [Release Notes](docs/releases/v15/RELEASE-NOTES.md)
+
+- **Ausgaben mit Kategorie und Unterkategorie** (beides Pflicht), beim Eintragen wählbar; die App schlägt beides vor.
+- **Ausgaben-Kategorien selbst pflegen** unter Verwaltung → Ausgaben-Kategorien: anlegen, umbenennen, Symbol, archivieren (benutzte) oder löschen (unbenutzte), zurückholen.
+- **Ausgaben:** Stift an jedem Eintrag; Antippen öffnet Ändern und Löschen. Monatsüberblick zeigt nach Antippen die Unterkategorien.
+- **Zurück-Taste am Handy** schließt erst Fenster und Unterseiten und führt zu „Heute“, statt die App sofort zu verlassen.
+- Firebase-Regeln geändert (`ecats` im Haushalt, `sub` an der Ausgabe); Veröffentlichung automatisch beim Merge.
+
 ## Version 14 · 17. November 2026 · [Release Notes](docs/releases/v14/RELEASE-NOTES.md)
 
 - **Aufgaben haben einen eigenen Bereich** unten in der Leiste, in Senfgold: Heute · Aufgaben · Einkauf · Ausgaben · Verwaltung. Dort der große Knopf „Aufgabe hinzufügen“ und alle Aufgaben mit Filtern.
