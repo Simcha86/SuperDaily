@@ -13,7 +13,8 @@ SuperDaily ist die Routinen-App von Simon und Irina: eine Web-App (PWA) ohne Bui
 | `nocturne.css` | Grund-Designsystem (Tokens, Grundbausteine) – nicht ändern |
 | `app.css` | App-Bausteine (`sd-…`-Klassen) |
 | `theme.css` | Design „Minze“ hell/dunkel und alle späteren Ergänzungen |
-| `firestore.rules` | Sicherheitsregeln; Simon veröffentlicht sie von Hand in der Firebase-Konsole |
+| `firestore.rules` | Sicherheitsregeln; werden nach dem Merge auf `main` automatisch veröffentlicht (`.github/workflows/firebase-regeln.yml`) |
+| `.github/workflows/firebase-regeln.yml` | GitHub Action: Regel-Tests, dann Regeln veröffentlichen und zurücklesen. Anmeldung ohne Schlüssel (Workload Identity Federation, nur `Simcha86/SuperDaily` auf `main`) als Konto `github-firebase-rules`, das nur Regeln verwalten darf (`roles/firebaserules.admin`) |
 | `firebase-config.js` | Echte Web-Konfiguration des Projekts `superdaily-c7408` (kein Geheimnis) |
 | `sw.js` | Service Worker; Konstante `CACHE` |
 | `CHANGELOG.md` | Änderungen je Version |
@@ -89,7 +90,7 @@ Zusätzlich zu den allgemeinen Schritten aus **meine-app-entwicklung**:
 1. Neue Version oben in `CHANGES` am Anfang von `app.js` eintragen (Nutzersicht, 2–4 Punkte). Die App zeigt sie unter Mehr → Über SuperDaily und einmalig als Hinweis nach dem Update.
 2. `CACHE` in `sw.js` um eins erhöhen.
 3. `CHANGELOG.md` und `docs/releases/v<N>/RELEASE-NOTES.md` ergänzen.
-4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen; Simon veröffentlicht sie **vor** dem Merge.
+4. Bei geänderten Regeln: vollständige `firestore.rules` im Chat zeigen. Seit Version 13 veröffentlicht die GitHub Action sie nach dem Merge selbst (Ergebnis unter Actions → „Firebase-Regeln veröffentlichen“; bei Fehler rot). Kein Anmelde-Code mehr nötig. Schlägt die Action fehl, gelten die alten Regeln weiter.
 
 Aktueller Stand: Version 13, `CACHE = 'superdaily-v14'`.
 
