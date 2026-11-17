@@ -107,9 +107,9 @@ test('Ausgaben hell und dunkel: lesbarer Balken, kein seitliches Verrutschen', a
 test('Wie in SuperFinance: Geschäft-Vorschläge, gemerkte Kategorie, Notiz, Filter nach Kategorie', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
   await tab(seite, 'Ausgaben');
-  // Ohne Geschäft: Hinweis
+  // Ohne Geschäft und ohne Kategorie: Hinweis auf die Kategorie (seit Version 16 ist das Geschäft freiwillig)
   await hinzu(seite, '12,50');
-  await expect(seite.getByText('Bitte auch das Geschäft angeben')).toBeVisible();
+  await expect(seite.getByText('Bitte eine Kategorie wählen')).toBeVisible();
   // Vorschläge aus bekannten Geschäften beim Tippen
   await eingabe(seite).fill('');
   await eingabe(seite).pressSequentially('Pi');
@@ -225,5 +225,32 @@ test('Version 15: Ausgaben-Kategorien in der Verwaltung pflegen, archivieren und
   // Gespeichert
   const ek = await seite.evaluate(() => JSON.parse(localStorage.getItem('superdaily-v1')).ecats);
   expect(ek.find(c => c.name === 'Haustier').subs.map(u => u.name)).toEqual(['Allgemein', 'Futter']);
+  expect(seite.fehler).toEqual([]);
+});
+
+test('Version 16: Geschäft ist freiwillig – nur Betrag und Kategorie genügen', async ({ browser, lokal }) => {
+  const seite = await oeffneHandy(browser, lokal);
+  await tab(seite, 'Ausgaben');
+  const wahl = seite.getByRole('group', { name: 'Kategorie für die neue Ausgabe' });
+  await eingabe(seite).fill('4,50');
+  await wahl.locator('.sd-ecpick').first().getByRole('button', { name: 'Lebensmittel' }).click();
+  await wahl.getByRole('group', { name: 'Unterkategorie' }).getByRole('button', { name: 'Bäckerei' }).click();
+  await eingabe(seite).press('Enter');
+  expect((await gespeichert(seite))[0]).toMatchObject({ title: '', amount: 450, cat: 'essen', sub: 'baecker' });
+  await expect(seite.getByRole('status')).toContainText('Gespeichert: 4,50');
+  // Liste zeigt die Unterkategorie als Namen
+  const zeile = seite.locator('.sd-erow').first();
+  await expect(zeile.locator('.t')).toHaveText('Bäckerei');
+  await expect(zeile).toContainText('Lebensmittel › Bäckerei');
+  // Bearbeiten ohne Geschäft speichert, mit Geschäft auch
+  await zeile.click();
+  const blatt = seite.getByRole('dialog', { name: 'Ausgabe bearbeiten' });
+  await expect(blatt.getByLabel('Geschäft (optional)')).toHaveValue('');
+  await blatt.locator('[data-in="eAmount"]').fill('5,10');
+  await blatt.getByRole('button', { name: 'Speichern' }).click();
+  expect((await gespeichert(seite))[0]).toMatchObject({ title: '', amount: 510 });
+  // Leere Geschäfte erscheinen nicht als Vorschlag
+  await eingabe(seite).pressSequentially('B');
+  await expect(seite.locator('.sd-esug .sd-chip')).toHaveCount(0);
   expect(seite.fehler).toEqual([]);
 });

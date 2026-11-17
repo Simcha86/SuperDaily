@@ -22,6 +22,7 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 16, date: '2026-11-17', items: ['Ausgaben: Das Geschäft ist freiwillig – Betrag und Kategorie genügen, z. B. „4,50“ und Lebensmittel › Bäckerei', 'Ohne Geschäft zeigt die Liste die Unterkategorie als Namen'] },
   { v: 15, date: '2026-11-17', items: ['Ausgaben mit Kategorie und Unterkategorie, z. B. Tanken & Auto › Tanken – beim Eintragen wählen, die App schlägt vor', 'Ausgaben-Kategorien selbst pflegen: Verwaltung → Ausgaben-Kategorien (anlegen, umbenennen, archivieren)', 'Ausgaben ändern oder löschen: Stift an jedem Eintrag', 'Zurück-Taste am Handy: schließt erst Fenster und Unterseiten, führt dann zu „Heute“ – die App bleibt offen'] },
   { v: 14, date: '2026-11-17', items: ['Aufgaben haben unten einen eigenen Bereich, in Senfgold', 'Die Zahl der fälligen Aufgaben steht jetzt am Bereich „Aufgaben“', 'Auf „Heute“ bleiben die wichtigsten Aufgaben oben, mit „Neu“ und „Alle“'] },
   { v: 13, date: '2026-11-17', items: ['Neu: Ausgaben – Geschäft und Betrag in einem Satz („Rewe 23,80“), Monatssumme, Tagessummen und Kategorien wie in SuperFinance', 'Unten nur noch vier Bereiche: Heute, Einkauf, Ausgaben, Verwaltung', 'Routinen, alle Aufgaben, Verlauf und Einstellungen findet ihr unter Verwaltung; Verlauf auch oben auf Heute'] },
@@ -250,8 +251,10 @@ const guessExp = t => { const hit = EXP_RE.find(([, re]) => re.test(t)); const [
 const lastForShop = t => X().filter(x => norm(x.title) === norm(t)).sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0))[0];
 const suggestExp = t => { const l = lastForShop(t); return (l && okPair(l.cat, l.sub)) || guessExp(t); };
 const suggestExpCat = t => suggestExp(t).cat;
-const knownShops = () => [...new Map(X().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(x => [norm(x.title), x.title])).values()];
+const knownShops = () => [...new Map(X().filter(x => x.title).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(x => [norm(x.title), x.title])).values()];
 const expCat = id => { const c = ecat(id); return [c.id, c.name, c.icon]; };
+// Seit Version 16 ist das Geschäft freiwillig: ohne Geschäft zeigt die Liste die Unterkategorie
+const expName = x => x.title || esub(x.cat, x.sub)?.name || ecat(x.cat).name;
 const expLabel = x => { const u = esub(x.cat, x.sub); return ecat(x.cat).name + (u ? ' › ' + u.name : ''); };
 const expUsed = (cid, sid) => X().some(x => x.cat === cid && (sid == null || x.sub === sid));
 const X = () => Object.values(data.exp || {});
@@ -763,7 +766,7 @@ function tabAusgaben() {
   const cats = byCat.length ? `<div class="sd-card sd-ecats"><h2>${fc ? `${esc(ecat(fc).name)} nach Unterkategorie` : 'Nach Kategorie'}</h2><p class="sd-muted">${fc ? 'Antippen zeigt wieder alle Kategorien.' : 'Antippen zeigt nur diese Kategorie und ihre Unterkategorien.'}</p>${byCat.map(c => `<button class="sd-rate sd-ecat" aria-pressed="false" data-a="expFilter" data-v="${c.id}"><div class="row"><span>${icon(c.ic)} ${esc(c.name)}</span><span>${euro(c.sum)} · ${Math.round(c.sum / (fc ? total : allTotal) * 100)} %</span></div><div class="sd-track"><div style="width:${Math.max(2, Math.round(c.sum / byCat[0].sum * 100))}%"></div></div></button>`).join('')}</div>` : '';
   const days = [...new Set(list.map(x => x.date))];
   const dayLabel = key => { const o = offOfKey(key); return o === 0 ? 'Heute' : o === -1 ? 'Gestern' : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }); };
-  const item = x => { const c = expCat(x.cat); return `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}" aria-label="${esc(x.title)}, ${euro(x.amount)}, ${esc(expLabel(x))} – ändern oder löschen"><span class="sd-vico" aria-hidden="true">${icon(c[2])}</span><span class="txt"><span class="t">${esc(x.title)}</span><span class="m">${esc(expLabel(x))}${x.by ? ` · ${esc(data.names[x.by])}` : ''}${x.note ? ' · ' + icon('note') : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b>${icon('pencil-simple', 'ph sd-eedit')}</button>`; };
+  const item = x => { const c = expCat(x.cat); return `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}" aria-label="${esc(expName(x))}, ${euro(x.amount)}, ${esc(expLabel(x))} – ändern oder löschen"><span class="sd-vico" aria-hidden="true">${icon(c[2])}</span><span class="txt"><span class="t">${esc(expName(x))}</span><span class="m">${esc(expLabel(x))}${x.by ? ` · ${esc(data.names[x.by])}` : ''}${x.note ? ' · ' + icon('note') : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b>${icon('pencil-simple', 'ph sd-eedit')}</button>`; };
   const groups = days.map(dd => { const l = list.filter(x => x.date === dd); return `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label sd-eday"><span>${dayLabel(dd)}</span><span>${euro(sum(l))}</span></span>${l.map(item).join('')}</div>`; }).join('');
   const msg = ui.expMsg ? `<div class="sd-hint" role="status">${icon('info')}<span>${esc(ui.expMsg)}</span></div>` : '';
   const nav = `<div class="sd-nav"><button class="sd-circ" data-a="expMonth" data-v="-1" aria-label="Voriger Monat">${icon('caret-left')}</button><span>${month}</span><button class="sd-circ" data-a="expMonth" data-v="1" ${k < 0 ? '' : 'disabled'} aria-label="Nächster Monat">${icon('caret-right')}</button></div>`;
@@ -772,13 +775,13 @@ function tabAusgaben() {
   const filt = fc ? `<div class="sd-hint">${icon(expCat(fc)[2])}<span>Nur <b>${esc(expCat(fc)[1])}</b></span><button class="sd-mini" data-a="expFilter" data-v="${fc}">Alle zeigen</button></div>` : '';
   return `<div class="sd-hdr"><div><div class="sd-sub">${list.length} ${list.length === 1 ? 'Ausgabe' : 'Ausgaben'}${diff}</div><h1>Ausgaben</h1></div></div>
   <div class="sd-exp">
-  <form class="sd-sadd sd-eadd" data-form="exp"><input class="sd-input" data-in="expNew" value="${esc(ui.expDraft)}" placeholder="z. B. Rewe 23,80" maxlength="90" enterkeyhint="done" autocomplete="off" aria-label="Neue Ausgabe: Geschäft und Betrag"><button class="sd-btn" type="submit" aria-label="Ausgabe hinzufügen">${icon('plus', 'ph-bold')}</button></form>
+  <form class="sd-sadd sd-eadd" data-form="exp"><input class="sd-input" data-in="expNew" value="${esc(ui.expDraft)}" placeholder="Betrag, gern mit Geschäft: Rewe 23,80" maxlength="90" enterkeyhint="done" autocomplete="off" aria-label="Neue Ausgabe: Betrag, Geschäft freiwillig"><button class="sd-btn" type="submit" aria-label="Ausgabe hinzufügen">${icon('plus', 'ph-bold')}</button></form>
   <div class="sd-esug">${expSuggest()}</div>
   <div class="sd-ecp" role="group" aria-label="Kategorie für die neue Ausgabe">${expCatPick()}</div>
   ${msg}
   ${nav}
   <div class="sd-tbanner sd-ebanner"><span>${icon('wallet', 'ph-fill')}Ausgegeben im ${mName}</span><b>${euro(total)}</b></div>
-  ${filt}${cats}${groups ? `<p class="sd-muted sd-tnote">${icon('pencil-simple')} Eine Ausgabe antippen, um sie zu ändern oder zu löschen.</p>` : ''}${groups || `<div class="sd-empty"><span>${k === 0 ? `Noch keine Ausgaben im ${mName}. Trag oben das Geschäft und den Betrag ein, zum Beispiel „Rewe 23,80“.` : `Im ${mName} wurde nichts eingetragen.`}</span></div>`}
+  ${filt}${cats}${groups ? `<p class="sd-muted sd-tnote">${icon('pencil-simple')} Eine Ausgabe antippen, um sie zu ändern oder zu löschen.</p>` : ''}${groups || `<div class="sd-empty"><span>${k === 0 ? `Noch keine Ausgaben im ${mName}. Trag oben den Betrag ein, gern mit Geschäft, zum Beispiel „Rewe 23,80“ oder nur „23,80“ und eine Kategorie wählen.` : `Im ${mName} wurde nichts eingetragen.`}</span></div>`}
   </div>`;
 }
 function expSheetHtml() {
@@ -786,7 +789,7 @@ function expSheetHtml() {
   const val = (d.amount / 100).toFixed(2).replace('.', ',');
   return `<div class="sd-back ${enter}" data-a="closeSheet"><div class="sd-sheet sd-esheet" data-a="noop" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
   <div class="grip"></div><div class="sd-sheethead"><h2 id="sheet-title" tabindex="-1">Ausgabe bearbeiten</h2><button class="sd-mini sd-cancel" data-a="closeSheet">Abbrechen</button></div>
-  <div class="sd-g2"><label class="sd-field">Betrag in €<input class="sd-input sd-eamtin" value="${val}" data-in="eAmount" inputmode="decimal" maxlength="10"></label><label class="sd-field">Geschäft<input class="sd-input" value="${esc(d.title)}" data-in="eTitle" maxlength="80"></label></div>
+  <div class="sd-g2"><label class="sd-field">Betrag in €<input class="sd-input sd-eamtin" value="${val}" data-in="eAmount" inputmode="decimal" maxlength="10"></label><label class="sd-field">Geschäft (optional)<input class="sd-input" value="${esc(d.title)}" data-in="eTitle" maxlength="80"></label></div>
   <div class="sd-field">Kategorie<div class="sd-chips">${ecats().filter(c => !c.off || c.id === d.cat).map(c => `<button class="sd-chip ${d.cat === c.id ? 'on' : ''}" aria-pressed="${d.cat === c.id}" data-a="eCat" data-v="${c.id}">${icon(c.icon)}${esc(c.name)}${c.off ? ' (archiviert)' : ''}</button>`).join('')}</div></div>
   <div class="sd-field">Unterkategorie${d.sub ? '' : ' <small class="sd-need">bitte wählen</small>'}<div class="sd-chips" role="group" aria-label="Unterkategorie">${ecat(d.cat).subs.filter(u => !u.off || u.id === d.sub).map(u => `<button class="sd-chip ${d.sub === u.id ? 'on' : ''}" aria-pressed="${d.sub === u.id}" data-a="eSub" data-v="${u.id}">${esc(u.name)}${u.off ? ' (archiviert)' : ''}</button>`).join('')}</div></div>
   <label class="sd-field">Datum<input class="sd-input" type="date" value="${d.date}" data-ch="eDate"></label>
@@ -1077,7 +1080,6 @@ const A = {
   eSub: d => { ui.expEdit.sub = d.v; render(); },
   eSave: () => {
     const d = ui.expEdit, title = (d.title || '').trim(), amount = Math.round(parseFloat(String(d.amountText ?? (d.amount / 100)).replace(',', '.')) * 100);
-    if (!title) return alert('Bitte ein Geschäft eingeben.');
     if (!(amount > 0) || amount >= 1e8) return alert('Bitte einen Betrag größer als 0 eingeben.');
     if (!d.sub || !esub(d.cat, d.sub)) return alert('Bitte eine Unterkategorie wählen.');
     const x = { ...data.exp[d.id], title, amount, cat: d.cat, sub: d.sub, date: d.date, updatedAt: Date.now() }, note = (d.note || '').trim();
@@ -1086,7 +1088,7 @@ const A = {
   },
   eDelete: () => {
     const x = data.exp[ui.expEdit?.id]; if (!x) return;
-    if (!confirm(`Ausgabe ${x.title} ${euro(x.amount)} löschen?`)) return;
+    if (!confirm(`Ausgabe ${expName(x)} ${euro(x.amount)} löschen?`)) return;
     ui.expEdit = null; store.deleteExp(x.id).catch(fail); track('expense_delete');
   },
   person: d => { ui.person = d.p; ui.duo = false; render(); },
@@ -1279,11 +1281,11 @@ function addShop(raw) {
 function addExp(raw) {
   const { title, amount } = parseExp(raw);
   if (!(amount > 0)) { ui.expDraft = raw; ui.expMsg = 'Bitte auch den Betrag angeben, zum Beispiel „Rewe 23,80“.'; return render(); }
-  if (!title) { ui.expDraft = raw; ui.expMsg = 'Bitte auch das Geschäft angeben, zum Beispiel „Rewe 23,80“.'; return render(); }
-  const t = knownShops().find(k => norm(k) === norm(title)) || title, st = expPickState(), cat = st.cat, sub = st.sub;
-  if (!cat || !sub) { ui.expDraft = raw; ui.expMsg = `Bitte noch die Unterkategorie${cat ? ' von „' + ecat(cat).name + '“' : ''} wählen.`; return render(); }
+  const t = title ? knownShops().find(k => norm(k) === norm(title)) || title : '', st = expPickState(), cat = st.cat, sub = st.sub;
+  if (!cat) { ui.expDraft = raw; ui.expMsg = 'Bitte eine Kategorie wählen – oder das Geschäft dazuschreiben, zum Beispiel „Rewe 23,80“.'; return render(); }
+  if (!sub) { ui.expDraft = raw; ui.expMsg = `Bitte noch die Unterkategorie von „${ecat(cat).name}“ wählen.`; return render(); }
   const x = { id: rid(), title: t, amount, cat, sub, by: ui.me, date: dk(0), createdAt: Date.now() };
-  ui.expDraft = ''; ui.expDraftCat = ui.expDraftSub = null; ui.expMsg = `Gespeichert: ${t} ${euro(amount)} · ${expLabel(x)}. Antippen in der Liste zum Ändern oder Löschen.`; ui.expMonth = 0;
+  ui.expDraft = ''; ui.expDraftCat = ui.expDraftSub = null; ui.expMsg = `Gespeichert: ${t ? t + ' ' : ''}${euro(amount)} · ${expLabel(x)}. Antippen in der Liste zum Ändern oder Löschen.`; ui.expMonth = 0;
   store.saveExp(x).catch(fail);
   track('expense_add', { cat });
 }

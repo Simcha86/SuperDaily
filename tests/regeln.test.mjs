@@ -106,7 +106,9 @@ const rewe = { id: 'x1', title: 'Rewe', amount: 2380, cat: 'essen', by: 'a', dat
 await t('Simon trägt eine Ausgabe ein', assertSucceeds(setDoc(AU(simon, 'x1'), rewe)));
 await t('Irina sieht die Ausgabe', assertSucceeds(getDoc(AU(irina, 'x1'))));
 await t('Irina ändert Betrag und Kategorie', assertSucceeds(setDoc(AU(irina, 'x1'), { ...rewe, amount: 2500, cat: 'haushalt' })));
-await t('Ausgabe ohne Titel abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', title: '' })));
+await t('Ausgabe ohne Geschäft erlaubt (seit Version 16)', assertSucceeds(setDoc(AU(simon, 'x5'), { ...rewe, id: 'x5', title: '' })));
+await t('Ausgabe ohne Titel-Feld abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', title: null })));
+await t('Geschäft zu lang abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', title: 'x'.repeat(81) })));
 await t('Ausgabe mit Betrag 0 abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', amount: 0 })));
 await t('Ausgabe mit Kommabetrag statt Cent abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', amount: 23.8 })));
 await t('Ausgabe mit falschem Datum abgelehnt', assertFails(setDoc(AU(simon, 'x2'), { ...rewe, id: 'x2', date: '17.11.2026' })));
