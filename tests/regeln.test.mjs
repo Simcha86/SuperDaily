@@ -124,6 +124,8 @@ await t('Irina pflegt Ausgaben-Kategorien', assertSucceeds(updateDoc(doc(irina, 
 await t('Ausgaben-Kategorien müssen eine Liste sein', assertFails(updateDoc(doc(irina, 'households', H), { ecats: 'kaputt' })));
 await t('Fremder ändert keine Ausgaben-Kategorien', assertFails(updateDoc(doc(fremd, 'households', H), { ecats: [] })));
 await t('Ausgaben-Kategorien schmuggeln keine Rolle mit', assertFails(updateDoc(doc(irina, 'households', H), { ecats: [], 'roles.uidIrina': 'a' })));
+await t('Steuerrelevante Ausgabe (Version 17)', assertSucceeds(setDoc(AU(simon, 'x6'), { ...rewe, id: 'x6', tax: true })));
+await t('Steuer-Kennzeichen muss ja/nein sein', assertFails(setDoc(AU(simon, 'x7'), { ...rewe, id: 'x7', tax: 'ja' })));
 await t('Irina löscht die Ausgabe', assertSucceeds(deleteDoc(AU(irina, 'x1'))));
 console.log(`\n${pass} bestanden, ${failN} fehlgeschlagen`);
 await env.cleanup(); process.exit(failN ? 1 : 0);

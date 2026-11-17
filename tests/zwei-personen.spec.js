@@ -196,20 +196,19 @@ test('Vorgeben: Irina gibt Simon eine Routine und eine Aufgabe – Simon sieht �
   await irina.locator('.sd-tsheet').getByRole('button', { name: 'Simon', exact: true }).click();
   await irina.getByRole('button', { name: 'Aufgabe vergeben' }).click();
 
-  // Simon: Hinweise auf Heute, live
+  // Simon: Routinen-Hinweis auf Heute, für die Aufgabe ein Punkt am Bereich „Aufgaben“ – live
   await expect(simon.getByRole('button', { name: '1 neue Routine von Irina' })).toBeVisible();
-  await expect(simon.getByRole('button', { name: '1 neue Aufgabe von Irina' })).toBeVisible();
+  await expect(simon.locator('.sd-tab', { hasText: 'Aufgaben' }).locator('.sd-badge')).toBeVisible();
   await expect(routineHeute(simon, 'Vitamine nehmen')).toContainText('vorgegeben von Irina');
   // Irina sieht für sich keine Hinweise (sie hat es selbst vergeben)
   await tab(irina, 'Heute');
   await expect(irina.locator('.sd-hlink')).toHaveCount(0);
 
-  // Antippen öffnet den Tab, danach ist der Hinweis weg – auch nach Neuladen
-  await simon.getByRole('button', { name: '1 neue Aufgabe von Irina' }).click();
-  await expect(simon.locator('.sd-hdr h1')).toHaveText('Aufgaben');
+  // Bereich öffnen zeigt den Hinweis einmal, danach ist der Punkt weg – auch nach Neuladen
+  await tab(simon, 'Aufgaben');
+  await expect(simon.getByText('1 neue Aufgabe von Irina')).toBeVisible();
   await expect(simon.locator('.sd-titem', { hasText: 'Reifen wechseln' })).toBeVisible();
   await tab(simon, 'Heute');
-  await expect(simon.getByRole('button', { name: /neue Aufgabe/ })).toHaveCount(0);
   await simon.getByRole('button', { name: 'Hinweis schließen' }).click();
   await expect(simon.locator('.sd-hlink')).toHaveCount(0);
   await simon.reload();
@@ -241,9 +240,9 @@ test('Aufgaben: Simon gibt Irina eine Aufgabe, beide haken ab, ändern und lösc
   await simon.getByRole('button', { name: 'Vergeben', exact: true }).click();
   await expect(aufgabe(simon, 'Blumen kaufen')).toContainText('von Simon an Irina');
 
-  // Irina sieht sie ganz oben auf „Heute“ und mit Zahl am Tab
-  await tab(irina, 'Heute');
-  await expect(irina.locator('.sd-group.sd-tasks')).toContainText('Blumen kaufen');
+  // Irina sieht sie im Bereich „Aufgaben“ und mit Zahl am Tab
+  await tab(irina, 'Aufgaben');
+  await expect(aufgabe(irina, 'Blumen kaufen')).toBeVisible();
   await expect(irina.locator('.sd-tab .sd-badge')).toHaveText('1');
   await irina.getByRole('button', { name: 'Blumen kaufen abhaken' }).click();
   await expect(aufgabe(simon, 'Blumen kaufen')).toHaveCount(0);
@@ -256,8 +255,7 @@ test('Aufgaben: Simon gibt Irina eine Aufgabe, beide haken ab, ändern und lösc
   await aufgabe(simon, 'Blumen kaufen').locator('.txt').click();
   await simon.getByPlaceholder('z. B. Paket zur Post bringen').fill('Tulpen kaufen');
   await simon.getByRole('button', { name: 'Speichern' }).click();
-  await expect(irina.locator('.sd-group.sd-tasks')).toContainText('Tulpen kaufen');
-  await tab(irina, 'Aufgaben');
+  await expect(aufgabe(irina, 'Tulpen kaufen')).toBeVisible();
   await aufgabe(irina, 'Tulpen kaufen').locator('.txt').click();
   await irina.getByRole('button', { name: 'Aufgabe löschen' }).click();
   await expect(aufgabe(simon, 'Tulpen kaufen')).toHaveCount(0);
@@ -330,6 +328,10 @@ test('Ausgaben: Simon trägt ein, Irina sieht es sofort und kann es ändern', as
   await irina.locator('[data-in="eAmount"]').fill('25');
   await irina.getByRole('button', { name: 'Speichern' }).click();
   await expect(simon.locator('.sd-erow', { hasText: 'Rewe' })).toContainText('25,00');
+  // Version 17: Simon markiert eine Ausgabe als steuerrelevant, Irina sieht das Kennzeichen
+  await simon.locator('[data-in="expNew"]').fill('Apotheke 9,90 #steuer');
+  await simon.locator('[data-in="expNew"]').press('Enter');
+  await expect(irina.locator('.sd-erow', { hasText: 'Apotheke' })).toContainText('steuerrelevant');
   // Version 15: Irina benennt eine Unterkategorie in der Verwaltung um, Simon sieht es sofort (Regeln erlauben ecats)
   await irina.locator('.sd-tabs').getByRole('button', { name: 'Verwaltung' }).click();
   await irina.locator('.sd-vrow').filter({ hasText: /^Ausgaben-Kategorien/ }).click();

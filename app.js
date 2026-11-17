@@ -22,6 +22,8 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 // ---------- Version ----------
 // Bei jeder Veröffentlichung hier und in CHANGELOG.md ergänzen (neueste zuerst) und CACHE in sw.js erhöhen.
 const CHANGES = [
+  { v: 18, date: '2026-11-17', items: ['„Heute“ ganz auf Routinen ausgerichtet: Aufgaben stehen nur noch im Bereich „Aufgaben“', 'Liste/Kacheln und Verlauf als kleine Symbole oben rechts', 'Neue Aufgaben der anderen Person: Punkt am Bereich „Aufgaben“ und Hinweis beim Öffnen'] },
+  { v: 17, date: '2026-11-17', items: ['Ausgaben: Kennzeichen „steuerrelevant“ beim Eintragen und Bearbeiten, auch per „#steuer“ im Satz', 'Filter „Nur steuerrelevant“ mit Summe für Monat und Jahr'] },
   { v: 16, date: '2026-11-17', items: ['Ausgaben: Das Geschäft ist freiwillig – Betrag und Kategorie genügen, z. B. „4,50“ und Lebensmittel › Bäckerei', 'Ohne Geschäft zeigt die Liste die Unterkategorie als Namen'] },
   { v: 15, date: '2026-11-17', items: ['Ausgaben mit Kategorie und Unterkategorie, z. B. Tanken & Auto › Tanken – beim Eintragen wählen, die App schlägt vor', 'Ausgaben-Kategorien selbst pflegen: Verwaltung → Ausgaben-Kategorien (anlegen, umbenennen, archivieren)', 'Ausgaben ändern oder löschen: Stift an jedem Eintrag', 'Zurück-Taste am Handy: schließt erst Fenster und Unterseiten, führt dann zu „Heute“ – die App bleibt offen'] },
   { v: 14, date: '2026-11-17', items: ['Aufgaben haben unten einen eigenen Bereich, in Senfgold', 'Die Zahl der fälligen Aufgaben steht jetzt am Bereich „Aufgaben“', 'Auf „Heute“ bleiben die wichtigsten Aufgaben oben, mit „Neu“ und „Alle“'] },
@@ -50,7 +52,7 @@ const markSeen = () => { seenVersion = APP_VERSION; try { localStorage.setItem(S
 const data = { names: { a: 'Person 1', b: 'Person 2' }, routines: {}, done: {}, cats: null, ecats: null, tasks: {}, shop: {}, exp: {} };
 const ui = {
   screen: 'loading', tab: 'heute', person: 'a', me: 'a',
-  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '', back: null, expMonth: 0, expDraft: '', expMsg: '', expEdit: null, expCat: null, expDraftCat: null, expDraftSub: null, ecDraft: '', esDraft: {},
+  heuteView: 'liste', duo: false, dayOff: 0, verlauf: 'statistik', taskView: 'mine', task: null, shopEdit: null, shopMsg: '', shopDraft: '', back: null, expMonth: 0, expDraft: '', expMsg: '', expEdit: null, expCat: null, expDraftCat: null, expDraftSub: null, expDraftTax: false, expTax: false, ecDraft: '', esDraft: {},
   // Verlauf (seit Version 10): ein Zeitraum für Statistik, Kalender und Raster; Start: letzte 30 Tage
   cal: { mode: 'zeitraum', anchor: 0, from: -29, to: 0 },
   sheet: null, catSheet: false, authMode: 'login', authErr: '', setupErr: '', busy: false,
@@ -260,8 +262,11 @@ const expUsed = (cid, sid) => X().some(x => x.cat === cid && (sid == null || x.s
 const X = () => Object.values(data.exp || {});
 const euro = c => (c / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 // „Rewe 23,80“, „23,80 € Tanken“, „Kino 18“ → { title, amount (Cent) }. Bevorzugt Zahlen mit Komma-Stellen.
+// Seit Version 17: „#steuer“ im Satz markiert die Ausgabe als steuerrelevant und gehört nicht zum Geschäft
+const TAX_RE = /#steuer\w*/gi;
+const hasTaxTag = raw => /#steuer/i.test(String(raw || ''));
 function parseExp(raw) {
-  const t = String(raw || '').trim().replace(/\s+/g, ' ');
+  const t = String(raw || '').replace(TAX_RE, ' ').trim().replace(/\s+/g, ' ');
   const nums = [...t.matchAll(/(\d{1,6})(?:[.,](\d{1,2}))?\s*(?:€|eur(?:o)?)?/gi)];
   if (!nums.length) return { title: t, amount: 0 };
   const m = nums.filter(n => n[2]).pop() || nums[nums.length - 1];
@@ -614,20 +619,13 @@ function tabHeute() {
   const strip = `<div class="sd-strip">${days.map(o => `<button class="${o === off ? 'on' : ''}" aria-pressed="${o === off}" aria-label="${dateAt(o).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}, ${ui.duo ? duoPct(o) : dayStats(p, o).pct} Prozent" data-a="day" data-o="${o}"><small>${WD[dateAt(o).getDay()]}</small><b>${dateAt(o).getDate()}</b><i class="bar"><i style="width:${ui.duo ? duoPct(o) : dayStats(p, o).pct}%"></i></i></button>`).join('')}</div>`;
   const body = ui.duo ? (ui.heuteView === 'liste' ? duoListView(off) : duoTilesView(off))
     : ui.heuteView === 'liste' ? `${R().length ? hero(st, off) : ''}${listView(p, off)}` : tilesView(p, off);
-  return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div><button class="sd-btn ghost sm" data-a="tab" data-v="verlauf">${icon('chart-line-up')}Verlauf</button></div>
+  // Seit Version 18 ganz auf Routinen ausgerichtet: kein Aufgaben-Block mehr (die Zahl der fälligen steht am Bereich „Aufgaben“);
+  // Liste/Kacheln und Verlauf sind kleine Symbol-Knöpfe oben rechts.
+  const other = ui.heuteView === 'liste' ? 'kacheln' : 'liste';
+  const tools = `<div class="sd-htools"><button class="sd-circ" data-a="heuteView" data-v="${other}" aria-label="${other === 'liste' ? 'Als Liste zeigen' : 'Als Kacheln zeigen'}" title="${other === 'liste' ? 'Liste' : 'Kacheln'}">${icon(other === 'liste' ? 'list' : 'squares-four')}</button><button class="sd-circ" data-a="tab" data-v="verlauf" aria-label="Verlauf" title="Verlauf">${icon('chart-line-up')}</button></div>`;
+  return `<div class="sd-hdr"><div><div class="sd-sub">${fmtLong(off)}</div><h1>${title}</h1></div>${tools}</div>
   ${whoSeg()}
-  ${seg([['liste', icon('list') + 'Liste'], ['kacheln', icon('squares-four') + 'Kacheln']], ui.heuteView, 'heuteView')}
-  ${strip}${newNote()}${newItemsNote()}${ui.duo ? '' : roNote()}${heuteTasks(ui.duo ? ui.me : p, off)}${body}`;
-}
-// Ganz oben auf „Heute“: fällige und überfällige Aufgaben der Person; an diesem Tag Erledigtes bleibt durchgestrichen stehen.
-// An vergangenen Tagen: die an diesem Tag fälligen Aufgaben.
-function heuteTasks(p, off) {
-  const list = off === 0 ? sortTasks(T().filter(t => taskFor(t, p) && t.due && dueOff(t) <= 0 && (!t.done || t.doneAt === dk(0)))) : sortTasks(tasksDueOn(p, off));
-  // Seit Version 13 steht der Aufgaben-Block immer auf „Heute“: mit „Neu“ zum Vergeben und „Alle“ für die ganze Liste
-  const later = openTasks(p).filter(t => !t.due || dueOff(t) > 0).length;
-  const none = off === 0 ? `<div class="sd-tnone">${later ? `Heute nichts fällig · ${later} später` : 'Heute nichts fällig'}</div>` : '';
-  if (!list.length && off !== 0) return '';
-  return `<div class="sd-group sd-tasks"><span role="heading" aria-level="2" class="sd-label sd-catlabel">${icon('check-square-offset')}Aufgaben<button class="sd-mini" data-a="newTask" aria-label="Aufgabe hinzufügen">${icon('plus')}Neu</button><button class="sd-mini" data-a="tab" data-v="aufgaben">Alle</button></span>${list.length ? list.map(taskItem).join('') : none}</div>`;
+  ${strip}${newNote()}${newItemsNote('routine')}${ui.duo ? '' : roNote()}${body}`;
 }
 // Verlauf (seit Version 10): Statistik, Kalender und Raster mit einem gemeinsamen Zeitraum.
 // Die Statistik kennt keinen Tag: steht der Zeitraum auf „Tag“, zeigt sie die Woche dieses Tages.
@@ -673,7 +671,8 @@ function tabAufgaben() {
   }
   const none = { mine: `Alles erledigt. Tippe auf +, um dir oder ${esc(data.names[ui.me === 'a' ? 'b' : 'a'])} eine Aufgabe zu geben.`, from: 'Du hast gerade keine offenen Aufgaben vergeben.', all: 'Keine offenen Aufgaben.', done: 'In den letzten 30 Tagen wurde nichts erledigt.' }[v];
   const sub = `${open.length} offen${late ? ` · ${late} überfällig` : ''}`;
-  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>Aufgaben</h1></div></div>
+  const fresh = ui.newTaskCount ? `<div class="sd-hint sd-new sd-tasks" role="status">${icon('check-square-offset', 'ph-fill')}<span><b>${ui.newTaskCount} ${ui.newTaskCount === 1 ? 'neue Aufgabe' : 'neue Aufgaben'}</b> von ${esc(data.names[ui.me === 'a' ? 'b' : 'a'])}</span></div>` : '';
+  return `<div class="sd-hdr"><div><div class="sd-sub">${sub}</div><h1>Aufgaben</h1></div></div>${fresh}
   <div class="sd-tbanner"><span>${icon('sun-horizon', 'ph-fill')}Fällig für dich</span><b>${today}</b></div>
   <button class="sd-btn block sd-bigadd sd-tbig" data-a="newTask">${icon('plus', 'ph-bold')}Aufgabe hinzufügen</button>
   ${seg([['mine', 'Für mich'], ['from', 'Vergeben'], ['all', 'Alle'], ['done', 'Erledigt']], v, 'taskView')}
@@ -742,6 +741,8 @@ function expSuggest() {
 // Seit Version 15: Kategorie schon beim Eintragen wählen. Ohne Wahl gilt der Vorschlag (bekanntes Geschäft oder Wortteile).
 // Gewählte Kategorie in der seitlich wischbaren Leiste sichtbar machen (ohne die Seite zu verschieben)
 function showPicked() { $app.querySelectorAll('.sd-ecpick').forEach(row => { const on = row.querySelector('.sd-chip.on'); row.scrollLeft = on ? Math.max(0, on.offsetLeft - 8) : 0; }); }
+const taxOn = () => ui.expDraftTax || hasTaxTag(ui.expDraft);
+const taxChip = (on, a) => `<button type="button" class="sd-chip sd-taxchip ${on ? 'on' : ''}" aria-pressed="${on}" data-a="${a}">${icon(on ? 'seal-check' : 'receipt')}Steuerrelevant</button>`;
 function expPickState() {
   const t = parseExp(ui.expDraft || '').title, auto = t ? suggestExp(knownShops().find(k => norm(k) === norm(t)) || t) : null;
   if (ui.expDraftCat) return { cat: ui.expDraftCat, sub: ui.expDraftSub, how: 'gewählt' };
@@ -756,31 +757,36 @@ function expCatPick() {
 function tabAusgaben() {
   const k = ui.expMonth, mk = monthKey(k), d0 = monthStart(k), fc = ui.expCat;
   const all = X().filter(x => (x.date || '').startsWith(mk));
-  const list = all.filter(x => !fc || x.cat === fc).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
-  const sum = l => l.reduce((s, x) => s + x.amount, 0), total = sum(list), allTotal = sum(all);
+  const list = all.filter(x => (!fc || x.cat === fc) && (!ui.expTax || x.tax)).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  const base = ui.expTax ? all.filter(x => x.tax) : all;
+  const sum = l => l.reduce((s, x) => s + x.amount, 0), total = sum(list), allTotal = sum(base);
   const mName = d0.toLocaleDateString('de-DE', { month: 'long' }), month = d0.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
   const prev = sum(X().filter(x => (x.date || '').startsWith(monthKey(k - 1))));
   const byCat = fc
     ? [...new Set(list.map(x => x.sub || ''))].map(sid => ({ id: fc, name: esub(fc, sid)?.name || 'Ohne Unterkategorie', ic: ecat(fc).icon, sum: sum(list.filter(x => (x.sub || '') === sid)) })).sort((a, b) => b.sum - a.sum)
-    : [...new Set(all.map(x => x.cat))].map(id => ({ id, name: ecat(id).name, ic: ecat(id).icon, sum: sum(all.filter(x => x.cat === id)) })).sort((a, b) => b.sum - a.sum);
+    : [...new Set(base.map(x => x.cat))].map(id => ({ id, name: ecat(id).name, ic: ecat(id).icon, sum: sum(base.filter(x => x.cat === id)) })).sort((a, b) => b.sum - a.sum);
   const cats = byCat.length ? `<div class="sd-card sd-ecats"><h2>${fc ? `${esc(ecat(fc).name)} nach Unterkategorie` : 'Nach Kategorie'}</h2><p class="sd-muted">${fc ? 'Antippen zeigt wieder alle Kategorien.' : 'Antippen zeigt nur diese Kategorie und ihre Unterkategorien.'}</p>${byCat.map(c => `<button class="sd-rate sd-ecat" aria-pressed="false" data-a="expFilter" data-v="${c.id}"><div class="row"><span>${icon(c.ic)} ${esc(c.name)}</span><span>${euro(c.sum)} · ${Math.round(c.sum / (fc ? total : allTotal) * 100)} %</span></div><div class="sd-track"><div style="width:${Math.max(2, Math.round(c.sum / byCat[0].sum * 100))}%"></div></div></button>`).join('')}</div>` : '';
   const days = [...new Set(list.map(x => x.date))];
   const dayLabel = key => { const o = offOfKey(key); return o === 0 ? 'Heute' : o === -1 ? 'Gestern' : dateAt(o).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }); };
-  const item = x => { const c = expCat(x.cat); return `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}" aria-label="${esc(expName(x))}, ${euro(x.amount)}, ${esc(expLabel(x))} – ändern oder löschen"><span class="sd-vico" aria-hidden="true">${icon(c[2])}</span><span class="txt"><span class="t">${esc(expName(x))}</span><span class="m">${esc(expLabel(x))}${x.by ? ` · ${esc(data.names[x.by])}` : ''}${x.note ? ' · ' + icon('note') : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b>${icon('pencil-simple', 'ph sd-eedit')}</button>`; };
+  const item = x => { const c = expCat(x.cat); return `<button class="sd-row sd-erow" data-a="expEdit" data-x="${x.id}" aria-label="${esc(expName(x))}, ${euro(x.amount)}, ${esc(expLabel(x))}${x.tax ? ', steuerrelevant' : ''} – ändern oder löschen"><span class="sd-vico" aria-hidden="true">${icon(c[2])}</span><span class="txt"><span class="t">${esc(expName(x))}</span><span class="m">${esc(expLabel(x))}${x.by ? ` · ${esc(data.names[x.by])}` : ''}${x.note ? ' · ' + icon('note') : ''}${x.tax ? ` · <span class="sd-etaxmark">${icon('receipt')}steuerrelevant</span>` : ''}</span></span><b class="sd-eamt">${euro(x.amount)}</b>${icon('pencil-simple', 'ph sd-eedit')}</button>`; };
   const groups = days.map(dd => { const l = list.filter(x => x.date === dd); return `<div class="sd-group"><span role="heading" aria-level="2" class="sd-label sd-eday"><span>${dayLabel(dd)}</span><span>${euro(sum(l))}</span></span>${l.map(item).join('')}</div>`; }).join('');
   const msg = ui.expMsg ? `<div class="sd-hint" role="status">${icon('info')}<span>${esc(ui.expMsg)}</span></div>` : '';
   const nav = `<div class="sd-nav"><button class="sd-circ" data-a="expMonth" data-v="-1" aria-label="Voriger Monat">${icon('caret-left')}</button><span>${month}</span><button class="sd-circ" data-a="expMonth" data-v="1" ${k < 0 ? '' : 'disabled'} aria-label="Nächster Monat">${icon('caret-right')}</button></div>`;
   const prevName = monthStart(k - 1).toLocaleDateString('de-DE', { month: 'long' });
-  const diff = !fc && prev && total !== prev ? ` · ${euro(Math.abs(total - prev))} ${total > prev ? 'mehr' : 'weniger'} als im ${prevName}` : '';
+  const diff = !fc && !ui.expTax && prev && total !== prev ? ` · ${euro(Math.abs(total - prev))} ${total > prev ? 'mehr' : 'weniger'} als im ${prevName}` : '';
+  const yearKey = mk.slice(0, 4), taxSum = l => sum(l.filter(x => x.tax));
+  const taxBar = X().some(x => x.tax) ? `<div class="sd-etaxbar">${taxChip(ui.expTax, 'expTaxFilter').replace('Steuerrelevant</button>', 'Nur steuerrelevant</button>')}${ui.expTax ? `<span class="sd-etaxsum" role="status">Steuerrelevant: ${euro(taxSum(all))} im ${mName} · ${euro(taxSum(X().filter(x => (x.date || '').startsWith(yearKey))))} im Jahr ${yearKey}</span>` : ''}</div>` : '';
   const filt = fc ? `<div class="sd-hint">${icon(expCat(fc)[2])}<span>Nur <b>${esc(expCat(fc)[1])}</b></span><button class="sd-mini" data-a="expFilter" data-v="${fc}">Alle zeigen</button></div>` : '';
   return `<div class="sd-hdr"><div><div class="sd-sub">${list.length} ${list.length === 1 ? 'Ausgabe' : 'Ausgaben'}${diff}</div><h1>Ausgaben</h1></div></div>
   <div class="sd-exp">
   <form class="sd-sadd sd-eadd" data-form="exp"><input class="sd-input" data-in="expNew" value="${esc(ui.expDraft)}" placeholder="Betrag, gern mit Geschäft: Rewe 23,80" maxlength="90" enterkeyhint="done" autocomplete="off" aria-label="Neue Ausgabe: Betrag, Geschäft freiwillig"><button class="sd-btn" type="submit" aria-label="Ausgabe hinzufügen">${icon('plus', 'ph-bold')}</button></form>
   <div class="sd-esug">${expSuggest()}</div>
   <div class="sd-ecp" role="group" aria-label="Kategorie für die neue Ausgabe">${expCatPick()}</div>
+  <div class="sd-etax">${taxChip(taxOn(), 'expTaxToggle')}</div>
   ${msg}
   ${nav}
-  <div class="sd-tbanner sd-ebanner"><span>${icon('wallet', 'ph-fill')}Ausgegeben im ${mName}</span><b>${euro(total)}</b></div>
+  <div class="sd-tbanner sd-ebanner"><span>${icon('wallet', 'ph-fill')}${ui.expTax ? 'Steuerrelevant' : 'Ausgegeben'} im ${mName}</span><b>${euro(total)}</b></div>
+  ${taxBar}
   ${filt}${cats}${groups ? `<p class="sd-muted sd-tnote">${icon('pencil-simple')} Eine Ausgabe antippen, um sie zu ändern oder zu löschen.</p>` : ''}${groups || `<div class="sd-empty"><span>${k === 0 ? `Noch keine Ausgaben im ${mName}. Trag oben den Betrag ein, gern mit Geschäft, zum Beispiel „Rewe 23,80“ oder nur „23,80“ und eine Kategorie wählen.` : `Im ${mName} wurde nichts eingetragen.`}</span></div>`}
   </div>`;
 }
@@ -792,6 +798,7 @@ function expSheetHtml() {
   <div class="sd-g2"><label class="sd-field">Betrag in €<input class="sd-input sd-eamtin" value="${val}" data-in="eAmount" inputmode="decimal" maxlength="10"></label><label class="sd-field">Geschäft (optional)<input class="sd-input" value="${esc(d.title)}" data-in="eTitle" maxlength="80"></label></div>
   <div class="sd-field">Kategorie<div class="sd-chips">${ecats().filter(c => !c.off || c.id === d.cat).map(c => `<button class="sd-chip ${d.cat === c.id ? 'on' : ''}" aria-pressed="${d.cat === c.id}" data-a="eCat" data-v="${c.id}">${icon(c.icon)}${esc(c.name)}${c.off ? ' (archiviert)' : ''}</button>`).join('')}</div></div>
   <div class="sd-field">Unterkategorie${d.sub ? '' : ' <small class="sd-need">bitte wählen</small>'}<div class="sd-chips" role="group" aria-label="Unterkategorie">${ecat(d.cat).subs.filter(u => !u.off || u.id === d.sub).map(u => `<button class="sd-chip ${d.sub === u.id ? 'on' : ''}" aria-pressed="${d.sub === u.id}" data-a="eSub" data-v="${u.id}">${esc(u.name)}${u.off ? ' (archiviert)' : ''}</button>`).join('')}</div></div>
+  <div class="sd-field">Steuer<div class="sd-chips">${taxChip(!!d.tax, 'eTax')}</div></div>
   <label class="sd-field">Datum<input class="sd-input" type="date" value="${d.date}" data-ch="eDate"></label>
   <label class="sd-field">Notiz (optional)<textarea class="sd-input" rows="2" maxlength="500" data-in="eNote">${esc(d.note || '')}</textarea></label>
   <p class="sd-muted sd-tnote">Erfasst von ${esc(data.names[d.by] || '–')}</p>
@@ -851,10 +858,10 @@ function markItems(kind) { const m = seenMap(); if (!m) return; m[ui.me + '|' + 
 // seenAt zuerst aufrufen: so wird „jetzt“ schon beim ersten Anzeigen gemerkt, nicht erst beim ersten neuen Eintrag
 const newTasks = (since = seenAt('task')) => T().filter(t => !t.done && t.from !== ui.me && taskFor(t, ui.me) && (t.createdAt || 0) > since);
 const newRoutines = (since = seenAt('routine')) => active().filter(r => r.who === ui.me && givenBy(r) && (r.createdAt || 0) > since);
-function newItemsNote() {
+function newItemsNote(only) {
   const other = esc(data.names[ui.me === 'a' ? 'b' : 'a']), t = newTasks().length, r = newRoutines().length;
   const hint = (n, kind, one, many, ic, cls) => n ? `<div class="sd-hint sd-new ${cls}">${icon(ic, 'ph-fill')}<button class="sd-hlink" data-a="openNew" data-v="${kind}"><b>${n} ${n === 1 ? one : many}</b> von ${other}</button><span class="sd-newact"><button class="sd-circ" data-a="seenNew" data-v="${kind}" aria-label="Hinweis schließen">${icon('x')}</button></span></div>` : '';
-  return hint(r, 'routine', 'neue Routine', 'neue Routinen', 'list-checks', '') + hint(t, 'task', 'neue Aufgabe', 'neue Aufgaben', 'check-square-offset', 'sd-tasks');
+  return (only !== 'task' ? hint(r, 'routine', 'neue Routine', 'neue Routinen', 'list-checks', '') : '') + (only !== 'routine' ? hint(t, 'task', 'neue Aufgabe', 'neue Aufgaben', 'check-square-offset', 'sd-tasks') : '');
 }
 const newNote = () => seenVersion < APP_VERSION ? `<div class="sd-hint sd-new">${icon('sparkle', 'ph-fill')}<span><b>Neu in Version ${APP_VERSION}:</b> ${CHANGES.filter(c => c.v > seenVersion).flatMap(c => c.items).slice(0, 3).map(esc).join(' · ')}</span><span class="sd-newact"><button class="sd-mini" data-a="whatsNew">Mehr</button><button class="sd-circ" data-a="seen" aria-label="Hinweis schließen">${icon('x')}</button></span></div>` : '';
 const aboutCard = () => {
@@ -1024,7 +1031,7 @@ function render() {
   const page = { heute: tabHeute, verlauf: tabVerlauf, aufgaben: tabAufgaben, einkauf: tabEinkauf, ausgaben: tabAusgaben, verwaltung: tabVerwaltung, ekat: tabEkat, routinen: tabRoutinen, mehr: tabMehr }[ui.tab]();
   const cur = parentTab(), backLink = SUB_PARENT[ui.tab] ? `<button class="sd-backlink" data-a="back">${icon('caret-left', 'ph-bold')}${tabLabel(cur)}</button>` : '';
   const badge = dueNow(ui.me).length;
-  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${backLink}${page}</main><nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, cur === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} Aufgaben fällig">${badge}</em>` : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}${ui.expEdit ? expSheetHtml() : ''}`;
+  $app.innerHTML = `<main class="sd-scroll" data-tab="${ui.tab}">${backLink}${page}</main><nav class="sd-tabs">${TABS.map(([k, i, l]) => `<button class="sd-tab ${cur === k ? 'on' : ''}" ${cur === k ? 'aria-current="page"' : ''} data-a="tab" data-v="${k}">${icon(i, cur === k ? 'ph-fill' : 'ph')}<span>${l}</span>${k === 'aufgaben' && badge ? `<em class="sd-badge" aria-label="${badge} Aufgaben fällig">${badge}</em>` : k === 'aufgaben' && ui.tab !== 'aufgaben' && newTasks().length ? '<em class="sd-badge sd-bdot" aria-label="Neue Aufgaben"></em>' : ''}</button>`).join('')}</nav>${ui.sheet && !ui.catSheet ? sheetHtml() : ''}${ui.catSheet ? catSheetHtml() : ''}${ui.task ? taskSheetHtml() : ''}${ui.shopEdit ? shopSheetHtml() : ''}${ui.expEdit ? expSheetHtml() : ''}`;
   syncHistory();
   if (ui.tab === 'ausgaben') showPicked();
   const nsc = $app.querySelector('.sd-scroll'); if (nsc) nsc.scrollTop = scrollMem[ui.tab] || 0;
@@ -1038,9 +1045,12 @@ function render() {
 
 // ---------- Aktionen ----------
 const A = {
-  tab: d => { if (SUB_PARENT[d.v]) ui.back = TABS.some(t => t[0] === ui.tab) ? ui.tab : parentTab(); else ui.back = null; ui.tab = d.v; if (d.v === 'aufgaben') markItems('task'); if (d.v === 'routinen') markItems('routine'); render(); track('screen_view', { firebase_screen: d.v }); },
+  tab: d => { if (SUB_PARENT[d.v]) ui.back = TABS.some(t => t[0] === ui.tab) ? ui.tab : parentTab(); else ui.back = null; ui.newTaskCount = d.v === 'aufgaben' ? newTasks().length : 0; ui.tab = d.v; if (d.v === 'aufgaben') markItems('task'); if (d.v === 'routinen') markItems('routine'); render(); track('screen_view', { firebase_screen: d.v }); },
   back: () => { ui.tab = parentTab(); ui.back = null; render(); },
   expMonth: d => { ui.expMonth = Math.min(0, ui.expMonth + +d.v); render(); },
+  expTaxToggle: () => { ui.expDraftTax = !taxOn(); if (!ui.expDraftTax && hasTaxTag(ui.expDraft)) { ui.expDraft = ui.expDraft.replace(TAX_RE, '').replace(/\s+/g, ' ').trim(); const el = $app.querySelector('[data-in="expNew"]'); if (el) el.value = ui.expDraft; } const box = $app.querySelector('.sd-etax'); if (box) box.innerHTML = taxChip(taxOn(), 'expTaxToggle'); },
+  expTaxFilter: () => { ui.expTax = !ui.expTax; render(); },
+  eTax: () => { ui.expEdit.tax = !ui.expEdit.tax; render(); },
   expFilter: d => { ui.expCat = ui.expCat === d.v ? null : d.v; render(); },
   expShop: d => { ui.expDraft = d.v + ' '; render(); requestAnimationFrame(() => { const el = $app.querySelector('[data-in="expNew"]'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }); },
   expPick: d => {
@@ -1083,6 +1093,7 @@ const A = {
     if (!(amount > 0) || amount >= 1e8) return alert('Bitte einen Betrag größer als 0 eingeben.');
     if (!d.sub || !esub(d.cat, d.sub)) return alert('Bitte eine Unterkategorie wählen.');
     const x = { ...data.exp[d.id], title, amount, cat: d.cat, sub: d.sub, date: d.date, updatedAt: Date.now() }, note = (d.note || '').trim();
+    if (d.tax) x.tax = true; else delete x.tax;
     if (note) x.note = note.slice(0, 500); else delete x.note;
     ui.expEdit = null; store.saveExp(x).catch(fail);
   },
@@ -1257,7 +1268,7 @@ const A = {
     ui.busy = false; ui.setupErr = 'Beitreten hat nicht geklappt. Prüfe den Code. Ein Haushalt hat Platz für zwei Personen.'; render();
   },
   seen: () => { markSeen(); render(); },
-  openNew: d => { markItems(d.v); ui.tab = d.v === 'task' ? 'aufgaben' : 'routinen'; if (d.v === 'task') ui.taskView = 'mine'; render(); track('new_items_open', { kind: d.v }); },
+  openNew: d => { ui.newTaskCount = 0; markItems(d.v); ui.tab = d.v === 'task' ? 'aufgaben' : 'routinen'; if (d.v === 'task') ui.taskView = 'mine'; render(); track('new_items_open', { kind: d.v }); },
   seenNew: d => { markItems(d.v); render(); },
   whatsNew: () => { markSeen(); ui.tab = 'mehr'; render(); requestAnimationFrame(() => $app.querySelector('#about')?.scrollIntoView({ block: 'start' })); },
   logout: () => fb && fb.A.signOut(fb.auth)
@@ -1285,7 +1296,8 @@ function addExp(raw) {
   if (!cat) { ui.expDraft = raw; ui.expMsg = 'Bitte eine Kategorie wählen – oder das Geschäft dazuschreiben, zum Beispiel „Rewe 23,80“.'; return render(); }
   if (!sub) { ui.expDraft = raw; ui.expMsg = `Bitte noch die Unterkategorie von „${ecat(cat).name}“ wählen.`; return render(); }
   const x = { id: rid(), title: t, amount, cat, sub, by: ui.me, date: dk(0), createdAt: Date.now() };
-  ui.expDraft = ''; ui.expDraftCat = ui.expDraftSub = null; ui.expMsg = `Gespeichert: ${t ? t + ' ' : ''}${euro(amount)} · ${expLabel(x)}. Antippen in der Liste zum Ändern oder Löschen.`; ui.expMonth = 0;
+  if (taxOn()) x.tax = true;
+  ui.expDraft = ''; ui.expDraftCat = ui.expDraftSub = null; ui.expDraftTax = false; ui.expMsg = `Gespeichert: ${t ? t + ' ' : ''}${euro(amount)} · ${expLabel(x)}${x.tax ? ' · steuerrelevant' : ''}. Antippen in der Liste zum Ändern oder Löschen.`; ui.expMonth = 0;
   store.saveExp(x).catch(fail);
   track('expense_add', { cat });
 }
@@ -1321,7 +1333,7 @@ document.addEventListener('input', e => {
   if (k === 'shopNew') { ui.shopDraft = v; if (ui.shopMsg) { ui.shopMsg = ''; $app.querySelector('.sd-shop > .sd-hint')?.remove(); } const box = $app.querySelector('.sd-ssug'); if (box) box.innerHTML = shopSuggest(); }
   if (k === 'sTitle') { ui.shopEdit.title = v; const b = $app.querySelector('[data-a="sSave"]'); if (b) b.disabled = !v.trim(); }
   if (k === 'sQty') ui.shopEdit.qty = v;
-  if (k === 'expNew') { ui.expDraft = v; if (ui.expMsg) { ui.expMsg = ''; $app.querySelector('.sd-exp > .sd-hint[role="status"]')?.remove(); } const box = $app.querySelector('.sd-esug'); if (box) box.innerHTML = expSuggest(); const cp = $app.querySelector('.sd-ecp'); if (cp && !ui.expDraftCat) { cp.innerHTML = expCatPick(); showPicked(); } }
+  if (k === 'expNew') { ui.expDraft = v; if (ui.expMsg) { ui.expMsg = ''; $app.querySelector('.sd-exp > .sd-hint[role="status"]')?.remove(); } const box = $app.querySelector('.sd-esug'); if (box) box.innerHTML = expSuggest(); const cp = $app.querySelector('.sd-ecp'); if (cp && !ui.expDraftCat) { cp.innerHTML = expCatPick(); showPicked(); } const tx = $app.querySelector('.sd-etax'); if (tx) tx.innerHTML = taxChip(taxOn(), 'expTaxToggle'); }
   if (k === 'eNote') ui.expEdit.note = v;
   if (k === 'eTitle') ui.expEdit.title = v;
   if (k === 'eAmount') ui.expEdit.amountText = v;

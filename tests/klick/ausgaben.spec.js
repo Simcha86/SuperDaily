@@ -60,14 +60,15 @@ test('Monatsüberblick: Summe, Kategorien, voriger Monat, bearbeiten und lösche
 
 test('Navigation: Verwaltung führt zu Routinen, Aufgaben, Verlauf und Einstellungen, „Zurück“ führt zurück', async ({ browser, lokal }) => {
   const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
-  // Heute: Aufgaben mit „Neu“ und „Alle“, Knopf „Verlauf“
-  await expect(seite.locator('.sd-tasks').getByRole('button', { name: 'Aufgabe hinzufügen' })).toBeVisible();
+  // Heute (seit Version 18): nur Routinen; oben rechts Symbole für Liste/Kacheln und Verlauf
+  await expect(seite.locator('.sd-scroll .sd-tasks')).toHaveCount(0);
+  await expect(seite.locator('.sd-hdr').getByRole('button', { name: 'Als Kacheln zeigen' })).toBeVisible();
   await seite.locator('.sd-hdr').getByRole('button', { name: 'Verlauf' }).click();
   await expect(seite.locator('.sd-hdr h1')).toHaveText('Verlauf');
   await expect(seite.locator('.sd-tab.on')).toContainText('Heute');
   await seite.getByRole('button', { name: 'Heute' }).first().click();
   await expect(seite.locator('.sd-hdr h1')).toHaveText('Heute');
-  await seite.locator('.sd-tasks').getByRole('button', { name: 'Alle' }).click();
+  await tab(seite, 'Aufgaben');
   await expect(seite.locator('.sd-hdr h1')).toHaveText('Aufgaben');
   // Seit Version 14 eigener Bereich: unten markiert, kein „Zurück“
   await expect(seite.locator('.sd-tab.on')).toContainText('Aufgaben');
@@ -252,5 +253,52 @@ test('Version 16: Geschäft ist freiwillig – nur Betrag und Kategorie genügen
   // Leere Geschäfte erscheinen nicht als Vorschlag
   await eingabe(seite).pressSequentially('B');
   await expect(seite.locator('.sd-esug .sd-chip')).toHaveCount(0);
+  expect(seite.fehler).toEqual([]);
+});
+
+test('Version 17: steuerrelevant per Schalter und „#steuer“, Kennzeichen, Filter mit Monats- und Jahressumme', async ({ browser, lokal }) => {
+  const seite = await oeffneHandy(browser, lokal, { beispieldaten: true });
+  await tab(seite, 'Ausgaben');
+  const schalter = seite.locator('.sd-etax').getByRole('button', { name: 'Steuerrelevant' });
+  await expect(schalter).toHaveAttribute('aria-pressed', 'false');
+  // Filter erscheint erst, wenn es steuerrelevante Ausgaben gibt
+  await expect(seite.getByRole('button', { name: 'Nur steuerrelevant' })).toHaveCount(0);
+  // 1. Per Schalter
+  await eingabe(seite).fill('Apotheke 12,40');
+  await schalter.click();
+  await expect(schalter).toHaveAttribute('aria-pressed', 'true');
+  await eingabe(seite).press('Enter');
+  await expect(seite.getByRole('status').first()).toContainText('steuerrelevant');
+  await expect(seite.locator('.sd-etax').getByRole('button', { name: 'Steuerrelevant' })).toHaveAttribute('aria-pressed', 'false');
+  // 2. Per „#steuer“ im Satz – Wort gehört nicht zum Geschäft, Schalter zeigt es schon beim Tippen
+  await eingabe(seite).fill('Optiker 89 #steuer');
+  await expect(seite.locator('.sd-etax').getByRole('button', { name: 'Steuerrelevant' })).toHaveAttribute('aria-pressed', 'true');
+  await eingabe(seite).press('Enter');
+  const alle = await gespeichert(seite);
+  expect(alle.find(e => e.amount === 1240)).toMatchObject({ title: 'Apotheke', tax: true });
+  expect(alle.find(e => e.amount === 8900)).toMatchObject({ title: 'Optiker', tax: true, cat: 'gesundheit', sub: 'brille' });
+  expect(alle.find(e => e.title === 'Rewe').tax).toBeUndefined();
+  // Kennzeichen in der Liste
+  await expect(seite.locator('.sd-erow', { hasText: 'Optiker' })).toContainText('steuerrelevant');
+  await expect(seite.locator('.sd-erow', { hasText: 'Rewe' })).not.toContainText('steuerrelevant');
+  // Filter mit Summen
+  await seite.getByRole('button', { name: 'Nur steuerrelevant' }).click();
+  await expect(seite.locator('.sd-erow')).toHaveCount(2);
+  await expect(seite.locator('.sd-ebanner')).toContainText('Steuerrelevant');
+  await expect(seite.locator('.sd-ebanner')).toContainText('101,40');
+  await expect(seite.locator('.sd-etaxsum')).toContainText('101,40 € im');
+  await expect(seite.locator('.sd-etaxsum')).toContainText('im Jahr');
+  // Kategorien und Kopfzeile rechnen nur mit steuerrelevanten Ausgaben
+  await expect(seite.locator('.sd-ecat')).toHaveCount(1);
+  await expect(seite.locator('.sd-ecat').first()).toContainText('101,40 € · 100 %');
+  await expect(seite.locator('.sd-hdr .sd-sub')).not.toContainText('als im');
+  await seite.getByRole('button', { name: 'Nur steuerrelevant' }).click();
+  await expect(seite.locator('.sd-erow')).toHaveCount(9);
+  // Im Bearbeiten ausschalten
+  await seite.locator('.sd-erow', { hasText: 'Apotheke' }).filter({ hasText: '12,40' }).click();
+  const blatt = seite.getByRole('dialog', { name: 'Ausgabe bearbeiten' });
+  await blatt.getByRole('button', { name: 'Steuerrelevant' }).click();
+  await blatt.getByRole('button', { name: 'Speichern' }).click();
+  expect((await gespeichert(seite)).find(e => e.amount === 1240).tax).toBeUndefined();
   expect(seite.fehler).toEqual([]);
 });
